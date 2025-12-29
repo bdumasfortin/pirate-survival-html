@@ -8,6 +8,10 @@
 
 Open the URL printed by Vite (default is `http://localhost:5173`).
 
+## Deploy (GitHub Pages)
+- Push to `main` and GitHub Actions will build + deploy automatically.
+- Pages source should be set to GitHub Actions in the repo settings.
+
 ## Controls
 - Move: WASD or Arrow keys
 - Gather: E (when prompt shows)
