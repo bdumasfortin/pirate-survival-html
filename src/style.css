@@ -1,0 +1,32 @@
+:root {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #0b2430;
+  color: #f6e7c1;
+  font-family: "Zain";
+}
+
+#app {
+  display: block;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
