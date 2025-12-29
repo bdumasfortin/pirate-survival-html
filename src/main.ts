@@ -1,10 +1,13 @@
 import "./style.css";
-import { createInputState, bindKeyboard, bindInventorySelection } from "./core/input";
+import { createInputState, bindKeyboard, bindInventorySelection, bindMouse } from "./core/input";
 import { startLoop } from "./core/loop";
 import { createInitialState } from "./game/state";
 import { updateMovement } from "./systems/movement";
 import { constrainPlayerToIslands } from "./systems/collisions";
 import { gatherNearbyResource, updateResourceRespawns } from "./systems/gathering";
+import { updateSurvival } from "./systems/survival";
+import { dropSelectedItem } from "./systems/drop-selected-item";
+import { updateUseCooldown, useSelectedItem } from "./systems/use-selected-item";
 import { render } from "./render/renderer";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement | null;
@@ -37,6 +40,7 @@ const state = createInitialState();
 const input = createInputState();
 
 bindKeyboard(input);
+bindMouse(input);
 bindInventorySelection(state.inventory);
 
 const startGame = async () => {
@@ -55,6 +59,10 @@ const startGame = async () => {
       constrainPlayerToIslands(state);
       updateResourceRespawns(state, delta);
       gatherNearbyResource(state, input);
+      updateUseCooldown(delta);
+      useSelectedItem(state, input);
+      dropSelectedItem(state, input);
+      updateSurvival(state, delta);
     },
     onRender: () => {
       render(ctx, state);

@@ -28,6 +28,11 @@ const INVENTORY_BAR_PADDING = 18;
 const INVENTORY_BAR_MARGIN = 12;
 const INVENTORY_CORNER_RADIUS = 12;
 
+const HUD_MARGIN = 18;
+const BAR_WIDTH = 220;
+const BAR_HEIGHT = 14;
+const BAR_GAP = 10;
+
 const drawIsland = (ctx: CanvasRenderingContext2D, points: { x: number; y: number }[]) => {
   if (points.length === 0) {
     return;
@@ -164,6 +169,61 @@ const renderInteractionPrompt = (ctx: CanvasRenderingContext2D, state: GameState
   ctx.restore();
 };
 
+const renderSurvivalBars = (ctx: CanvasRenderingContext2D, state: GameState) => {
+  const stats = state.survival;
+  const x = HUD_MARGIN;
+  let y = HUD_MARGIN;
+
+  const drawBar = (value: number, max: number, color: string) => {
+    const ratio = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
+
+    ctx.save();
+    ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = "rgba(12, 22, 26, 0.55)";
+    drawRoundedRect(ctx, x - 10, y - 8, BAR_WIDTH + 20, BAR_HEIGHT + 16, 8);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+    drawRoundedRect(ctx, x, y, BAR_WIDTH, BAR_HEIGHT, 7);
+    ctx.fill();
+
+    ctx.fillStyle = color;
+    drawRoundedRect(ctx, x, y, BAR_WIDTH * ratio, BAR_HEIGHT, 7);
+    ctx.fill();
+    ctx.restore();
+
+    y += BAR_HEIGHT + BAR_GAP + 18;
+  };
+
+  drawBar(stats.health, stats.maxHealth, "#e2534b");
+  drawBar(stats.hunger, stats.maxHunger, "#d9a441");
+  drawBar(stats.thirst, stats.maxThirst, "#4da3d9");
+};
+
+const renderHints = (ctx: CanvasRenderingContext2D) => {
+  const { innerHeight } = window;
+  const lines = ["Q to drop items", "C toggles crafting menu"];
+  const fontSize = 14;
+  const lineHeight = fontSize + 6;
+  let y = innerHeight - HUD_MARGIN + 2;
+
+  ctx.save();
+  ctx.font = `${fontSize}px ${UI_FONT}`;
+  ctx.fillStyle = "rgba(246, 231, 193, 0.8)";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "bottom";
+
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    ctx.fillText(lines[i], HUD_MARGIN, y);
+    y -= lineHeight;
+  }
+
+  ctx.restore();
+};
+
 export const render = (ctx: CanvasRenderingContext2D, state: GameState) => {
   const { innerWidth, innerHeight } = window;
   ctx.clearRect(0, 0, innerWidth, innerHeight);
@@ -211,7 +271,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState) => {
 
   ctx.restore();
 
+  renderSurvivalBars(ctx, state);
   renderInteractionPrompt(ctx, state);
   renderInventory(ctx, state);
+  renderHints(ctx);
 };
+
 

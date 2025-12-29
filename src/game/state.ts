@@ -1,5 +1,6 @@
 import type { Entity } from "./entities";
 import { createInventory, type InventoryState } from "./inventory";
+import { createSurvivalStats, type SurvivalStats } from "./survival";
 import { createWorld, type WorldState } from "../world/world";
 
 export type GameState = {
@@ -8,6 +9,7 @@ export type GameState = {
   playerId: number;
   world: WorldState;
   inventory: InventoryState;
+  survival: SurvivalStats;
 };
 
 export const createInitialState = (): GameState => {
@@ -25,6 +27,7 @@ export const createInitialState = (): GameState => {
     entities: [player],
     playerId: player.id,
     world: createWorld(),
-    inventory: createInventory()
+    inventory: createInventory(),
+    survival: createSurvivalStats()
   };
 };

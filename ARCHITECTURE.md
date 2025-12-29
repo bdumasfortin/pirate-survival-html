@@ -6,38 +6,53 @@
 - Keep gameplay code data-driven where practical.
 
 ## Directory layout
-- `src/core/` low-level utilities (time, input, math, RNG).
-- `src/game/` game state, entities, and high-level orchestration.
-- `src/systems/` update logic (movement, hunger, gathering, AI).
-- `src/render/` draw routines and camera.
-- `src/world/` world generation, islands, tiles, and resources.
+- `src/core/` low-level utilities (input bindings, loop timing).
+- `src/game/` game state, entities, inventory, survival stats.
+- `src/systems/` update logic (movement, collisions, gathering, survival, item use).
+- `src/render/` draw routines, camera, HUD.
+- `src/world/` world generation, islands, resource nodes.
 - `src/assets/` static assets (sprites, audio, json data).
 
+## Current implementation (prototype)
+- Canvas renderer with camera follow + zoom.
+- Organic polygon islands with multiple surrounding islands.
+- Player movement + island boundary collisions with edge sliding.
+- Resources: trees (multi-yield), rocks (single), bushes (berry respawn).
+- Inventory: 9 slots, stack limit 20, mouse wheel/1-9 selection.
+- Item use: left-click uses berries to restore hunger (cooldown 0.33s).
+- Survival bars: health, hunger, thirst UI with decay over time.
+- UI: bottom hotbar, interaction prompts, survival bars.
+
 ## Module responsibilities
-- `src/core/loop.ts` manages requestAnimationFrame and fixed step.
-- `src/core/input.ts` keyboard + pointer state.
-- `src/core/time.ts` time helpers and delta smoothing.
+- `src/core/loop.ts` manages requestAnimationFrame timing.
+- `src/core/input.ts` keyboard + mouse input queues.
 - `src/game/state.ts` top-level game state and initializers.
-- `src/game/entities.ts` entity types and IDs.
-- `src/systems/` runs in order; each system mutates state.
-- `src/render/renderer.ts` draws world + entities; camera follows player.
-- `src/world/world.ts` island layout, resource nodes, spawn points.
+- `src/game/inventory.ts` inventory data and stack handling.
+- `src/game/survival.ts` survival stats model.
+- `src/systems/movement.ts` movement updates.
+- `src/systems/collisions.ts` island boundary constraints + sliding.
+- `src/systems/gathering.ts` resource interaction + respawn.
+- `src/systems/survival.ts` hunger/thirst decay + health loss.
+- `src/systems/use-selected-item.ts` item use + cooldown.
+- `src/render/renderer.ts` world render + HUD (inventory, prompts, bars).
+- `src/world/world.ts` island creation + resource seeding.
 
 ## Data flow
 1) Input updates in `core/input`.
-2) `core/loop` ticks fixed update for deterministic systems.
-3) Systems mutate state (movement, hunger, AI, etc).
-4) Renderer reads state and draws to canvas.
+2) Loop tick updates systems in `main.ts` order.
+3) Systems mutate `GameState`.
+4) Renderer reads `GameState` and draws.
 
-## Ordering (prototype)
-1) Input
-2) Movement + collisions
-3) Hunger/Thirst
-4) Interaction (gather, pick up)
-5) AI (crabs)
-6) Render
+## Update order (current)
+1) Movement
+2) Collisions
+3) Resource respawn
+4) Gather (E)
+5) Use item (LMB)
+6) Survival decay
+7) Render
 
 ## Notes
-- Keep systems stateless; pass state in/out.
-- Avoid global singletons; use one `GameState` instance.
-- Assets referenced by IDs (string enums or consts).
+- Systems are intentionally stateless; mutate the passed `GameState`.
+- Resources and islands are deterministic via seed config.
+- Fonts are loaded before the first frame (`document.fonts.load`).

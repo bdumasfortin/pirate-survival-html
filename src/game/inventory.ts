@@ -51,24 +51,13 @@ export const addToInventory = (inventory: InventoryState, kind: ResourceKind, am
     remaining -= toAdd;
   };
 
-  const selected = slots[inventory.selectedIndex];
-  if (selected) {
-    fillSlot(selected, true);
-  }
-
   for (const slot of slots) {
-    if (slot === selected) {
-      continue;
-    }
     if (slot.kind === kind && slot.quantity < STACK_LIMIT) {
       fillSlot(slot, false);
     }
   }
 
   for (const slot of slots) {
-    if (slot === selected) {
-      continue;
-    }
     if (slot.kind === null) {
       fillSlot(slot, true);
     }
@@ -76,3 +65,4 @@ export const addToInventory = (inventory: InventoryState, kind: ResourceKind, am
 
   return amount - remaining;
 };
+

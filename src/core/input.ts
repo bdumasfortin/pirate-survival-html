@@ -6,6 +6,8 @@ export type InputState = {
   left: boolean;
   right: boolean;
   interactQueued: boolean;
+  useQueued: boolean;
+  dropQueued: boolean;
 };
 
 export const createInputState = (): InputState => ({
@@ -13,7 +15,9 @@ export const createInputState = (): InputState => ({
   down: false,
   left: false,
   right: false,
-  interactQueued: false
+  interactQueued: false,
+  useQueued: false,
+  dropQueued: false
 });
 
 export const bindKeyboard = (state: InputState) => {
@@ -40,6 +44,11 @@ export const bindKeyboard = (state: InputState) => {
           state.interactQueued = true;
         }
         break;
+      case "KeyQ":
+        if (value) {
+          state.dropQueued = true;
+        }
+        break;
       default:
         break;
     }
@@ -49,12 +58,38 @@ export const bindKeyboard = (state: InputState) => {
   window.addEventListener("keyup", (event) => setKey(event.code, false));
 };
 
+export const bindMouse = (state: InputState) => {
+  window.addEventListener("mousedown", (event) => {
+    if (event.button === 0) {
+      state.useQueued = true;
+    }
+  });
+};
+
 export const consumeInteract = (state: InputState) => {
   if (!state.interactQueued) {
     return false;
   }
 
   state.interactQueued = false;
+  return true;
+};
+
+export const consumeUse = (state: InputState) => {
+  if (!state.useQueued) {
+    return false;
+  }
+
+  state.useQueued = false;
+  return true;
+};
+
+export const consumeDrop = (state: InputState) => {
+  if (!state.dropQueued) {
+    return false;
+  }
+
+  state.dropQueued = false;
   return true;
 };
 
