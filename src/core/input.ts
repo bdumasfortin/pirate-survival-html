@@ -76,6 +76,27 @@ export const bindKeyboard = (state: InputState) => {
         break;
     }
   };
+  const resetMovement = () => {
+    state.up = false;
+    state.down = false;
+    state.left = false;
+    state.right = false;
+  };
+
+  const resetQueuedInputs = () => {
+    state.interactQueued = false;
+    state.useQueued = false;
+    state.dropQueued = false;
+    state.toggleCraftQueued = false;
+    state.closeCraftQueued = false;
+    state.craftIndexQueued = null;
+    state.craftScrollQueued = 0;
+  };
+
+  const resetInputState = () => {
+    resetMovement();
+    resetQueuedInputs();
+  };
 
   const queueCraftIndex = (code: string) => {
     if (code.startsWith("Digit") && code.length === 6) {
@@ -98,6 +119,13 @@ export const bindKeyboard = (state: InputState) => {
     queueCraftIndex(event.code);
   });
   window.addEventListener("keyup", (event) => setKey(event.code, false));
+  window.addEventListener("blur", resetInputState);
+  window.addEventListener("contextmenu", resetInputState);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      resetInputState();
+    }
+  });
 };
 
 export const bindCraftScroll = (state: InputState, isActive: () => boolean) => {

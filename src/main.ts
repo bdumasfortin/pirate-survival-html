@@ -28,6 +28,10 @@ if (!ctx) {
   throw new Error("Canvas 2D context not available.");
 }
 
+canvas.addEventListener("contextmenu", (event) => {
+  event.preventDefault();
+});
+
 const menuOverlay = document.getElementById("seed-menu") as HTMLElement | null;
 const loadingOverlay = document.getElementById("loading-overlay") as HTMLElement | null;
 const seedInput = document.getElementById("seed-input") as HTMLInputElement | null;

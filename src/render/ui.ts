@@ -492,6 +492,55 @@ const renderBuildVersion = (ctx: CanvasRenderingContext2D) => {
   ctx.fillText(activeSeedLabel, innerWidth - HUD_MARGIN, HUD_MARGIN + fontSize + 6);
   ctx.restore();
 };
+
+const renderPlayerCoords = (ctx: CanvasRenderingContext2D, state: GameState) => {
+  const player = state.entities.find((entity) => entity.id === state.playerId);
+  if (!player) {
+    return;
+  }
+
+  const { innerWidth } = window;
+  const fontSize = 14;
+  const lineHeight = fontSize + 4;
+  const paddingX = 12;
+  const paddingTop = 8;
+  const paddingBottom = 4;
+  const lines = [
+    `X: ${Math.round(player.position.x)}`,
+    `Y: ${Math.round(player.position.y)}`
+  ];
+
+  ctx.save();
+  ctx.font = `${fontSize}px ${UI_FONT}`;
+  const maxWidth = lines.reduce((max, line) => Math.max(max, ctx.measureText(line).width), 0);
+  const boxWidth = maxWidth + paddingX * 2;
+  const boxHeight = lines.length * lineHeight + paddingTop + paddingBottom;
+  const boxX = HUD_MARGIN;
+  const boxY = HUD_MARGIN;
+
+  ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+  ctx.shadowBlur = 8;
+  ctx.fillStyle = "rgba(12, 22, 26, 0.6)";
+  drawRoundedRect(ctx, boxX, boxY, boxWidth, boxHeight, 10);
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "rgba(246, 231, 193, 0.9)";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+
+  const contentHeight = boxHeight - paddingTop - paddingBottom;
+  const textBlockHeight = lines.length * lineHeight;
+  const startY = boxY + paddingTop + Math.max(0, (contentHeight - textBlockHeight) / 2);
+
+  lines.forEach((line, index) => {
+    const x = boxX + paddingX;
+    const y = startY + index * lineHeight;
+    ctx.fillText(line, x, y);
+  });
+
+  ctx.restore();
+};
 const renderHints = (ctx: CanvasRenderingContext2D) => {
   const { innerWidth, innerHeight } = window;
   const lines = [
@@ -579,6 +628,7 @@ export const renderHud = (ctx: CanvasRenderingContext2D, state: GameState) => {
   renderInventory(ctx, state);
   renderHints(ctx);
   renderBuildVersion(ctx);
+  renderPlayerCoords(ctx, state);
   renderDamageFlash(ctx, state);
   renderDeathOverlay(ctx, state);
 };
