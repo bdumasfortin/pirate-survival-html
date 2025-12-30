@@ -101,9 +101,11 @@ const startGame = async () => {
 
       if (!state.isDead) {
         updateMovement(state, input, delta);
-        updateRaft(state, input);
         constrainPlayerToIslands(state);
         updateCrafting(state, input);
+        if (!state.crafting.isOpen) {
+          updateRaft(state, input);
+        }
       }
 
       updateResourceRespawns(state, delta);
@@ -111,8 +113,10 @@ const startGame = async () => {
       if (!state.isDead) {
         gatherNearbyResource(state, input);
         updateUseCooldown(delta);
-        updatePlayerAttack(state, input, delta);
-        useSelectedItem(state, input);
+        if (!state.crafting.isOpen) {
+          updatePlayerAttack(state, input, delta);
+          useSelectedItem(state, input);
+        }
         dropSelectedItem(state, input);
       }
 

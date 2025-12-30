@@ -4,6 +4,10 @@ import { RAFT_INTERACTION_DISTANCE, RAFT_SHORE_BUFFER } from "../game/raft-confi
 import { findClosestIslandEdge } from "../world/island-geometry";
 
 export const updateRaft = (state: GameState, input: InputState) => {
+  if (state.crafting.isOpen) {
+    return;
+  }
+
   if (!input.useQueued) {
     return;
   }
