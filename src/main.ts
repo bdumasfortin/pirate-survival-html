@@ -96,6 +96,10 @@ const startGame = async () => {
 
       updateCrabs(state, delta);
       updateSurvival(state, delta);
+
+      if (input.useQueued) {
+        input.useQueued = false;
+      }
     },
     onRender: () => {
       render(ctx, state);

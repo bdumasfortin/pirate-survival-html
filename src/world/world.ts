@@ -162,7 +162,7 @@ const createResourcesForIsland = (island: Island, seed: number, startId: number)
       nodeType: "rock" as const,
       kind: "rock" as const,
       radius: 8,
-      count: 7,
+      count: 14,
       yield: { min: 1, max: 1 },
       respawnTime: 0
     },

@@ -481,6 +481,10 @@ const renderDeathOverlay = (ctx: CanvasRenderingContext2D, state: GameState) => 
   ctx.textBaseline = "middle";
   ctx.font = `48px ${UI_FONT}`;
   ctx.fillText("You Died", innerWidth / 2, innerHeight / 2);
+
+  ctx.font = `18px ${UI_FONT}`;
+  ctx.fillStyle = "rgba(246, 231, 193, 0.85)";
+  ctx.fillText("F5 to restart", innerWidth / 2, innerHeight / 2 + 46);
   ctx.restore();
 };
 const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => {

@@ -84,5 +84,31 @@ export const createCrabs = (world: WorldState): Crab[] => {
     });
   }
 
+
+  const leftIslandIndex = world.islands.reduce((leftmostIndex, island, index, islands) => {
+    return island.center.x < islands[leftmostIndex].center.x ? index : leftmostIndex;
+  }, 0);
+  const bossIsland = world.islands[leftIslandIndex];
+  const bossPosition = randomPointInIsland(bossIsland, 0.85);
+  crabs.push({
+    id: count + 1,
+    kind: "crab",
+    position: bossPosition,
+    velocity: { x: 0, y: 0 },
+    radius: 130,
+    health: 260,
+    maxHealth: 260,
+    damage: 16,
+    speed: 38,
+    aggroRange: 140,
+    attackRange: 60,
+    attackCooldown: 1.4,
+    attackTimer: 0,
+    wanderAngle: Math.random() * Math.PI * 2,
+    wanderTimer: 1.8 + Math.random() * 2,
+    homeIslandIndex: leftIslandIndex,
+    hitTimer: 0
+  });
+
   return crabs;
 };

@@ -48,8 +48,6 @@ export const createInitialState = (): GameState => {
   const world = createWorld();
   const crabs = createCrabs(world);
   const inventory = createInventory();
-  inventory.slots[0] = { kind: "sword", quantity: 1 };
-  inventory.slots[1] = { kind: "raft", quantity: 1 };
 
   return {
     time: 0,

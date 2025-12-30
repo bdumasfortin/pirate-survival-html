@@ -133,6 +133,7 @@ export const updatePlayerAttack = (state: GameState, input: InputState, delta: n
   const angle = Math.atan2(dir.y, dir.x);
   const coneRadius = player.radius + PLAYER_ATTACK_RANGE;
   const coneSpread = 0.9;
+  const attackReach = coneRadius;
 
   state.attackEffect = {
     origin: {
@@ -155,7 +156,7 @@ export const updatePlayerAttack = (state: GameState, input: InputState, delta: n
     const dy = enemy.position.y - player.position.y;
     const dist = Math.hypot(dx, dy);
 
-    if (dist <= player.radius + PLAYER_ATTACK_RANGE && dist < closestDistance) {
+    if (dist <= attackReach + enemy.radius && dist < closestDistance) {
       closestDistance = dist;
       closestIndex = i;
     }
