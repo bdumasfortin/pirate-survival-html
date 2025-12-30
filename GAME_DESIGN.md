@@ -61,7 +61,6 @@
 - Monsters tied to biomes; difficulty scales with distance from spawn.
 - Boss encounters on remote islands.
 - Crafting system expansion: recipe categories, crafting stations, and tool requirements.
-- Loot drops, ground items, item dropping
 - Tools: axe/pick upgrades that change gather speed/yield.
 - Building placement: bedroll, storage, dock, simple shelters.
 - Resource variety: rare nodes, fish, and treasure finds.

@@ -53,6 +53,8 @@ const promptLabels: Record<ResourceNodeType, string> = {
   bush: "E to collect"
 };
 
+const buildVersionLabel = `v${__APP_VERSION__}${import.meta.env.DEV ? "-dev" : ""}`;
+
 const getItemIcon = (kind: ResourceKind) => {
   const image = itemImages[kind];
   return isImageReady(image) ? image : null;
@@ -455,6 +457,18 @@ const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => 
   }
 };
 
+const renderBuildVersion = (ctx: CanvasRenderingContext2D) => {
+  const { innerWidth } = window;
+  const fontSize = 14;
+
+  ctx.save();
+  ctx.font = `${fontSize}px ${UI_FONT}`;
+  ctx.fillStyle = "rgba(246, 231, 193, 0.7)";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "top";
+  ctx.fillText(buildVersionLabel, innerWidth - HUD_MARGIN, HUD_MARGIN);
+  ctx.restore();
+};
 const renderHints = (ctx: CanvasRenderingContext2D) => {
   const { innerWidth, innerHeight } = window;
   const lines = [
@@ -541,15 +555,7 @@ export const renderHud = (ctx: CanvasRenderingContext2D, state: GameState) => {
   renderEquipment(ctx, state);
   renderInventory(ctx, state);
   renderHints(ctx);
+  renderBuildVersion(ctx);
   renderDamageFlash(ctx, state);
   renderDeathOverlay(ctx, state);
 };
-
-
-
-
-
-
-
-
-
