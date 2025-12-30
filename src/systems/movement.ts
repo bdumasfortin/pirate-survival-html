@@ -25,5 +25,10 @@ export const updateMovement = (state: GameState, input: InputState, delta: numbe
 
   player.position.x += player.velocity.x * delta;
   player.position.y += player.velocity.y * delta;
+
+  const movementSpeed = Math.hypot(player.velocity.x, player.velocity.y);
+  if (movementSpeed > 0.01) {
+    state.moveAngle = Math.atan2(player.velocity.y, player.velocity.x);
+  }
 };
 

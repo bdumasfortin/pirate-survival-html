@@ -10,7 +10,9 @@ export type InputState = {
   useQueued: boolean;
   dropQueued: boolean;
   toggleCraftQueued: boolean;
+  closeCraftQueued: boolean;
   craftIndexQueued: number | null;
+  craftScrollQueued: number;
   mouseScreen: Vec2 | null;
   mouseWorld: Vec2 | null;
 };
@@ -24,7 +26,9 @@ export const createInputState = (): InputState => ({
   useQueued: false,
   dropQueued: false,
   toggleCraftQueued: false,
+  closeCraftQueued: false,
   craftIndexQueued: null,
+  craftScrollQueued: 0,
   mouseScreen: null,
   mouseWorld: null
 });
@@ -63,6 +67,11 @@ export const bindKeyboard = (state: InputState) => {
           state.toggleCraftQueued = true;
         }
         break;
+      case "Escape":
+        if (value) {
+          state.closeCraftQueued = true;
+        }
+        break;
       default:
         break;
     }
@@ -89,6 +98,24 @@ export const bindKeyboard = (state: InputState) => {
     queueCraftIndex(event.code);
   });
   window.addEventListener("keyup", (event) => setKey(event.code, false));
+};
+
+export const bindCraftScroll = (state: InputState, isActive: () => boolean) => {
+  const handleWheel = (event: WheelEvent) => {
+    if (!isActive()) {
+      return;
+    }
+
+    if (event.deltaY === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    const direction = event.deltaY > 0 ? 1 : -1;
+    state.craftScrollQueued += direction;
+  };
+
+  window.addEventListener("wheel", handleWheel, { passive: false });
 };
 
 export const bindMouse = (state: InputState) => {
@@ -140,6 +167,25 @@ export const consumeToggleCraft = (state: InputState) => {
 
   state.toggleCraftQueued = false;
   return true;
+};
+
+export const consumeCloseCraft = (state: InputState) => {
+  if (!state.closeCraftQueued) {
+    return false;
+  }
+
+  state.closeCraftQueued = false;
+  return true;
+};
+
+export const consumeCraftScroll = (state: InputState) => {
+  if (state.craftScrollQueued === 0) {
+    return 0;
+  }
+
+  const delta = state.craftScrollQueued;
+  state.craftScrollQueued = 0;
+  return delta;
 };
 
 export const consumeCraftIndex = (state: InputState) => {

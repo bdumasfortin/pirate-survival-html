@@ -68,7 +68,7 @@ export const createCrabs = (world: WorldState): Crab[] => {
       kind: "crab",
       position,
       velocity: { x: 0, y: 0 },
-      radius: 12,
+      radius: 16,
       health: 30,
       maxHealth: 30,
       damage: 6,

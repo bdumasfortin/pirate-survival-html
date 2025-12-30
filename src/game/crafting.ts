@@ -16,10 +16,12 @@ export type Recipe = {
 
 export type CraftingState = {
   isOpen: boolean;
+  selectedIndex: number;
 };
 
 export const createCraftingState = (): CraftingState => ({
-  isOpen: false
+  isOpen: false,
+  selectedIndex: 0
 });
 
 export const recipes: Recipe[] = [

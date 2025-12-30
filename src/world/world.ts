@@ -18,6 +18,7 @@ export type ResourceNode = {
   nodeType: ResourceNodeType;
   kind: ResourceKind;
   position: Vec2;
+  rotation: number;
   radius: number;
   yield: YieldRange;
   remaining: number;
@@ -185,6 +186,7 @@ const createResourcesForIsland = (island: Island, seed: number, startId: number)
         nodeType: config.nodeType,
         kind: config.kind,
         position,
+        rotation: rng() * Math.PI * 2,
         radius: config.radius,
         yield: config.yield,
         remaining,

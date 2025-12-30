@@ -7,6 +7,7 @@ const PLAYER_ATTACK_DAMAGE = 14;
 const PLAYER_ATTACK_COOLDOWN = 0.4;
 const ATTACK_EFFECT_DURATION = 0.12;
 const CRAB_HIT_FLASH = 0.18;
+const DAMAGE_FLASH_DURATION = 0.25;
 let playerAttackTimer = 0;
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -82,10 +83,12 @@ export const updateCrabs = (state: GameState, delta: number) => {
     if (postDist <= hitRange && crab.attackTimer <= 0) {
       stats.health = clamp(stats.health - crab.damage, 0, stats.maxHealth);
       crab.attackTimer = crab.attackCooldown;
+      state.damageFlashTimer = DAMAGE_FLASH_DURATION;
 
       if (stats.health <= 0) {
         stats.health = 0;
         state.isDead = true;
+        state.damageFlashTimer = 0;
         state.attackEffect = null;
       }
     }

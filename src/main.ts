@@ -1,5 +1,5 @@
 import "./style.css";
-import { createInputState, bindKeyboard, bindInventorySelection, bindMouse } from "./core/input";
+import { createInputState, bindKeyboard, bindInventorySelection, bindMouse, bindCraftScroll } from "./core/input";
 import { startLoop } from "./core/loop";
 import { CAMERA_ZOOM } from "./game/config";
 import { createInitialState } from "./game/state";
@@ -45,6 +45,7 @@ const input = createInputState();
 
 bindKeyboard(input);
 bindMouse(input);
+bindCraftScroll(input, () => state.crafting.isOpen);
 bindInventorySelection(state.inventory, () => !state.crafting.isOpen && !state.isDead);
 
 const startGame = async () => {
@@ -66,6 +67,14 @@ const startGame = async () => {
           x: (input.mouseScreen.x - window.innerWidth / 2) / CAMERA_ZOOM + player.position.x,
           y: (input.mouseScreen.y - window.innerHeight / 2) / CAMERA_ZOOM + player.position.y
         };
+      }
+
+      if (player && input.mouseWorld) {
+        const dx = input.mouseWorld.x - player.position.x;
+        const dy = input.mouseWorld.y - player.position.y;
+        if (Math.hypot(dx, dy) > 0.01) {
+          state.aimAngle = Math.atan2(dy, dx);
+        }
       }
 
       if (!state.isDead) {

@@ -4,6 +4,7 @@ export type Enemy = {
   id: number;
   kind: "crab";
   position: Vec2;
+  velocity?: Vec2;
   radius: number;
   health: number;
   maxHealth: number;
