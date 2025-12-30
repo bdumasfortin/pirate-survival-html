@@ -5,8 +5,7 @@ import type { Vec2 } from "../core/types";
 const PLAYER_ATTACK_RANGE = 32;
 const PLAYER_ATTACK_DAMAGE = 14;
 const PLAYER_ATTACK_COOLDOWN = 0.4;
-const ATTACK_EFFECT_DURATION = 0.18;
-const ATTACK_ARC_HALF = 0.75;
+const ATTACK_EFFECT_DURATION = 0.12;
 const CRAB_HIT_FLASH = 0.18;
 let playerAttackTimer = 0;
 
@@ -123,17 +122,17 @@ export const updatePlayerAttack = (state: GameState, input: InputState, delta: n
     : { x: player.velocity.x, y: player.velocity.y };
   const dir = Math.hypot(aimVector.x, aimVector.y) > 1 ? normalize(aimVector.x, aimVector.y) : { x: 1, y: 0 };
   const angle = Math.atan2(dir.y, dir.x);
-  const strikeDistance = player.radius + 12;
-  const arcRadius = player.radius + 14;
+  const coneRadius = player.radius + PLAYER_ATTACK_RANGE;
+  const coneSpread = 0.9;
 
   state.attackEffect = {
-    center: {
-      x: player.position.x + dir.x * strikeDistance,
-      y: player.position.y + dir.y * strikeDistance
+    origin: {
+      x: player.position.x,
+      y: player.position.y
     },
-    radius: arcRadius,
-    startAngle: angle - ATTACK_ARC_HALF,
-    endAngle: angle + ATTACK_ARC_HALF,
+    angle,
+    radius: coneRadius,
+    spread: coneSpread,
     timer: ATTACK_EFFECT_DURATION,
     duration: ATTACK_EFFECT_DURATION
   };
@@ -165,3 +164,8 @@ export const updatePlayerAttack = (state: GameState, input: InputState, delta: n
 
   playerAttackTimer = PLAYER_ATTACK_COOLDOWN;
 };
+
+
+
+
+

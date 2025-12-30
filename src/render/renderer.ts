@@ -211,7 +211,7 @@ const renderSurvivalBars = (ctx: CanvasRenderingContext2D, state: GameState) => 
 
   drawBar(stats.health, stats.maxHealth, "#e2534b");
   drawBar(stats.hunger, stats.maxHunger, "#d9a441");
-  };
+};
 
 const renderAttackEffect = (ctx: CanvasRenderingContext2D, state: GameState) => {
   const effect = state.attackEffect;
@@ -221,13 +221,17 @@ const renderAttackEffect = (ctx: CanvasRenderingContext2D, state: GameState) => 
 
   const alpha = effect.duration > 0 ? effect.timer / effect.duration : 0;
   const radius = effect.radius + (1 - alpha) * 4;
+  const startAngle = effect.angle - effect.spread / 2;
+  const endAngle = effect.angle + effect.spread / 2;
 
   ctx.save();
-  ctx.strokeStyle = `rgba(255, 233, 180, ${alpha})`;
-  ctx.lineWidth = 2 + (1 - alpha) * 1.5;
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = "rgba(255, 233, 180, 0.4)";
   ctx.beginPath();
-  ctx.arc(effect.center.x, effect.center.y, radius, effect.startAngle, effect.endAngle);
-  ctx.stroke();
+  ctx.moveTo(effect.origin.x, effect.origin.y);
+  ctx.arc(effect.origin.x, effect.origin.y, radius, startAngle, endAngle);
+  ctx.closePath();
+  ctx.fill();
   ctx.restore();
 };
 
@@ -347,14 +351,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState) => {
     ctx.fill();
   });
 
+  renderAttackEffect(ctx, state);
+
   state.entities.forEach((entity) => {
     ctx.beginPath();
     ctx.arc(entity.position.x, entity.position.y, entity.radius, 0, Math.PI * 2);
     ctx.fillStyle = entity.tag === "player" ? "#222222" : "#f56565";
     ctx.fill();
   });
-
-  renderAttackEffect(ctx, state);
 
   ctx.restore();
 
@@ -364,5 +368,3 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState) => {
   renderInventory(ctx, state);
   renderHints(ctx);
 };
-
-

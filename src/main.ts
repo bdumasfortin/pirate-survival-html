@@ -8,6 +8,7 @@ import { constrainPlayerToIslands } from "./systems/collisions";
 import { updateCrafting } from "./systems/crafting";
 import { updateCrabs, updatePlayerAttack } from "./systems/crabs";
 import { gatherNearbyResource, updateResourceRespawns } from "./systems/gathering";
+import { updateRaft } from "./systems/raft";
 import { updateSurvival } from "./systems/survival";
 import { dropSelectedItem } from "./systems/drop-selected-item";
 import { updateUseCooldown, useSelectedItem } from "./systems/use-selected-item";
@@ -68,6 +69,7 @@ const startGame = async () => {
       }
 
       updateMovement(state, input, delta);
+      updateRaft(state, input);
       constrainPlayerToIslands(state);
       updateCrafting(state, input);
       updateResourceRespawns(state, delta);
@@ -86,4 +88,3 @@ const startGame = async () => {
 };
 
 void startGame();
-
