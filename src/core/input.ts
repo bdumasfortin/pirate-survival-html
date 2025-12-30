@@ -1,4 +1,5 @@
 import type { InventoryState } from "../game/inventory";
+import type { Vec2 } from "./types";
 
 export type InputState = {
   up: boolean;
@@ -8,6 +9,10 @@ export type InputState = {
   interactQueued: boolean;
   useQueued: boolean;
   dropQueued: boolean;
+  toggleCraftQueued: boolean;
+  craftIndexQueued: number | null;
+  mouseScreen: Vec2 | null;
+  mouseWorld: Vec2 | null;
 };
 
 export const createInputState = (): InputState => ({
@@ -17,7 +22,11 @@ export const createInputState = (): InputState => ({
   right: false,
   interactQueued: false,
   useQueued: false,
-  dropQueued: false
+  dropQueued: false,
+  toggleCraftQueued: false,
+  craftIndexQueued: null,
+  mouseScreen: null,
+  mouseWorld: null
 });
 
 export const bindKeyboard = (state: InputState) => {
@@ -49,19 +58,50 @@ export const bindKeyboard = (state: InputState) => {
           state.dropQueued = true;
         }
         break;
+      case "KeyC":
+        if (value) {
+          state.toggleCraftQueued = true;
+        }
+        break;
       default:
         break;
     }
   };
 
-  window.addEventListener("keydown", (event) => setKey(event.code, true));
+  const queueCraftIndex = (code: string) => {
+    if (code.startsWith("Digit") && code.length === 6) {
+      const digit = Number.parseInt(code.slice(5), 10);
+      if (digit >= 1 && digit <= 9) {
+        state.craftIndexQueued = digit - 1;
+      }
+    }
+
+    if (code.startsWith("Numpad")) {
+      const digit = Number.parseInt(code.slice(6), 10);
+      if (digit >= 1 && digit <= 9) {
+        state.craftIndexQueued = digit - 1;
+      }
+    }
+  };
+
+  window.addEventListener("keydown", (event) => {
+    setKey(event.code, true);
+    queueCraftIndex(event.code);
+  });
   window.addEventListener("keyup", (event) => setKey(event.code, false));
 };
 
 export const bindMouse = (state: InputState) => {
+  window.addEventListener("mousemove", (event) => {
+    state.mouseScreen = { x: event.clientX, y: event.clientY };
+  });
+
   window.addEventListener("mousedown", (event) => {
     if (event.button === 0) {
       state.useQueued = true;
+      if (!state.mouseScreen) {
+        state.mouseScreen = { x: event.clientX, y: event.clientY };
+      }
     }
   });
 };
@@ -93,6 +133,25 @@ export const consumeDrop = (state: InputState) => {
   return true;
 };
 
+export const consumeToggleCraft = (state: InputState) => {
+  if (!state.toggleCraftQueued) {
+    return false;
+  }
+
+  state.toggleCraftQueued = false;
+  return true;
+};
+
+export const consumeCraftIndex = (state: InputState) => {
+  if (state.craftIndexQueued === null) {
+    return null;
+  }
+
+  const index = state.craftIndexQueued;
+  state.craftIndexQueued = null;
+  return index;
+};
+
 const clampIndex = (index: number, length: number) => {
   if (length <= 0) {
     return 0;
@@ -100,12 +159,16 @@ const clampIndex = (index: number, length: number) => {
   return (index + length) % length;
 };
 
-export const bindInventorySelection = (inventory: InventoryState) => {
+export const bindInventorySelection = (inventory: InventoryState, canSelect: () => boolean = () => true) => {
   const setIndex = (index: number) => {
     inventory.selectedIndex = clampIndex(index, inventory.slots.length);
   };
 
   const handleKey = (event: KeyboardEvent) => {
+    if (!canSelect()) {
+      return;
+    }
+
     const { code } = event;
 
     if (code.startsWith("Digit") && code.length === 6) {
@@ -124,6 +187,10 @@ export const bindInventorySelection = (inventory: InventoryState) => {
   };
 
   const handleWheel = (event: WheelEvent) => {
+    if (!canSelect()) {
+      return;
+    }
+
     if (event.deltaY === 0) {
       return;
     }

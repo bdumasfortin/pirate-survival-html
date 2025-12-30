@@ -1,17 +1,25 @@
 import type { GameState } from "../game/state";
+import { CAMERA_ZOOM as CAMERA_ZOOM_VALUE } from "../game/config";
 import type { ResourceKind, ResourceNodeType } from "../world/world";
+import { canCraft, recipes } from "../game/crafting";
 import { getNearestGatherableResource } from "../systems/gathering";
 
 const resourceColors: Record<ResourceKind, string> = {
   wood: "#a06a3b",
   rock: "#9aa0a6",
-  berries: "#8b4fd6"
+  berries: "#8b4fd6",
+  raft: "#caa05a",
+  sword: "#c7c9cc"
 };
 
 const nodeColors: Record<ResourceNodeType, string> = {
   tree: "#3f7d4a",
   rock: "#8f9399",
   bush: "#6f4aa8"
+};
+
+const enemyColors: Record<string, string> = {
+  crab: "#d0674b"
 };
 
 const promptLabels: Record<ResourceNodeType, string> = {
@@ -21,7 +29,7 @@ const promptLabels: Record<ResourceNodeType, string> = {
 };
 
 const UI_FONT = "\"Zain\"";
-const CAMERA_ZOOM = 2;
+const CAMERA_ZOOM = CAMERA_ZOOM_VALUE;
 const INVENTORY_SLOT_SIZE = 52;
 const INVENTORY_SLOT_GAP = 10;
 const INVENTORY_BAR_PADDING = 18;
@@ -31,7 +39,10 @@ const INVENTORY_CORNER_RADIUS = 12;
 const HUD_MARGIN = 18;
 const BAR_WIDTH = 220;
 const BAR_HEIGHT = 14;
-const BAR_GAP = 10;
+
+const CRAFT_MENU_WIDTH = 260;
+const CRAFT_MENU_PADDING = 14;
+const CRAFT_LINE_HEIGHT = 22;
 
 const drawIsland = (ctx: CanvasRenderingContext2D, points: { x: number; y: number }[]) => {
   if (points.length === 0) {
@@ -195,17 +206,38 @@ const renderSurvivalBars = (ctx: CanvasRenderingContext2D, state: GameState) => 
     ctx.fill();
     ctx.restore();
 
-    y += BAR_HEIGHT + BAR_GAP + 18;
+    y += BAR_HEIGHT + 18;
   };
 
   drawBar(stats.health, stats.maxHealth, "#e2534b");
   drawBar(stats.hunger, stats.maxHunger, "#d9a441");
-  drawBar(stats.thirst, stats.maxThirst, "#4da3d9");
+  };
+
+const renderAttackEffect = (ctx: CanvasRenderingContext2D, state: GameState) => {
+  const effect = state.attackEffect;
+  if (!effect) {
+    return;
+  }
+
+  const alpha = effect.duration > 0 ? effect.timer / effect.duration : 0;
+  const radius = effect.radius + (1 - alpha) * 4;
+
+  ctx.save();
+  ctx.strokeStyle = `rgba(255, 233, 180, ${alpha})`;
+  ctx.lineWidth = 2 + (1 - alpha) * 1.5;
+  ctx.beginPath();
+  ctx.arc(effect.center.x, effect.center.y, radius, effect.startAngle, effect.endAngle);
+  ctx.stroke();
+  ctx.restore();
 };
 
 const renderHints = (ctx: CanvasRenderingContext2D) => {
   const { innerHeight } = window;
-  const lines = ["Q to drop items", "C toggles crafting menu"];
+  const lines = [
+    "Q to drop item",
+    "C to open crafting menu",
+    "LMB to use or attack"
+  ];
   const fontSize = 14;
   const lineHeight = fontSize + 6;
   let y = innerHeight - HUD_MARGIN + 2;
@@ -220,6 +252,49 @@ const renderHints = (ctx: CanvasRenderingContext2D) => {
     ctx.fillText(lines[i], HUD_MARGIN, y);
     y -= lineHeight;
   }
+
+  ctx.restore();
+};
+
+const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => {
+  if (!state.crafting.isOpen) {
+    return;
+  }
+
+  const { innerWidth } = window;
+  const menuX = innerWidth - CRAFT_MENU_WIDTH - HUD_MARGIN;
+  let y = HUD_MARGIN;
+
+  ctx.save();
+  ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = "rgba(12, 22, 26, 0.7)";
+  const menuHeight = CRAFT_MENU_PADDING * 2 + CRAFT_LINE_HEIGHT * (recipes.length + 1);
+  drawRoundedRect(ctx, menuX, y, CRAFT_MENU_WIDTH, menuHeight, 14);
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#f6e7c1";
+  ctx.font = `18px ${UI_FONT}`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  ctx.fillText("Crafting", menuX + CRAFT_MENU_PADDING, y + CRAFT_MENU_PADDING);
+
+  y += CRAFT_MENU_PADDING + CRAFT_LINE_HEIGHT;
+  ctx.font = `14px ${UI_FONT}`;
+
+  recipes.forEach((recipe, index) => {
+    const craftable = canCraft(state.inventory, recipe);
+    const prefix = `${index + 1}.`;
+    const ingredients = recipe.inputs
+      .map((input) => `${input.kind} x${input.amount}`)
+      .join(", ");
+    const line = `${prefix} ${recipe.name} (${ingredients})`;
+
+    ctx.fillStyle = craftable ? "#f6e7c1" : "rgba(246, 231, 193, 0.4)";
+    ctx.fillText(line, menuX + CRAFT_MENU_PADDING, y);
+    y += CRAFT_LINE_HEIGHT;
+  });
 
   ctx.restore();
 };
@@ -262,6 +337,16 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState) => {
     ctx.fill();
   });
 
+  state.enemies.forEach((enemy) => {
+    const flash = enemy.hitTimer > 0 ? enemy.hitTimer / 0.18 : 0;
+    const baseColor = enemyColors[enemy.kind] ?? "#d0674b";
+    const color = flash > 0 ? `rgba(255, 210, 130, ${flash})` : baseColor;
+    ctx.beginPath();
+    ctx.arc(enemy.position.x, enemy.position.y, enemy.radius, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+  });
+
   state.entities.forEach((entity) => {
     ctx.beginPath();
     ctx.arc(entity.position.x, entity.position.y, entity.radius, 0, Math.PI * 2);
@@ -269,9 +354,12 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState) => {
     ctx.fill();
   });
 
+  renderAttackEffect(ctx, state);
+
   ctx.restore();
 
   renderSurvivalBars(ctx, state);
+  renderCraftingMenu(ctx, state);
   renderInteractionPrompt(ctx, state);
   renderInventory(ctx, state);
   renderHints(ctx);

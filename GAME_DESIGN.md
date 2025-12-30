@@ -9,7 +9,7 @@
 - Scavenge: gather basic resources (wood, rocks, berries).
 - Craft: tools, camp items, and a basic raft.
 - Explore: discover nearby isles and points of interest.
-- Survive: manage hunger, thirst, and health.
+- Survive: manage hunger and health.
 
 ## World structure
 - Archipelago of small islands with distinct biomes and hazards.
@@ -22,13 +22,13 @@
 - Co-op roles emerge naturally (gatherer, builder, scout).
 
 ## Survival systems
-- Hunger and thirst decrease over time.
-- Health drains when hunger or thirst hits zero.
+- Hunger decreases over time.
+- Health drains when hunger hits zero.
 - Berries can restore hunger when consumed.
 
 ## Crafting and building
 - Simple recipes with escalating resource requirements.
-- Buildable items: campfire, bedroll, storage, dock.
+- Buildable items: bedroll, storage, dock.
 - Tools: axe, pick, fishing rod, shovel.
 
 ## Threats (PvE)
@@ -51,9 +51,11 @@
 - Player movement with island edge sliding.
 - Resources: trees (multi-yield wood), rocks (single rock), berry bushes (respawn).
 - Inventory: 9-slot hotbar, stack limit 20, mouse wheel/1-9 selection.
+- Crafting: toggle menu and craft basic recipes (raft, sword).
 - Use: left-click consumes berries (hunger restore, cooldown).
+- Combat: melee attack vs crabs (basic contact damage).
 - Drop: Q destroys one item from the selected slot (placeholder for future drops).
-- Survival HUD: health, hunger, thirst bars.
+- Survival HUD: health and hunger bars.
 - Interaction prompts: contextual E-to-gather labels.
 
 ## Next features to implement
@@ -61,10 +63,10 @@
 - Biomes per island (swamp, reef, volcanic, jungle) with unique resources.
 - Monsters tied to biomes; difficulty scales with distance from spawn.
 - Boss encounters on remote islands.
-- Crafting system: recipes, crafting UI, and tool requirements.
+- Crafting system expansion: recipe categories, crafting stations, and tool requirements.
 - Tools: axe/pick upgrades that change gather speed/yield.
-- Building placement: campfire, storage, dock, simple shelters.
-- Raft crafting and launch points for island travel.
+- Building placement: bedroll, storage, dock, simple shelters.
+- Raft launch points and ocean travel flow.
 - PvE combat: basic enemy AI, hitboxes, health, and loot drops.
 - Damage sources: hazards, enemies, and starvation effects.
 - Resource variety: rare nodes, fish, and treasure finds.

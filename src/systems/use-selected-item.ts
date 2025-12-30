@@ -1,4 +1,4 @@
-import { consumeUse, type InputState } from "../core/input";
+import { type InputState } from "../core/input";
 import type { GameState } from "../game/state";
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -12,16 +12,18 @@ export const updateUseCooldown = (delta: number) => {
 };
 
 export const useSelectedItem = (state: GameState, input: InputState) => {
-  if (!consumeUse(input) || useCooldown > 0) {
+  if (!input.useQueued) {
     return;
   }
 
   const slot = state.inventory.slots[state.inventory.selectedIndex];
-  if (!slot || !slot.kind || slot.quantity <= 0) {
+  if (!slot || slot.quantity <= 0 || slot.kind !== "berries") {
     return;
   }
 
-  if (slot.kind !== "berries") {
+  input.useQueued = false;
+
+  if (useCooldown > 0) {
     return;
   }
 

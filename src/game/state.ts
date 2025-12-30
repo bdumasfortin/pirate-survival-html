@@ -1,7 +1,20 @@
 import type { Entity } from "./entities";
+import { createCraftingState, type CraftingState } from "./crafting";
+import { createCrabs, type Crab } from "./creatures";
+import type { Enemy } from "./enemies";
 import { createInventory, type InventoryState } from "./inventory";
 import { createSurvivalStats, type SurvivalStats } from "./survival";
 import { createWorld, type WorldState } from "../world/world";
+import type { Vec2 } from "../core/types";
+
+export type AttackEffect = {
+  center: Vec2;
+  radius: number;
+  startAngle: number;
+  endAngle: number;
+  timer: number;
+  duration: number;
+};
 
 export type GameState = {
   time: number;
@@ -10,6 +23,10 @@ export type GameState = {
   world: WorldState;
   inventory: InventoryState;
   survival: SurvivalStats;
+  crafting: CraftingState;
+  crabs: Crab[];
+  enemies: Enemy[];
+  attackEffect: AttackEffect | null;
 };
 
 export const createInitialState = (): GameState => {
@@ -22,12 +39,22 @@ export const createInitialState = (): GameState => {
     tag: "player"
   };
 
+  const world = createWorld();
+  const crabs = createCrabs(world);
+  const inventory = createInventory();
+  inventory.slots[0] = { kind: "sword", quantity: 1 };
+  inventory.slots[1] = { kind: "raft", quantity: 1 };
+
   return {
     time: 0,
     entities: [player],
     playerId: player.id,
-    world: createWorld(),
-    inventory: createInventory(),
-    survival: createSurvivalStats()
+    world,
+    inventory,
+    survival: createSurvivalStats(),
+    crafting: createCraftingState(),
+    crabs,
+    enemies: crabs,
+    attackEffect: null
   };
 };
