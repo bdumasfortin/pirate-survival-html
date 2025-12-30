@@ -1,8 +1,11 @@
 import type { Vec2 } from "../core/types";
 
+export type IslandType = "standard" | "forest" | "beach";
+
 export type Island = {
   center: Vec2;
   points: Vec2[];
+  type: IslandType;
 };
 
 export type ResourceKind = "wood" | "rock" | "berries" | "raft" | "sword" | "crabmeat" | "crabhelmet" | "wolfcloak" | "krakenring";
@@ -30,4 +33,3 @@ export type WorldState = {
   islands: Island[];
   resources: ResourceNode[];
 };
-

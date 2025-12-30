@@ -1,7 +1,13 @@
 import type { Vec2 } from "../core/types";
-import type { Island, ResourceNode, WorldState, YieldRange } from "./types";
+import type { Island, IslandType, ResourceNode, WorldState, YieldRange } from "./types";
 import type { IslandSpec } from "./world-config";
-import { ISLAND_SHAPE_CONFIG, RESOURCE_NODE_CONFIGS, RESOURCE_PLACEMENT_CONFIG, WORLD_GEN_CONFIG } from "./world-config";
+import {
+  ISLAND_SHAPE_CONFIG,
+  ISLAND_TYPE_WEIGHTS,
+  RESOURCE_NODE_CONFIGS_BY_TYPE,
+  RESOURCE_PLACEMENT_CONFIG,
+  WORLD_GEN_CONFIG
+} from "./world-config";
 import { isPointInPolygon } from "./island-geometry";
 
 type Rng = () => number;
@@ -60,7 +66,7 @@ const smoothPoints = (points: Vec2[], passes: number) => {
 };
 
 const createIsland = (spec: IslandSpec): Island => {
-  const { center, baseRadius, seed } = spec;
+  const { center, baseRadius, seed, type } = spec;
   const rng = createRng(seed);
   const { pointCount, waveA, waveB, ampA: ampRatioA, ampB: ampRatioB, jitter: jitterRatio, minRadius, smoothingPasses } =
     ISLAND_SHAPE_CONFIG;
@@ -83,7 +89,7 @@ const createIsland = (spec: IslandSpec): Island => {
     });
   }
 
-  return { center, points: smoothPoints(points, smoothingPasses) };
+  return { center, points: smoothPoints(points, smoothingPasses), type };
 };
 
 const getIslandRadius = (island: Island) => {
@@ -125,7 +131,7 @@ const createResourcesForIsland = (island: Island, seed: number, startId: number)
   const resources: ResourceNode[] = [];
   let id = startId;
 
-  const configs = RESOURCE_NODE_CONFIGS;
+  const configs = RESOURCE_NODE_CONFIGS_BY_TYPE[island.type];
 
   for (const config of configs) {
     for (let i = 0; i < config.count; i += 1) {
@@ -169,6 +175,22 @@ const isIslandSeparated = (candidate: IslandSpec, existing: IslandSpec[], paddin
   return true;
 };
 
+const pickIslandType = (rng: Rng): IslandType => {
+  const entries = Object.entries(ISLAND_TYPE_WEIGHTS) as [IslandType, number][];
+  const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
+  const roll = rng() * total;
+  let acc = 0;
+
+  for (const [type, weight] of entries) {
+    acc += weight;
+    if (roll <= acc) {
+      return type;
+    }
+  }
+
+  return "standard";
+};
+
 const createIslandSpecs = (seed: number): IslandSpec[] => {
   const rng = createRng(seed);
   const {
@@ -185,13 +207,15 @@ const createIslandSpecs = (seed: number): IslandSpec[] => {
     {
       center: { x: 0, y: 0 },
       baseRadius: spawnRadius,
-      seed: seed + 1
+      seed: seed + 1,
+      type: "standard"
     }
   ];
 
   for (let i = 1; i < islandCount; i += 1) {
     const baseRadius = randomBetween(rng, radiusMin, radiusMax);
     const islandSeed = Math.floor(rng() * 1_000_000_000) + seed + i * 37;
+    const type = pickIslandType(rng);
     let placed = false;
     let ringOffset = 0;
     let attempts = 0;
@@ -205,7 +229,8 @@ const createIslandSpecs = (seed: number): IslandSpec[] => {
           y: Math.sin(angle) * ring
         },
         baseRadius,
-        seed: islandSeed
+        seed: islandSeed,
+        type
       };
 
       if (isIslandSeparated(candidate, specs, edgePadding)) {
@@ -245,4 +270,3 @@ export const createWorld = (seed: string | number): WorldState => {
     resources
   };
 };
-

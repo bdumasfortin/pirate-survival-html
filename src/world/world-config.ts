@@ -1,21 +1,28 @@
 import type { Vec2 } from "../core/types";
-import type { ResourceKind, ResourceNodeType, YieldRange } from "./types";
+import type { IslandType, ResourceKind, ResourceNodeType, YieldRange } from "./types";
 
 export type IslandSpec = {
   center: Vec2;
   baseRadius: number;
   seed: number;
+  type: IslandType;
 };
 
 export const WORLD_GEN_CONFIG = {
-  islandCount: 5,
+  islandCount: 100,
   spawnRadius: 420,
-  radiusMin: 260,
-  radiusMax: 340,
-  ringMin: 620,
-  ringMax: 980,
-  edgePadding: 80,
-  placementAttempts: 80
+  radiusMin: 220,
+  radiusMax: 380,
+  ringMin: 650,
+  ringMax: 2400,
+  edgePadding: 120,
+  placementAttempts: 120
+};
+
+export const ISLAND_TYPE_WEIGHTS: Record<IslandType, number> = {
+  standard: 5,
+  forest: 5,
+  beach: 1
 };
 
 export const ISLAND_SHAPE_CONFIG = {
@@ -69,3 +76,9 @@ export const RESOURCE_NODE_CONFIGS: ResourceNodeConfig[] = [
     respawnTime: 20
   }
 ];
+
+export const RESOURCE_NODE_CONFIGS_BY_TYPE: Record<IslandType, ResourceNodeConfig[]> = {
+  standard: RESOURCE_NODE_CONFIGS,
+  forest: RESOURCE_NODE_CONFIGS,
+  beach: RESOURCE_NODE_CONFIGS.filter((config) => config.nodeType === "rock")
+};

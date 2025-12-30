@@ -25,7 +25,11 @@ export type KrakenStats = EnemyStats & {
   wanderTimerMax: number;
 };
 
-export const CRAB_SPAWN_COUNT = 5;
+export const STANDARD_CRAB_COUNT = 4;
+export const FOREST_WOLF_COUNT = 3;
+export const BEACH_BOSS_CRAB_COUNT = 1;
+export const KRAKEN_SPAWN_COUNT = 3;
+
 export const CRAB_SPAWN_BASE_RADIUS = 260;
 export const CRAB_SPAWN_RING_MIN = 0.75;
 export const CRAB_SPAWN_RING_MAX = 1.0;

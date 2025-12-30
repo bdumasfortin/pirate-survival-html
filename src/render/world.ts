@@ -1,5 +1,5 @@
 import type { GameState } from "../game/state";
-import type { ResourceNodeType } from "../world/types";
+import type { IslandType, ResourceNodeType } from "../world/types";
 import { CAMERA_ZOOM } from "./ui-config";
 import { GROUND_ITEM_RENDER_SIZE } from "../game/ground-items-config";
 import { CRAB_HIT_FLASH_DURATION } from "../game/combat-config";
@@ -21,6 +21,11 @@ const ATTACK_EFFECT_COLOR = "rgba(255, 233, 180, 0.4)";
 const PLAYER_COLOR = "#222222";
 const DEFAULT_ENTITY_COLOR = "#f56565";
 
+const islandStyles: Record<IslandType, { sand: string; grass?: string }> = {
+  standard: { sand: "#f6e7c1", grass: "#7dbb6a" },
+  forest: { sand: "#f6e7c1", grass: "#4b7a74" },
+  beach: { sand: "#f6e7c1" }
+};
 const nodeColors: Record<ResourceNodeType, string> = {
   tree: "#3f7d4a",
   rock: "#8f9399",
@@ -54,12 +59,15 @@ const renderBackground = (ctx: CanvasRenderingContext2D) => {
 
 const renderIslands = (ctx: CanvasRenderingContext2D, state: GameState) => {
   state.world.islands.forEach((island) => {
-    ctx.fillStyle = "#f6e7c1";
+    const style = islandStyles[island.type] ?? islandStyles.standard;
+    ctx.fillStyle = style.sand;
     drawIsland(ctx, island.points);
 
-    const inner = insetPoints(island.points, island.center, ISLAND_INSET_SCALE);
-    ctx.fillStyle = "#7dbb6a";
-    drawIsland(ctx, inner);
+    if (style.grass) {
+      const inner = insetPoints(island.points, island.center, ISLAND_INSET_SCALE);
+      ctx.fillStyle = style.grass;
+      drawIsland(ctx, inner);
+    }
   });
 };
 
@@ -266,6 +274,7 @@ export const renderWorld = (ctx: CanvasRenderingContext2D, state: GameState) => 
 
   ctx.restore();
 };
+
 
 
 
