@@ -1,39 +1,18 @@
 import type { InputState } from "../core/input";
 import type { GameState } from "../game/state";
-import type { Vec2 } from "../core/types";
+import { clamp, normalize } from "../core/math";
+import { isPointInPolygon } from "../world/island-geometry";
+import {
+  ATTACK_EFFECT_DURATION,
+  CRAB_HIT_FLASH_DURATION,
+  DAMAGE_FLASH_DURATION,
+  PLAYER_ATTACK_CONE_SPREAD,
+  PLAYER_ATTACK_COOLDOWN,
+  PLAYER_ATTACK_DAMAGE,
+  PLAYER_ATTACK_RANGE
+} from "../game/combat-config";
 
-const PLAYER_ATTACK_RANGE = 32;
-const PLAYER_ATTACK_DAMAGE = 14;
-const PLAYER_ATTACK_COOLDOWN = 0.4;
-const ATTACK_EFFECT_DURATION = 0.12;
-const CRAB_HIT_FLASH = 0.18;
-const DAMAGE_FLASH_DURATION = 0.25;
 let playerAttackTimer = 0;
-
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
-
-const isPointInPolygon = (point: Vec2, polygon: Vec2[]) => {
-  let inside = false;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
-    const xi = polygon[i].x;
-    const yi = polygon[i].y;
-    const xj = polygon[j].x;
-    const yj = polygon[j].y;
-
-    const intersect = yi > point.y !== yj > point.y &&
-      point.x < ((xj - xi) * (point.y - yi)) / (yj - yi + Number.EPSILON) + xi;
-
-    if (intersect) {
-      inside = !inside;
-    }
-  }
-  return inside;
-};
-
-const normalize = (x: number, y: number) => {
-  const length = Math.hypot(x, y) || 1;
-  return { x: x / length, y: y / length };
-};
 
 export const updateCrabs = (state: GameState, delta: number) => {
   const player = state.entities.find((entity) => entity.id === state.playerId);
@@ -132,7 +111,7 @@ export const updatePlayerAttack = (state: GameState, input: InputState, delta: n
   const dir = Math.hypot(aimVector.x, aimVector.y) > 1 ? normalize(aimVector.x, aimVector.y) : { x: 1, y: 0 };
   const angle = Math.atan2(dir.y, dir.x);
   const coneRadius = player.radius + PLAYER_ATTACK_RANGE;
-  const coneSpread = 0.9;
+  const coneSpread = PLAYER_ATTACK_CONE_SPREAD;
   const attackReach = coneRadius;
 
   state.attackEffect = {
@@ -165,7 +144,7 @@ export const updatePlayerAttack = (state: GameState, input: InputState, delta: n
   if (closestIndex >= 0) {
     const target = state.enemies[closestIndex];
     target.health -= PLAYER_ATTACK_DAMAGE;
-    target.hitTimer = CRAB_HIT_FLASH;
+    target.hitTimer = CRAB_HIT_FLASH_DURATION;
 
     if (target.health <= 0) {
       state.enemies.splice(closestIndex, 1);
@@ -174,13 +153,3 @@ export const updatePlayerAttack = (state: GameState, input: InputState, delta: n
 
   playerAttackTimer = PLAYER_ATTACK_COOLDOWN;
 };
-
-
-
-
-
-
-
-
-
-

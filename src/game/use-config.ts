@@ -1,0 +1,2 @@
+export const ITEM_USE_COOLDOWN = 0.33;
+export const BERRY_RESTORE_RATIO = 0.5;

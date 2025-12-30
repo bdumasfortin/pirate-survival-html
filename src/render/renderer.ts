@@ -1,20 +1,34 @@
 import type { GameState } from "../game/state";
-import { CAMERA_ZOOM as CAMERA_ZOOM_VALUE } from "../game/config";
-import type { ResourceKind, ResourceNodeType } from "../world/world";
+import type { ResourceKind, ResourceNodeType } from "../world/types";
 import { findClosestIslandEdge } from "../world/island-geometry";
 import { canCraft, recipes } from "../game/crafting";
 import { getNearestGatherableResource } from "../systems/gathering";
-import crabUrl from "../assets/svg/crab.svg";
-import pirateUrl from "../assets/svg/pirate.svg";
-import bushUrl from "../assets/svg/bush.svg";
-import palmtreeUrl from "../assets/svg/palmtree.svg";
-import rockUrl from "../assets/svg/rock.svg";
-import raftUrl from "../assets/svg/raft.svg";
-import itemWoodUrl from "../assets/svg/items/item-wood.svg";
-import itemRockUrl from "../assets/svg/items/item-rock.svg";
-import itemRaftUrl from "../assets/svg/items/item-raft.svg";
-import redberryUrl from "../assets/svg/items/redberry.svg";
-import sabreUrl from "../assets/svg/items/sabre.svg";
+import { DAMAGE_FLASH_DURATION } from "../game/combat-config";
+import { RAFT_INTERACTION_DISTANCE } from "../game/raft-config";
+import { isImageReady, itemImages, worldImages } from "./assets";
+import { drawIsland, drawRoundedRect, insetPoints } from "./render-helpers";
+import {
+  ACTION_PROMPT_FONT_SIZE,
+  ACTION_PROMPT_PADDING_X,
+  ACTION_PROMPT_PADDING_Y,
+  BAR_HEIGHT,
+  BAR_WIDTH,
+  CAMERA_ZOOM,
+  CRAFT_COLUMN_OFFSET,
+  CRAFT_PANEL_PADDING,
+  CRAFT_PANEL_RADIUS,
+  CRAFT_TILE_GAP,
+  CRAFT_TILE_RADIUS,
+  CRAFT_TILE_SIZE,
+  HUD_MARGIN,
+  INVENTORY_BAR_MARGIN,
+  INVENTORY_BAR_PADDING,
+  INVENTORY_CORNER_RADIUS,
+  INVENTORY_SLOT_GAP,
+  INVENTORY_SLOT_SIZE,
+  UI_FONT
+} from "./ui-config";
+
 
 const resourceColors: Record<ResourceKind, string> = {
   wood: "#a06a3b",
@@ -34,151 +48,17 @@ const enemyColors: Record<string, string> = {
   crab: "#d0674b"
 };
 
+const { crab: crabImage, pirate: pirateImage, bush: bushImage, palmtree: palmtreeImage, rock: rockImage, raft: raftImage } = worldImages;
+
+const getItemIcon = (kind: ResourceKind) => {
+  const image = itemImages[kind];
+  return isImageReady(image) ? image : null;
+};
+
 const promptLabels: Record<ResourceNodeType, string> = {
   tree: "E to chop",
   rock: "E to pick up",
   bush: "E to collect"
-};
-
-const crabImage = new Image();
-crabImage.src = crabUrl;
-let crabImageReady = false;
-crabImage.onload = () => {
-  crabImageReady = true;
-};
-
-const pirateImage = new Image();
-pirateImage.src = pirateUrl;
-let pirateImageReady = false;
-pirateImage.onload = () => {
-  pirateImageReady = true;
-};
-
-const bushImage = new Image();
-bushImage.src = bushUrl;
-let bushImageReady = false;
-bushImage.onload = () => {
-  bushImageReady = true;
-};
-
-const palmtreeImage = new Image();
-palmtreeImage.src = palmtreeUrl;
-let palmtreeImageReady = false;
-palmtreeImage.onload = () => {
-  palmtreeImageReady = true;
-};
-
-const rockImage = new Image();
-rockImage.src = rockUrl;
-let rockImageReady = false;
-rockImage.onload = () => {
-  rockImageReady = true;
-};
-
-const raftImage = new Image();
-raftImage.src = raftUrl;
-let raftImageReady = false;
-raftImage.onload = () => {
-  raftImageReady = true;
-};
-
-const itemWoodImage = new Image();
-itemWoodImage.src = itemWoodUrl;
-let itemWoodReady = false;
-itemWoodImage.onload = () => {
-  itemWoodReady = true;
-};
-
-const itemRockImage = new Image();
-itemRockImage.src = itemRockUrl;
-let itemRockReady = false;
-itemRockImage.onload = () => {
-  itemRockReady = true;
-};
-
-const itemRaftImage = new Image();
-itemRaftImage.src = itemRaftUrl;
-let itemRaftReady = false;
-itemRaftImage.onload = () => {
-  itemRaftReady = true;
-};
-
-const redberryImage = new Image();
-redberryImage.src = redberryUrl;
-let redberryReady = false;
-redberryImage.onload = () => {
-  redberryReady = true;
-};
-
-const sabreImage = new Image();
-sabreImage.src = sabreUrl;
-let sabreReady = false;
-sabreImage.onload = () => {
-  sabreReady = true;
-};
-
-const UI_FONT = "\"Zain\"";
-const CAMERA_ZOOM = CAMERA_ZOOM_VALUE;
-const INVENTORY_SLOT_SIZE = 52;
-const INVENTORY_SLOT_GAP = 10;
-const INVENTORY_BAR_PADDING = 18;
-const INVENTORY_BAR_MARGIN = 12;
-const INVENTORY_CORNER_RADIUS = 12;
-
-const HUD_MARGIN = 18;
-const BAR_WIDTH = 220;
-const BAR_HEIGHT = 14;
-
-const DAMAGE_FLASH_DURATION = 0.25;
-const RAFT_PROMPT_DISTANCE = 18;
-
-const CRAFT_TILE_SIZE = 72;
-const CRAFT_TILE_GAP = 14;
-const CRAFT_TILE_RADIUS = 14;
-const CRAFT_PANEL_PADDING = 18;
-const CRAFT_PANEL_RADIUS = 16;
-const CRAFT_COLUMN_OFFSET = 180;
-
-const drawIsland = (ctx: CanvasRenderingContext2D, points: { x: number; y: number }[]) => {
-  if (points.length === 0) {
-    return;
-  }
-
-  ctx.beginPath();
-  ctx.moveTo(points[0].x, points[0].y);
-  for (let i = 1; i < points.length; i += 1) {
-    ctx.lineTo(points[i].x, points[i].y);
-  }
-  ctx.closePath();
-  ctx.fill();
-};
-
-const insetPoints = (points: { x: number; y: number }[], center: { x: number; y: number }, factor: number) =>
-  points.map((point) => ({
-    x: center.x + (point.x - center.x) * factor,
-    y: center.y + (point.y - center.y) * factor
-  }));
-
-const drawRoundedRect = (
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radius: number
-) => {
-  const r = Math.min(radius, width / 2, height / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + width - r, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
-  ctx.lineTo(x + width, y + height - r);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
-  ctx.lineTo(x + r, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
 };
 
 const renderInventory = (ctx: CanvasRenderingContext2D, state: GameState) => {
@@ -221,35 +101,9 @@ const renderInventory = (ctx: CanvasRenderingContext2D, state: GameState) => {
     if (slot.kind && slot.quantity > 0) {
       const color = resourceColors[slot.kind];
       const iconSize = INVENTORY_SLOT_SIZE * 0.6;
-      let icon: HTMLImageElement | null = null;
-      let ready = false;
+      const icon = getItemIcon(slot.kind);
 
-      switch (slot.kind) {
-        case "wood":
-          icon = itemWoodImage;
-          ready = itemWoodReady;
-          break;
-        case "rock":
-          icon = itemRockImage;
-          ready = itemRockReady;
-          break;
-        case "raft":
-          icon = itemRaftImage;
-          ready = itemRaftReady;
-          break;
-        case "berries":
-          icon = redberryImage;
-          ready = redberryReady;
-          break;
-        case "sword":
-          icon = sabreImage;
-          ready = sabreReady;
-          break;
-        default:
-          break;
-      }
-
-      if (icon && ready) {
+      if (icon) {
         ctx.drawImage(
           icon,
           x + (INVENTORY_SLOT_SIZE - iconSize) / 2,
@@ -284,9 +138,9 @@ const renderInventory = (ctx: CanvasRenderingContext2D, state: GameState) => {
 
 const drawActionPrompt = (ctx: CanvasRenderingContext2D, text: string) => {
   const { innerWidth, innerHeight } = window;
-  const fontSize = 18;
-  const paddingX = 16;
-  const paddingY = 8;
+  const fontSize = ACTION_PROMPT_FONT_SIZE;
+  const paddingX = ACTION_PROMPT_PADDING_X;
+  const paddingY = ACTION_PROMPT_PADDING_Y;
 
   ctx.save();
   ctx.font = `${fontSize}px ${UI_FONT}`;
@@ -344,7 +198,7 @@ const renderRaftPrompt = (ctx: CanvasRenderingContext2D, state: GameState) => {
   }
 
   const closest = findClosestIslandEdge(player.position, state.world.islands);
-  if (!closest || closest.distance > RAFT_PROMPT_DISTANCE) {
+  if (!closest || closest.distance > RAFT_INTERACTION_DISTANCE) {
     return false;
   }
 
@@ -540,39 +394,11 @@ const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => 
     drawRoundedRect(ctx, x, y, CRAFT_TILE_SIZE, CRAFT_TILE_SIZE, CRAFT_TILE_RADIUS);
     ctx.fill();
     ctx.stroke();
-    ctx.restore();
-
-    const iconSize = CRAFT_TILE_SIZE * 0.65;
-    let icon: HTMLImageElement | null = null;
-    let ready = false;
-
-    switch (recipe.output.kind) {
-      case "wood":
-        icon = itemWoodImage;
-        ready = itemWoodReady;
-        break;
-      case "rock":
-        icon = itemRockImage;
-        ready = itemRockReady;
-        break;
-      case "raft":
-        icon = itemRaftImage;
-        ready = itemRaftReady;
-        break;
-      case "berries":
-        icon = redberryImage;
-        ready = redberryReady;
-        break;
-      case "sword":
-        icon = sabreImage;
-        ready = sabreReady;
-        break;
-      default:
-        break;
-    }
+    ctx.restore();    const iconSize = CRAFT_TILE_SIZE * 0.65;
+    const icon = getItemIcon(recipe.output.kind);
 
     const alpha = craftable ? 1 : 0.4;
-    if (icon && ready) {
+    if (icon) {
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.drawImage(
@@ -596,7 +422,6 @@ const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => 
 
   if (selectedRecipe && selectedRecipe.inputs.length > 0) {
     const ingredientIconSize = 16;
-    const ingredientGap = 6;
     const listPadding = 10;
     const rowHeight = 22;
     const listX = columnX + CRAFT_TILE_SIZE + CRAFT_PANEL_PADDING + 12;
@@ -629,35 +454,9 @@ const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => 
       const rowY = listY + listPadding + index * rowHeight + rowHeight / 2;
       const iconX = listX + listPadding;
       const iconY = rowY - ingredientIconSize / 2;
-      let ingredientIcon: HTMLImageElement | null = null;
-      let ingredientReady = false;
+      const ingredientIcon = getItemIcon(input.kind);
 
-      switch (input.kind) {
-        case "wood":
-          ingredientIcon = itemWoodImage;
-          ingredientReady = itemWoodReady;
-          break;
-        case "rock":
-          ingredientIcon = itemRockImage;
-          ingredientReady = itemRockReady;
-          break;
-        case "raft":
-          ingredientIcon = itemRaftImage;
-          ingredientReady = itemRaftReady;
-          break;
-        case "berries":
-          ingredientIcon = redberryImage;
-          ingredientReady = redberryReady;
-          break;
-        case "sword":
-          ingredientIcon = sabreImage;
-          ingredientReady = sabreReady;
-          break;
-        default:
-          break;
-      }
-
-      if (ingredientIcon && ingredientReady) {
+      if (ingredientIcon) {
         ctx.drawImage(ingredientIcon, iconX, iconY, ingredientIconSize, ingredientIconSize);
       } else {
         ctx.beginPath();
@@ -673,7 +472,7 @@ const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => 
         ctx.fillStyle = "#f0d58b";
       }
 
-      const amountText = `x ${input.amount}`;
+      const amountText = `x${input.amount}`;
       ctx.fillText(amountText, iconX + ingredientIconSize + 6, rowY);
     });
 
@@ -717,7 +516,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState) => {
     const isRock = resource.nodeType === "rock";
     const barren = resource.remaining === 0;
 
-    if (isBush && bushImageReady) {
+    if (isBush && isImageReady(bushImage)) {
       const size = resource.radius * 2 * 1.4;
 
       ctx.save();
@@ -729,7 +528,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState) => {
       return;
     }
 
-    if (isTree && palmtreeImageReady) {
+    if (isTree && isImageReady(palmtreeImage)) {
       const size = resource.radius * 2 * 1.4;
 
       ctx.save();
@@ -740,7 +539,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState) => {
       return;
     }
 
-    if (isRock && rockImageReady) {
+    if (isRock && isImageReady(rockImage)) {
       const size = resource.radius * 2 * 1.4;
 
       ctx.save();
@@ -763,7 +562,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState) => {
   state.enemies.forEach((enemy) => {
     const flash = enemy.hitTimer > 0 ? enemy.hitTimer / 0.18 : 0;
     const isCrab = enemy.kind === "crab";
-    const canDrawImage = isCrab && crabImageReady;
+    const canDrawImage = isCrab && isImageReady(crabImage);
 
     if (canDrawImage) {
       const size = enemy.radius * 2;
@@ -797,7 +596,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState) => {
 
   state.entities.forEach((entity) => {
     if (entity.tag === "player") {
-      if (state.raft.isOnRaft && raftImageReady) {
+      if (state.raft.isOnRaft && isImageReady(raftImage)) {
         const raftSize = entity.radius * 3;
 
         ctx.save();
@@ -807,7 +606,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState) => {
         ctx.restore();
       }
 
-      if (pirateImageReady) {
+      if (isImageReady(pirateImage)) {
         const size = entity.radius * 2.4;
 
         ctx.save();
@@ -838,5 +637,4 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState) => {
   renderDamageFlash(ctx, state);
   renderDeathOverlay(ctx, state);
 };
-
 

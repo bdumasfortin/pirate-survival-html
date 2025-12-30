@@ -1,8 +1,8 @@
 import { type InputState } from "../core/input";
 import type { GameState } from "../game/state";
+import { clamp } from "../core/math";
+import { BERRY_RESTORE_RATIO, ITEM_USE_COOLDOWN } from "../game/use-config";
 
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
-const USE_COOLDOWN = 0.33;
 let useCooldown = 0;
 
 export const updateUseCooldown = (delta: number) => {
@@ -28,7 +28,7 @@ export const useSelectedItem = (state: GameState, input: InputState) => {
   }
 
   const stats = state.survival;
-  const restore = stats.maxHunger * 0.5;
+  const restore = stats.maxHunger * BERRY_RESTORE_RATIO;
   stats.hunger = clamp(stats.hunger + restore, 0, stats.maxHunger);
 
   slot.quantity -= 1;
@@ -37,5 +37,5 @@ export const useSelectedItem = (state: GameState, input: InputState) => {
     slot.kind = null;
   }
 
-  useCooldown = USE_COOLDOWN;
+  useCooldown = ITEM_USE_COOLDOWN;
 };

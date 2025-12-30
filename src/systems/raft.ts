@@ -1,9 +1,7 @@
 import type { InputState } from "../core/input";
 import type { GameState } from "../game/state";
+import { RAFT_INTERACTION_DISTANCE, RAFT_SHORE_BUFFER } from "../game/raft-config";
 import { findClosestIslandEdge } from "../world/island-geometry";
-
-const SHORE_DISTANCE = 18;
-const SHORE_BUFFER = 2;
 
 export const updateRaft = (state: GameState, input: InputState) => {
   if (!input.useQueued) {
@@ -24,7 +22,7 @@ export const updateRaft = (state: GameState, input: InputState) => {
 
   const islands = state.world.islands;
   const closest = findClosestIslandEdge(player.position, islands);
-  if (!closest || closest.distance > SHORE_DISTANCE) {
+  if (!closest || closest.distance > RAFT_INTERACTION_DISTANCE) {
     return;
   }
 
@@ -35,7 +33,7 @@ export const updateRaft = (state: GameState, input: InputState) => {
       y: closest.island.center.y - closest.point.y
     };
     const length = Math.hypot(toLand.x, toLand.y) || 1;
-    const offset = player.radius + SHORE_BUFFER;
+    const offset = player.radius + RAFT_SHORE_BUFFER;
 
     player.position.x = closest.point.x + (toLand.x / length) * offset;
     player.position.y = closest.point.y + (toLand.y / length) * offset;
@@ -48,7 +46,7 @@ export const updateRaft = (state: GameState, input: InputState) => {
     y: closest.point.y - closest.island.center.y
   };
   const length = Math.hypot(toWater.x, toWater.y) || 1;
-  const offset = player.radius + SHORE_BUFFER;
+  const offset = player.radius + RAFT_SHORE_BUFFER;
 
   player.position.x = closest.point.x + (toWater.x / length) * offset;
   player.position.y = closest.point.y + (toWater.y / length) * offset;

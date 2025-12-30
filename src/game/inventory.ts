@@ -1,4 +1,4 @@
-import type { ResourceKind } from "../world/world";
+import type { ResourceKind } from "../world/types";
 
 export type InventorySlot = {
   kind: ResourceKind | null;

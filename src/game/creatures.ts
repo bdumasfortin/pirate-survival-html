@@ -1,6 +1,19 @@
 import type { Vec2 } from "../core/types";
-import type { WorldState } from "../world/world";
+import type { Island, WorldState } from "../world/types";
+import { isPointInPolygon } from "../world/island-geometry";
 import type { Enemy } from "./enemies";
+import {
+  CRAB_BOSS_RADIUS_SCALE,
+  CRAB_BOSS_STATS,
+  CRAB_DEFAULT_STATS,
+  CRAB_SPAWN_ATTEMPTS,
+  CRAB_SPAWN_BASE_RADIUS,
+  CRAB_SPAWN_COUNT,
+  CRAB_SPAWN_RADIUS_SCALE,
+  CRAB_SPAWN_RING_MAX,
+  CRAB_SPAWN_RING_MIN,
+  type CrabStats
+} from "./creatures-config";
 
 export type Crab = Enemy & {
   velocity: Vec2;
@@ -15,33 +28,21 @@ export type Crab = Enemy & {
   homeIslandIndex: number;
 };
 
-const isPointInPolygon = (point: Vec2, polygon: Vec2[]) => {
-  let inside = false;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
-    const xi = polygon[i].x;
-    const yi = polygon[i].y;
-    const xj = polygon[j].x;
-    const yj = polygon[j].y;
+const randomBetween = (min: number, max: number) => min + Math.random() * (max - min);
 
-    const intersect = yi > point.y !== yj > point.y &&
-      point.x < ((xj - xi) * (point.y - yi)) / (yj - yi + Number.EPSILON) + xi;
+const getLeftmostIslandIndex = (islands: Island[]) => islands.reduce((leftmostIndex, island, index) => {
+  return island.center.x < islands[leftmostIndex].center.x ? index : leftmostIndex;
+}, 0);
 
-    if (intersect) {
-      inside = !inside;
-    }
-  }
-  return inside;
-};
-
-const randomPointInIsland = (island: { center: Vec2; points: Vec2[] }, radiusScale = 0.9) => {
+const randomPointInIsland = (island: Island, radiusScale: number) => {
   let position = island.center;
-  for (let attempt = 0; attempt < 40; attempt += 1) {
+  for (let attempt = 0; attempt < CRAB_SPAWN_ATTEMPTS; attempt += 1) {
     const angle = Math.random() * Math.PI * 2;
-    const ring = 0.75 + Math.random() * 0.25;
+    const ring = randomBetween(CRAB_SPAWN_RING_MIN, CRAB_SPAWN_RING_MAX);
     const radius = ring * radiusScale;
     position = {
-      x: island.center.x + Math.cos(angle) * 260 * radius,
-      y: island.center.y + Math.sin(angle) * 260 * radius
+      x: island.center.x + Math.cos(angle) * CRAB_SPAWN_BASE_RADIUS * radius,
+      y: island.center.y + Math.sin(angle) * CRAB_SPAWN_BASE_RADIUS * radius
     };
 
     if (isPointInPolygon(position, island.points)) {
@@ -52,63 +53,44 @@ const randomPointInIsland = (island: { center: Vec2; points: Vec2[] }, radiusSca
   return position;
 };
 
+const createCrab = (id: number, position: Vec2, homeIslandIndex: number, stats: CrabStats): Crab => ({
+  id,
+  kind: "crab",
+  position,
+  velocity: { x: 0, y: 0 },
+  radius: stats.radius,
+  health: stats.health,
+  maxHealth: stats.maxHealth,
+  damage: stats.damage,
+  speed: stats.speed,
+  aggroRange: stats.aggroRange,
+  attackRange: stats.attackRange,
+  attackCooldown: stats.attackCooldown,
+  attackTimer: 0,
+  wanderAngle: Math.random() * Math.PI * 2,
+  wanderTimer: randomBetween(stats.wanderTimerMin, stats.wanderTimerMax),
+  homeIslandIndex,
+  hitTimer: 0
+});
+
 export const createCrabs = (world: WorldState): Crab[] => {
   if (world.islands.length === 0) {
     return [];
   }
 
-  const spawnIsland = world.islands[0];
+  const spawnIslandIndex = 0;
+  const spawnIsland = world.islands[spawnIslandIndex];
   const crabs: Crab[] = [];
-  const count = 5;
 
-  for (let i = 0; i < count; i += 1) {
-    const position = randomPointInIsland(spawnIsland, 0.95);
-    crabs.push({
-      id: i + 1,
-      kind: "crab",
-      position,
-      velocity: { x: 0, y: 0 },
-      radius: 16,
-      health: 30,
-      maxHealth: 30,
-      damage: 6,
-      speed: 55,
-      aggroRange: 90,
-      attackRange: 20,
-      attackCooldown: 1.2,
-      attackTimer: 0,
-      wanderAngle: Math.random() * Math.PI * 2,
-      wanderTimer: 1.5 + Math.random() * 2,
-      homeIslandIndex: 0,
-      hitTimer: 0
-    });
+  for (let i = 0; i < CRAB_SPAWN_COUNT; i += 1) {
+    const position = randomPointInIsland(spawnIsland, CRAB_SPAWN_RADIUS_SCALE);
+    crabs.push(createCrab(i + 1, position, spawnIslandIndex, CRAB_DEFAULT_STATS));
   }
 
-
-  const leftIslandIndex = world.islands.reduce((leftmostIndex, island, index, islands) => {
-    return island.center.x < islands[leftmostIndex].center.x ? index : leftmostIndex;
-  }, 0);
-  const bossIsland = world.islands[leftIslandIndex];
-  const bossPosition = randomPointInIsland(bossIsland, 0.85);
-  crabs.push({
-    id: count + 1,
-    kind: "crab",
-    position: bossPosition,
-    velocity: { x: 0, y: 0 },
-    radius: 130,
-    health: 260,
-    maxHealth: 260,
-    damage: 16,
-    speed: 38,
-    aggroRange: 140,
-    attackRange: 60,
-    attackCooldown: 1.4,
-    attackTimer: 0,
-    wanderAngle: Math.random() * Math.PI * 2,
-    wanderTimer: 1.8 + Math.random() * 2,
-    homeIslandIndex: leftIslandIndex,
-    hitTimer: 0
-  });
+  const bossIslandIndex = getLeftmostIslandIndex(world.islands);
+  const bossIsland = world.islands[bossIslandIndex];
+  const bossPosition = randomPointInIsland(bossIsland, CRAB_BOSS_RADIUS_SCALE);
+  crabs.push(createCrab(CRAB_SPAWN_COUNT + 1, bossPosition, bossIslandIndex, CRAB_BOSS_STATS));
 
   return crabs;
 };

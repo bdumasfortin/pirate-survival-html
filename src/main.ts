@@ -1,8 +1,8 @@
 import "./style.css";
-import { createInputState, bindKeyboard, bindInventorySelection, bindMouse, bindCraftScroll } from "./core/input";
+import { createInputState, bindKeyboard, bindInventorySelection, bindMouse, bindCraftScroll, type InputState } from "./core/input";
 import { startLoop } from "./core/loop";
 import { CAMERA_ZOOM } from "./game/config";
-import { createInitialState } from "./game/state";
+import { createInitialState, type GameState } from "./game/state";
 import { updateMovement } from "./systems/movement";
 import { constrainPlayerToIslands } from "./systems/collisions";
 import { updateCrafting } from "./systems/crafting";
@@ -48,6 +48,38 @@ bindMouse(input);
 bindCraftScroll(input, () => state.crafting.isOpen);
 bindInventorySelection(state.inventory, () => !state.crafting.isOpen && !state.isDead);
 
+
+const getPlayerEntity = (state: GameState) => state.entities.find((entity) => entity.id === state.playerId);
+
+const updateMouseWorldPosition = (state: GameState, input: InputState, player: { position: { x: number; y: number } }) => {
+  if (!input.mouseScreen) {
+    return;
+  }
+
+  input.mouseWorld = {
+    x: (input.mouseScreen.x - window.innerWidth / 2) / CAMERA_ZOOM + player.position.x,
+    y: (input.mouseScreen.y - window.innerHeight / 2) / CAMERA_ZOOM + player.position.y
+  };
+};
+
+const updateAimAngle = (state: GameState, input: InputState, player: { position: { x: number; y: number } }) => {
+  if (!input.mouseWorld) {
+    return;
+  }
+
+  const dx = input.mouseWorld.x - player.position.x;
+  const dy = input.mouseWorld.y - player.position.y;
+  if (Math.hypot(dx, dy) > 0.01) {
+    state.aimAngle = Math.atan2(dy, dx);
+  }
+};
+
+const clearQueuedUse = (input: InputState) => {
+  if (input.useQueued) {
+    input.useQueued = false;
+  }
+};
+
 const startGame = async () => {
   if (document.fonts && document.fonts.load) {
     try {
@@ -61,20 +93,10 @@ const startGame = async () => {
     onUpdate: (delta) => {
       state.time += delta;
 
-      const player = state.entities.find((entity) => entity.id === state.playerId);
-      if (player && input.mouseScreen) {
-        input.mouseWorld = {
-          x: (input.mouseScreen.x - window.innerWidth / 2) / CAMERA_ZOOM + player.position.x,
-          y: (input.mouseScreen.y - window.innerHeight / 2) / CAMERA_ZOOM + player.position.y
-        };
-      }
-
-      if (player && input.mouseWorld) {
-        const dx = input.mouseWorld.x - player.position.x;
-        const dy = input.mouseWorld.y - player.position.y;
-        if (Math.hypot(dx, dy) > 0.01) {
-          state.aimAngle = Math.atan2(dy, dx);
-        }
+      const player = getPlayerEntity(state);
+      if (player) {
+        updateMouseWorldPosition(state, input, player);
+        updateAimAngle(state, input, player);
       }
 
       if (!state.isDead) {
@@ -97,9 +119,7 @@ const startGame = async () => {
       updateCrabs(state, delta);
       updateSurvival(state, delta);
 
-      if (input.useQueued) {
-        input.useQueued = false;
-      }
+      clearQueuedUse(input);
     },
     onRender: () => {
       render(ctx, state);

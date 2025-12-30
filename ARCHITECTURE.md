@@ -6,11 +6,11 @@
 - Keep gameplay code data-driven where practical.
 
 ## Directory layout
-- `src/core/` low-level utilities (input bindings, loop timing).
-- `src/game/` game state, entities, inventory, survival stats, crafting data.
+- `src/core/` low-level utilities (input bindings, math helpers, loop timing).
+- `src/game/` game state, entities, inventory, survival stats, crafting data, tuning configs.
 - `src/systems/` update logic (movement, collisions, gathering, survival, crafting, combat).
-- `src/render/` draw routines, camera, HUD.
-- `src/world/` world generation, islands, resource nodes.
+- `src/render/` draw routines, camera, HUD, asset registry, UI constants.
+- `src/world/` world generation, islands, resource nodes, and world configs.
 - `src/assets/` static assets (sprites, audio, json data).
 
 ## Current implementation (prototype)
@@ -31,9 +31,15 @@
 ## Module responsibilities
 - `src/core/loop.ts` manages requestAnimationFrame timing.
 - `src/core/input.ts` keyboard + mouse input queues.
+- `src/core/math.ts` shared math helpers (clamp/normalize).
 - `src/game/state.ts` top-level game state and initializers.
 - `src/game/inventory.ts` inventory data and stack handling.
 - `src/game/crafting.ts` recipe data and craft helpers.
+- `src/game/combat-config.ts` combat tuning values.
+- `src/game/creatures-config.ts` crab/boss spawn tuning.
+- `src/game/raft-config.ts` raft interaction tuning.
+- `src/game/survival-config.ts` hunger/health tuning.
+- `src/game/use-config.ts` item use tuning.
 - `src/game/creatures.ts` crab definitions + spawn helpers.
 - `src/game/survival.ts` survival stats model.
 - `src/systems/movement.ts` movement updates.
@@ -44,7 +50,12 @@
 - `src/systems/raft.ts` raft boarding + disembarking.
 - `src/systems/survival.ts` hunger decay + health loss.
 - `src/systems/use-selected-item.ts` item use + cooldown.
+- `src/render/assets.ts` asset registry for SVG sprites.
+- `src/render/render-helpers.ts` shared canvas drawing helpers.
+- `src/render/ui-config.ts` HUD/layout constants.
 - `src/render/renderer.ts` world render + HUD (inventory, prompts, bars, crafting).
+- `src/world/types.ts` world domain types.
+- `src/world/world-config.ts` island/resource config data.
 - `src/world/world.ts` island creation + resource seeding.
 
 ## Data flow

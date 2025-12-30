@@ -1,5 +1,5 @@
 import type { InventoryState } from "../game/inventory";
-import type { ResourceKind } from "../world/world";
+import type { ResourceKind } from "../world/types";
 
 export const consumeSelectedItem = (inventory: InventoryState): ResourceKind | null => {
   const slot = inventory.slots[inventory.selectedIndex];

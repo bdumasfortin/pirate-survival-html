@@ -5,7 +5,8 @@ import type { Enemy } from "./enemies";
 import { createInventory, type InventoryState } from "./inventory";
 import { createRaftState, type RaftState } from "./raft";
 import { createSurvivalStats, type SurvivalStats } from "./survival";
-import { createWorld, type WorldState } from "../world/world";
+import { createWorld } from "../world/world";
+import type { WorldState } from "../world/types";
 import type { Vec2 } from "../core/types";
 
 export type AttackEffect = {
