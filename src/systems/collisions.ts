@@ -1,74 +1,12 @@
 import type { GameState } from "../game/state";
 import type { Vec2 } from "../core/types";
 import type { Island } from "../world/world";
-
-const isPointInPolygon = (point: Vec2, polygon: Vec2[]) => {
-  let inside = false;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
-    const xi = polygon[i].x;
-    const yi = polygon[i].y;
-    const xj = polygon[j].x;
-    const yj = polygon[j].y;
-
-    const intersect = yi > point.y !== yj > point.y &&
-      point.x < ((xj - xi) * (point.y - yi)) / (yj - yi + Number.EPSILON) + xi;
-
-    if (intersect) {
-      inside = !inside;
-    }
-  }
-  return inside;
-};
-
-const closestPointOnSegment = (point: Vec2, a: Vec2, b: Vec2) => {
-  const abx = b.x - a.x;
-  const aby = b.y - a.y;
-  const t = ((point.x - a.x) * abx + (point.y - a.y) * aby) / (abx * abx + aby * aby || 1);
-  const clamped = Math.max(0, Math.min(1, t));
-  return {
-    x: a.x + abx * clamped,
-    y: a.y + aby * clamped
-  };
-};
-
-const closestPointOnPolygon = (point: Vec2, polygon: Vec2[]) => {
-  let closest = polygon[0];
-  let closestDist = Number.POSITIVE_INFINITY;
-
-  for (let i = 0; i < polygon.length; i += 1) {
-    const a = polygon[i];
-    const b = polygon[(i + 1) % polygon.length];
-    const candidate = closestPointOnSegment(point, a, b);
-    const dx = point.x - candidate.x;
-    const dy = point.y - candidate.y;
-    const dist = Math.hypot(dx, dy);
-
-    if (dist < closestDist) {
-      closest = candidate;
-      closestDist = dist;
-    }
-  }
-
-  return { point: closest, distance: closestDist };
-};
-
-const findContainingIsland = (point: Vec2, islands: Island[]) =>
-  islands.find((island) => isPointInPolygon(point, island.points));
-
-const findClosestIsland = (point: Vec2, islands: Island[]) => {
-  let closest = islands[0];
-  let closestDistance = Number.POSITIVE_INFINITY;
-
-  for (const island of islands) {
-    const result = closestPointOnPolygon(point, island.points);
-    if (result.distance < closestDistance) {
-      closestDistance = result.distance;
-      closest = island;
-    }
-  }
-
-  return closest;
-};
+import {
+  closestPointOnPolygon,
+  findClosestIslandEdge,
+  findContainingIsland,
+  isPointInPolygon
+} from "../world/island-geometry";
 
 const trySlide = (position: Vec2, prev: Vec2, island: Island) => {
   const slideX = { x: position.x, y: prev.y };
@@ -84,6 +22,21 @@ const trySlide = (position: Vec2, prev: Vec2, island: Island) => {
   return null;
 };
 
+const pushPlayerOutOfIsland = (position: Vec2, radius: number, island: Island) => {
+  const closest = closestPointOnPolygon(position, island.points);
+  const toWater = {
+    x: closest.point.x - island.center.x,
+    y: closest.point.y - island.center.y
+  };
+  const length = Math.hypot(toWater.x, toWater.y) || 1;
+  const buffer = 0.5;
+
+  return {
+    x: closest.point.x + (toWater.x / length) * (radius + buffer),
+    y: closest.point.y + (toWater.y / length) * (radius + buffer)
+  };
+};
+
 export const constrainPlayerToIslands = (state: GameState) => {
   const player = state.entities.find((entity) => entity.id === state.playerId);
 
@@ -92,6 +45,17 @@ export const constrainPlayerToIslands = (state: GameState) => {
   }
 
   const islands = state.world.islands;
+
+  if (state.raft.isOnRaft) {
+    const containing = findContainingIsland(player.position, islands);
+    if (containing) {
+      const next = pushPlayerOutOfIsland(player.position, player.radius, containing);
+      player.position.x = next.x;
+      player.position.y = next.y;
+    }
+    return;
+  }
+
   const currentIsland = findContainingIsland(player.position, islands);
 
   if (currentIsland) {
@@ -99,7 +63,8 @@ export const constrainPlayerToIslands = (state: GameState) => {
   }
 
   const previousIsland = findContainingIsland(player.prevPosition, islands);
-  const targetIsland = previousIsland ?? findClosestIsland(player.position, islands);
+  const closestEdge = findClosestIslandEdge(player.position, islands);
+  const targetIsland = previousIsland ?? closestEdge?.island ?? islands[0];
 
   if (previousIsland) {
     const slide = trySlide(player.position, player.prevPosition, previousIsland);

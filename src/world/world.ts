@@ -5,7 +5,7 @@ export type Island = {
   points: Vec2[];
 };
 
-export type ResourceKind = "wood" | "rock" | "berries";
+export type ResourceKind = "wood" | "rock" | "berries" | "raft" | "sword";
 export type ResourceNodeType = "tree" | "rock" | "bush";
 
 export type YieldRange = {
@@ -18,6 +18,7 @@ export type ResourceNode = {
   nodeType: ResourceNodeType;
   kind: ResourceKind;
   position: Vec2;
+  rotation: number;
   radius: number;
   yield: YieldRange;
   remaining: number;
@@ -161,7 +162,7 @@ const createResourcesForIsland = (island: Island, seed: number, startId: number)
       nodeType: "rock" as const,
       kind: "rock" as const,
       radius: 8,
-      count: 7,
+      count: 14,
       yield: { min: 1, max: 1 },
       respawnTime: 0
     },
@@ -185,6 +186,7 @@ const createResourcesForIsland = (island: Island, seed: number, startId: number)
         nodeType: config.nodeType,
         kind: config.kind,
         position,
+        rotation: rng() * Math.PI * 2,
         radius: config.radius,
         yield: config.yield,
         remaining,

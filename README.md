@@ -16,7 +16,9 @@ Open the URL printed by Vite (default is `http://localhost:5173`).
 ## Controls
 - Move: WASD or Arrow keys
 - Gather: E (when prompt shows)
-- Use item: Left mouse click
+- Use / Attack: Left mouse click (berries or sword)
+- Use raft: Left mouse click while raft is selected near shore (board/disembark)
 - Select hotbar slot: 1-9 or mouse wheel
 - Drop item: Q (destroys 1 item for now)
-- Crafting menu: C (placeholder)
+- Crafting menu: C (toggle)
+- Craft recipe: 1-9 while crafting menu is open
