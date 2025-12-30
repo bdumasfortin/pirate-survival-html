@@ -42,6 +42,7 @@ const resourceColors: Record<ResourceKind, string> = {
   raft: "#caa05a",
   sword: "#c7c9cc",
   crabmeat: "#c66a4b",
+  wolfmeat: "#b96c54",
   crabhelmet: "#6f87b7",
   wolfcloak: "#7d6d4f",
   krakenring: "#5aa1c9"

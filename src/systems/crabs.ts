@@ -222,7 +222,10 @@ export const updatePlayerAttack = (state: GameState, input: InputState, delta: n
           }
           break;
         case "wolf":
-          dropItem("wolfcloak");
+          dropItem("wolfmeat");
+          if (target.isBoss) {
+            dropItem("wolfcloak", 1.2);
+          }
           break;
         case "kraken":
           dropItem("krakenring");

@@ -22,7 +22,8 @@ export const WORLD_GEN_CONFIG = {
 export const ISLAND_TYPE_WEIGHTS: Record<IslandType, number> = {
   standard: 5,
   forest: 5,
-  beach: 1
+  beach: 1,
+  wolfBoss: 0
 };
 
 export const ISLAND_SHAPE_CONFIG = {
@@ -80,5 +81,6 @@ export const RESOURCE_NODE_CONFIGS: ResourceNodeConfig[] = [
 export const RESOURCE_NODE_CONFIGS_BY_TYPE: Record<IslandType, ResourceNodeConfig[]> = {
   standard: RESOURCE_NODE_CONFIGS,
   forest: RESOURCE_NODE_CONFIGS,
+  wolfBoss: RESOURCE_NODE_CONFIGS,
   beach: RESOURCE_NODE_CONFIGS.filter((config) => config.nodeType === "rock")
 };

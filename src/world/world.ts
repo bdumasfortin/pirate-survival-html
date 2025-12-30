@@ -212,18 +212,21 @@ const createIslandSpecs = (seed: number): IslandSpec[] => {
     }
   ];
 
-  for (let i = 1; i < islandCount; i += 1) {
-    const baseRadius = randomBetween(rng, radiusMin, radiusMax);
-    const islandSeed = Math.floor(rng() * 1_000_000_000) + seed + i * 37;
-    const type = pickIslandType(rng);
+  const placeIsland = (baseRadius: number, islandSeed: number, type: IslandType) => {
     let placed = false;
     let ringOffset = 0;
     let attempts = 0;
+    let candidate: IslandSpec = {
+      center: { x: 0, y: 0 },
+      baseRadius,
+      seed: islandSeed,
+      type
+    };
 
     while (!placed) {
       const angle = rng() * Math.PI * 2;
       const ring = randomBetween(rng, ringMin, ringMax) + ringOffset;
-      const candidate: IslandSpec = {
+      candidate = {
         center: {
           x: Math.cos(angle) * ring,
           y: Math.sin(angle) * ring
@@ -234,7 +237,6 @@ const createIslandSpecs = (seed: number): IslandSpec[] => {
       };
 
       if (isIslandSeparated(candidate, specs, edgePadding)) {
-        specs.push(candidate);
         placed = true;
       } else {
         attempts += 1;
@@ -244,6 +246,21 @@ const createIslandSpecs = (seed: number): IslandSpec[] => {
         }
       }
     }
+
+    specs.push(candidate);
+  };
+
+  if (islandCount > 1) {
+    const bossRadius = randomBetween(rng, radiusMin, radiusMax);
+    const bossSeed = Math.floor(rng() * 1_000_000_000) + seed + 113;
+    placeIsland(bossRadius, bossSeed, "wolfBoss");
+  }
+
+  for (let i = specs.length; i < islandCount; i += 1) {
+    const baseRadius = randomBetween(rng, radiusMin, radiusMax);
+    const islandSeed = Math.floor(rng() * 1_000_000_000) + seed + i * 37;
+    const type = pickIslandType(rng);
+    placeIsland(baseRadius, islandSeed, type);
   }
 
   return specs;

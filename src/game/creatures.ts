@@ -19,6 +19,9 @@ import {
   KRAKEN_SPAWN_MIN_DISTANCE,
   KRAKEN_STATS,
   STANDARD_CRAB_COUNT,
+  WOLF_BOSS_COUNT,
+  WOLF_BOSS_RADIUS_SCALE,
+  WOLF_BOSS_STATS,
   WOLF_DEFAULT_STATS,
   WOLF_SPAWN_RADIUS_SCALE,
   type CrabStats
@@ -112,9 +115,10 @@ const createCrab = (id: number, position: Vec2, homeIslandIndex: number, stats: 
   hitTimer: 0
 });
 
-const createWolf = (id: number, position: Vec2, homeIslandIndex: number, stats: CrabStats): Wolf => ({
+const createWolf = (id: number, position: Vec2, homeIslandIndex: number, stats: CrabStats, isBoss = false): Wolf => ({
   id,
   kind: "wolf",
+  isBoss,
   position,
   velocity: { x: 0, y: 0 },
   radius: stats.radius,
@@ -171,6 +175,15 @@ export const createEnemies = (world: WorldState): Enemy[] => {
       for (let i = 0; i < FOREST_WOLF_COUNT; i += 1) {
         const position = randomPointInIsland(island, WOLF_SPAWN_RADIUS_SCALE);
         enemies.push(createWolf(nextId, position, index, WOLF_DEFAULT_STATS));
+        nextId += 1;
+      }
+      return;
+    }
+
+    if (island.type === "wolfBoss") {
+      for (let i = 0; i < WOLF_BOSS_COUNT; i += 1) {
+        const position = randomPointInIsland(island, WOLF_BOSS_RADIUS_SCALE);
+        enemies.push(createWolf(nextId, position, index, WOLF_BOSS_STATS, true));
         nextId += 1;
       }
       return;

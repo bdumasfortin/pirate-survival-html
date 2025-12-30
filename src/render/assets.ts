@@ -14,6 +14,7 @@ import itemRaftUrl from "../assets/svg/items/item-raft.svg";
 import redberryUrl from "../assets/svg/items/redberry.svg";
 import sabreUrl from "../assets/svg/items/sabre.svg";
 import crabmeatUrl from "../assets/svg/items/crabmeat.svg";
+import wolfmeatUrl from "../assets/svg/items/wolfmeat.svg";
 import crabhelmetUrl from "../assets/svg/items/crabhelmet.svg";
 import wolfcloakUrl from "../assets/svg/items/wolfcloak.svg";
 import krakenringUrl from "../assets/svg/items/krakenring.svg";
@@ -59,6 +60,7 @@ export const itemImages: Record<ResourceKind, HTMLImageElement> = {
   berries: loadImage(redberryUrl),
   sword: loadImage(sabreUrl),
   crabmeat: loadImage(crabmeatUrl),
+  wolfmeat: loadImage(wolfmeatUrl),
   crabhelmet: loadImage(crabhelmetUrl),
   wolfcloak: loadImage(wolfcloakUrl),
   krakenring: loadImage(krakenringUrl)
