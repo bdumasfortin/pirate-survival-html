@@ -28,10 +28,12 @@ const nodeColors: Record<ResourceNodeType, string> = {
 };
 
 const enemyColors: Record<string, string> = {
-  crab: "#d0674b"
+  crab: "#d0674b",
+  wolf: "#8a6b55",
+  kraken: "#2f8aa0"
 };
 
-const { crab: crabImage, pirate: pirateImage, bush: bushImage, palmtree: palmtreeImage, rock: rockImage, raft: raftImage } =
+const { crab: crabImage, wolf: wolfImage, kraken: krakenImage, pirate: pirateImage, bush: bushImage, palmtree: palmtreeImage, rock: rockImage, raft: raftImage } =
   worldImages;
 
 const getItemIcon = (kind: keyof typeof itemImages) => {
@@ -145,19 +147,30 @@ const renderResources = (ctx: CanvasRenderingContext2D, state: GameState) => {
 const renderEnemies = (ctx: CanvasRenderingContext2D, state: GameState) => {
   state.enemies.forEach((enemy) => {
     const flash = enemy.hitTimer > 0 ? enemy.hitTimer / CRAB_HIT_FLASH_DURATION : 0;
-    const isCrab = enemy.kind === "crab";
-    const canDrawImage = isCrab && isImageReady(crabImage);
+    const image = enemy.kind === "crab"
+      ? crabImage
+      : enemy.kind === "wolf"
+        ? wolfImage
+        : enemy.kind === "kraken"
+          ? krakenImage
+          : null;
+    const canDrawImage = image ? isImageReady(image) : false;
 
     if (canDrawImage) {
       const size = enemy.radius * 2;
       const velocity = (enemy as { velocity?: { x: number; y: number } }).velocity;
       const speed = velocity ? Math.hypot(velocity.x, velocity.y) : 0;
       const angle = velocity && speed > 0.01 ? Math.atan2(velocity.y, velocity.x) : 0;
+      const rotation = enemy.kind === "wolf"
+        ? angle - Math.PI / 2
+        : enemy.kind === "kraken"
+          ? 0
+          : angle;
 
       ctx.save();
       ctx.translate(enemy.position.x, enemy.position.y);
-      ctx.rotate(angle);
-      ctx.drawImage(crabImage, -size / 2, -size / 2, size, size);
+      ctx.rotate(rotation);
+      ctx.drawImage(image, -size / 2, -size / 2, size, size);
       ctx.restore();
     } else {
       const baseColor = enemyColors[enemy.kind] ?? "#d0674b";
@@ -253,3 +266,9 @@ export const renderWorld = (ctx: CanvasRenderingContext2D, state: GameState) => 
 
   ctx.restore();
 };
+
+
+
+
+
+

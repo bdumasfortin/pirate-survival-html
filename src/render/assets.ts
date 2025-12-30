@@ -1,6 +1,8 @@
 import type { ResourceKind } from "../world/types";
 import type { EquipmentSlotType } from "../game/equipment";
 import crabUrl from "../assets/svg/crab.svg";
+import wolfUrl from "../assets/svg/wolf.svg";
+import krakenUrl from "../assets/svg/kraken.svg";
 import pirateUrl from "../assets/svg/pirate.svg";
 import bushUrl from "../assets/svg/bush.svg";
 import palmtreeUrl from "../assets/svg/palmtree.svg";
@@ -32,6 +34,8 @@ export const isImageReady = (image: HTMLImageElement) => image.complete && image
 
 export const worldImages = {
   crab: loadImage(crabUrl),
+  wolf: loadImage(wolfUrl),
+  kraken: loadImage(krakenUrl),
   pirate: loadImage(pirateUrl),
   bush: loadImage(bushUrl),
   palmtree: loadImage(palmtreeUrl),
@@ -59,6 +63,7 @@ export const itemImages: Record<ResourceKind, HTMLImageElement> = {
   wolfcloak: loadImage(wolfcloakUrl),
   krakenring: loadImage(krakenringUrl)
 };
+
 
 
 

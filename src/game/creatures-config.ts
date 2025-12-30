@@ -11,6 +11,20 @@ export type CrabStats = {
   wanderTimerMax: number;
 };
 
+export type EnemyStats = {
+  radius: number;
+  health: number;
+  maxHealth: number;
+};
+
+export type KrakenStats = EnemyStats & {
+  damage: number;
+  speed: number;
+  attackCooldown: number;
+  wanderTimerMin: number;
+  wanderTimerMax: number;
+};
+
 export const CRAB_SPAWN_COUNT = 5;
 export const CRAB_SPAWN_BASE_RADIUS = 260;
 export const CRAB_SPAWN_RING_MIN = 0.75;
@@ -44,3 +58,33 @@ export const CRAB_BOSS_STATS: CrabStats = {
   wanderTimerMin: 1.8,
   wanderTimerMax: 3.8
 };
+
+export const WOLF_DEFAULT_STATS: CrabStats = {
+  radius: 22,
+  health: 70,
+  maxHealth: 70,
+  damage: 10,
+  speed: 70,
+  aggroRange: 120,
+  attackRange: 24,
+  attackCooldown: 1.05,
+  wanderTimerMin: 1.2,
+  wanderTimerMax: 2.8
+};
+
+export const WOLF_SPAWN_RADIUS_SCALE = 0.7;
+
+export const KRAKEN_STATS: KrakenStats = {
+  radius: 72,
+  health: 200,
+  maxHealth: 200,
+  damage: 14,
+  speed: 26,
+  attackCooldown: 1.4,
+  wanderTimerMin: 1.8,
+  wanderTimerMax: 3.6
+};
+
+export const KRAKEN_SPAWN_MIN_DISTANCE = 520;
+export const KRAKEN_SPAWN_MAX_DISTANCE = 740;
+export const KRAKEN_SPAWN_ATTEMPTS = 40;

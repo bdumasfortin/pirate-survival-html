@@ -1,5 +1,7 @@
 import type { InputState } from "../core/input";
 import type { GameState } from "../game/state";
+import type { Crab, Kraken, Wolf } from "../game/creatures";
+import type { ResourceKind } from "../world/types";
 import { clamp, normalize } from "../core/math";
 import { isPointInPolygon } from "../world/island-geometry";
 import {
@@ -12,10 +14,19 @@ import {
   PLAYER_ATTACK_RANGE
 } from "../game/combat-config";
 import { GROUND_ITEM_DROP_OFFSET } from "../game/ground-items-config";
+import { KRAKEN_STATS } from "../game/creatures-config";
+
+const WANDER_SPEED_SCALE = 0.4;
 
 let playerAttackTimer = 0;
 
+const randomBetween = (min: number, max: number) => min + Math.random() * (max - min);
+
 export const updateCrabs = (state: GameState, delta: number) => {
+  for (const enemy of state.enemies) {
+    enemy.hitTimer = Math.max(0, enemy.hitTimer - delta);
+  }
+
   const player = state.entities.find((entity) => entity.id === state.playerId);
   const stats = state.survival;
 
@@ -23,46 +34,86 @@ export const updateCrabs = (state: GameState, delta: number) => {
     return;
   }
 
-  for (const crab of state.crabs) {
-    crab.attackTimer = Math.max(0, crab.attackTimer - delta);
-    crab.hitTimer = Math.max(0, crab.hitTimer - delta);
+  for (const enemy of state.enemies) {
+    if (enemy.kind === "kraken") {
+      const kraken = enemy as Kraken;
+      kraken.attackTimer = Math.max(0, kraken.attackTimer - delta);
+      kraken.wanderTimer -= delta;
 
-    const island = state.world.islands[crab.homeIslandIndex] ?? state.world.islands[0];
-    const dx = player.position.x - crab.position.x;
-    const dy = player.position.y - crab.position.y;
+      if (kraken.wanderTimer <= 0) {
+        kraken.wanderAngle = Math.random() * Math.PI * 2;
+        kraken.wanderTimer = randomBetween(KRAKEN_STATS.wanderTimerMin, KRAKEN_STATS.wanderTimerMax);
+      }
+
+      kraken.velocity.x = Math.cos(kraken.wanderAngle) * kraken.speed * WANDER_SPEED_SCALE;
+      kraken.velocity.y = Math.sin(kraken.wanderAngle) * kraken.speed * WANDER_SPEED_SCALE;
+      kraken.position.x += kraken.velocity.x * delta;
+      kraken.position.y += kraken.velocity.y * delta;
+
+      const dx = player.position.x - kraken.position.x;
+      const dy = player.position.y - kraken.position.y;
+      const distance = Math.hypot(dx, dy);
+      const hitRange = kraken.radius + player.radius;
+
+      if (distance <= hitRange && kraken.attackTimer <= 0) {
+        stats.health = clamp(stats.health - kraken.damage, 0, stats.maxHealth);
+        kraken.attackTimer = kraken.attackCooldown;
+        state.damageFlashTimer = DAMAGE_FLASH_DURATION;
+
+        if (stats.health <= 0) {
+          stats.health = 0;
+          state.isDead = true;
+          state.damageFlashTimer = 0;
+          state.attackEffect = null;
+        }
+      }
+
+      continue;
+    }
+
+    if (enemy.kind !== "crab" && enemy.kind !== "wolf") {
+      continue;
+    }
+
+    const creature = enemy as Crab | Wolf;
+    creature.attackTimer = Math.max(0, creature.attackTimer - delta);
+
+    const island = state.world.islands[creature.homeIslandIndex] ?? state.world.islands[0];
+    const dx = player.position.x - creature.position.x;
+    const dy = player.position.y - creature.position.y;
     const distance = Math.hypot(dx, dy);
 
-    if (distance < crab.aggroRange) {
+    if (distance < creature.aggroRange) {
       const dir = normalize(dx, dy);
-      crab.velocity.x = dir.x * crab.speed;
-      crab.velocity.y = dir.y * crab.speed;
+      creature.velocity.x = dir.x * creature.speed;
+      creature.velocity.y = dir.y * creature.speed;
     } else {
-      crab.wanderTimer -= delta;
-      if (crab.wanderTimer <= 0) {
-        crab.wanderAngle = Math.random() * Math.PI * 2;
-        crab.wanderTimer = 1.5 + Math.random() * 2.5;
+      creature.wanderTimer -= delta;
+      if (creature.wanderTimer <= 0) {
+        creature.wanderAngle = Math.random() * Math.PI * 2;
+        creature.wanderTimer = 1.5 + Math.random() * 2.5;
       }
-      crab.velocity.x = Math.cos(crab.wanderAngle) * crab.speed * 0.4;
-      crab.velocity.y = Math.sin(crab.wanderAngle) * crab.speed * 0.4;
+      creature.velocity.x = Math.cos(creature.wanderAngle) * creature.speed * WANDER_SPEED_SCALE;
+      creature.velocity.y = Math.sin(creature.wanderAngle) * creature.speed * WANDER_SPEED_SCALE;
     }
 
-    crab.position.x += crab.velocity.x * delta;
-    crab.position.y += crab.velocity.y * delta;
+    creature.position.x += creature.velocity.x * delta;
+    creature.position.y += creature.velocity.y * delta;
 
-    if (island && !isPointInPolygon(crab.position, island.points)) {
-      const toCenter = normalize(island.center.x - crab.position.x, island.center.y - crab.position.y);
-      crab.position.x += toCenter.x * crab.speed * delta;
-      crab.position.y += toCenter.y * crab.speed * delta;
+    if (island && !isPointInPolygon(creature.position, island.points)) {
+      const toCenter = normalize(island.center.x - creature.position.x, island.center.y - creature.position.y);
+      creature.position.x += toCenter.x * creature.speed * delta;
+      creature.position.y += toCenter.y * creature.speed * delta;
     }
 
-    const postDx = player.position.x - crab.position.x;
-    const postDy = player.position.y - crab.position.y;
+    const postDx = player.position.x - creature.position.x;
+    const postDy = player.position.y - creature.position.y;
     const postDist = Math.hypot(postDx, postDy);
-    const hitRange = crab.attackRange + player.radius;
+    const hitRange = creature.attackRange + player.radius;
 
-    if (postDist <= hitRange && crab.attackTimer <= 0) {
-      stats.health = clamp(stats.health - crab.damage, 0, stats.maxHealth);
-      crab.attackTimer = crab.attackCooldown;
+    if (postDist <= hitRange && creature.attackTimer <= 0) {
+      stats.health = clamp(stats.health - creature.damage, 0, stats.maxHealth);
+      creature.attackTimer = creature.attackCooldown;
       state.damageFlashTimer = DAMAGE_FLASH_DURATION;
 
       if (stats.health <= 0) {
@@ -148,33 +199,36 @@ export const updatePlayerAttack = (state: GameState, input: InputState, delta: n
     target.hitTimer = CRAB_HIT_FLASH_DURATION;
 
     if (target.health <= 0) {
-      const angle = Math.random() * Math.PI * 2;
-      const offset = GROUND_ITEM_DROP_OFFSET;
-      state.groundItems.push({
-        id: state.nextGroundItemId++,
-        kind: "crabmeat",
-        quantity: 1,
-        position: {
-          x: target.position.x + Math.cos(angle) * offset,
-          y: target.position.y + Math.sin(angle) * offset
-        },
-        droppedAt: state.time
-      });
-
-
-      if (target.isBoss) {
-        const helmAngle = Math.random() * Math.PI * 2;
-        const helmOffset = GROUND_ITEM_DROP_OFFSET * 1.2;
+      const dropItem = (kind: ResourceKind, offsetScale = 1) => {
+        const angle = Math.random() * Math.PI * 2;
+        const offset = GROUND_ITEM_DROP_OFFSET * offsetScale;
         state.groundItems.push({
           id: state.nextGroundItemId++,
-          kind: "crabhelmet",
+          kind,
           quantity: 1,
           position: {
-            x: target.position.x + Math.cos(helmAngle) * helmOffset,
-            y: target.position.y + Math.sin(helmAngle) * helmOffset
+            x: target.position.x + Math.cos(angle) * offset,
+            y: target.position.y + Math.sin(angle) * offset
           },
           droppedAt: state.time
         });
+      };
+
+      switch (target.kind) {
+        case "crab":
+          dropItem("crabmeat");
+          if (target.isBoss) {
+            dropItem("crabhelmet", 1.2);
+          }
+          break;
+        case "wolf":
+          dropItem("wolfcloak");
+          break;
+        case "kraken":
+          dropItem("krakenring");
+          break;
+        default:
+          break;
       }
 
       state.enemies.splice(closestIndex, 1);
