@@ -1,7 +1,7 @@
 import { consumeInteract, type InputState } from "../core/input";
 import { addToInventory } from "../game/inventory";
 import type { GameState } from "../game/state";
-import type { ResourceNode, YieldRange } from "../world/world";
+import type { ResourceNode, YieldRange } from "../world/types";
 
 export const GATHER_RANGE = 10;
 

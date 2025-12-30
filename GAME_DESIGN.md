@@ -44,11 +44,12 @@
 - Organic island shapes with multiple surrounding islands.
 - Player movement with island edge sliding.
 - Resources: trees (multi-yield wood), rocks (single rock), berry bushes (respawn).
-- Inventory: 9-slot hotbar, stack limit 20, mouse wheel/1-9 selection, Q destroys one item (drop placeholder).
+- Inventory: 9-slot hotbar, stack limit 20, mouse wheel/1-9 selection, Q drops one item onto the ground.
 - Crafting: column menu, select with 1-9/mouse wheel, LMB crafts, Escape closes (recipes: raft, sword).
 - Raft travel: board/disembark near shore with LMB when raft is selected.
 - Use: left-click consumes berries (hunger restore, cooldown).
 - Combat: LMB sword attack toward cursor with cone effect; crab AI plus a boss crab on the leftmost island.
+- Loot: crabs drop crab meat; eating it restores hunger.
 - Survival HUD: health and hunger bars; death overlay with F5 restart hint.
 - UI: action prompts, hints, and item icons in the hotbar.
 - Visuals: SVG sprites for player, enemies, resources, and items.
@@ -60,7 +61,6 @@
 - Monsters tied to biomes; difficulty scales with distance from spawn.
 - Boss encounters on remote islands.
 - Crafting system expansion: recipe categories, crafting stations, and tool requirements.
-- Loot drops, ground items, item dropping
 - Tools: axe/pick upgrades that change gather speed/yield.
 - Building placement: bedroll, storage, dock, simple shelters.
 - Resource variety: rare nodes, fish, and treasure finds.

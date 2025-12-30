@@ -1,6 +1,6 @@
 import type { GameState } from "../game/state";
 import type { Vec2 } from "../core/types";
-import type { Island } from "../world/world";
+import type { Island } from "../world/types";
 import {
   closestPointOnPolygon,
   findClosestIslandEdge,

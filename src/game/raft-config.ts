@@ -1,0 +1,2 @@
+export const RAFT_INTERACTION_DISTANCE = 18;
+export const RAFT_SHORE_BUFFER = 2;

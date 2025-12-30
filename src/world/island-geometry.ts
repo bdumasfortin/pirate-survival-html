@@ -1,5 +1,5 @@
 import type { Vec2 } from "../core/types";
-import type { Island } from "./world";
+import type { Island } from "./types";
 
 export const isPointInPolygon = (point: Vec2, polygon: Vec2[]) => {
   let inside = false;

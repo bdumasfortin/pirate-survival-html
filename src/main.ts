@@ -1,8 +1,8 @@
 import "./style.css";
-import { createInputState, bindKeyboard, bindInventorySelection, bindMouse, bindCraftScroll } from "./core/input";
+import { createInputState, bindKeyboard, bindInventorySelection, bindMouse, bindCraftScroll, type InputState } from "./core/input";
 import { startLoop } from "./core/loop";
 import { CAMERA_ZOOM } from "./game/config";
-import { createInitialState } from "./game/state";
+import { createInitialState, type GameState } from "./game/state";
 import { updateMovement } from "./systems/movement";
 import { constrainPlayerToIslands } from "./systems/collisions";
 import { updateCrafting } from "./systems/crafting";
@@ -11,6 +11,7 @@ import { gatherNearbyResource, updateResourceRespawns } from "./systems/gatherin
 import { updateRaft } from "./systems/raft";
 import { updateSurvival } from "./systems/survival";
 import { dropSelectedItem } from "./systems/drop-selected-item";
+import { pickupGroundItems } from "./systems/ground-items";
 import { updateUseCooldown, useSelectedItem } from "./systems/use-selected-item";
 import { render } from "./render/renderer";
 
@@ -48,6 +49,38 @@ bindMouse(input);
 bindCraftScroll(input, () => state.crafting.isOpen);
 bindInventorySelection(state.inventory, () => !state.crafting.isOpen && !state.isDead);
 
+
+const getPlayerEntity = (state: GameState) => state.entities.find((entity) => entity.id === state.playerId);
+
+const updateMouseWorldPosition = (input: InputState, player: { position: { x: number; y: number } }) => {
+  if (!input.mouseScreen) {
+    return;
+  }
+
+  input.mouseWorld = {
+    x: (input.mouseScreen.x - window.innerWidth / 2) / CAMERA_ZOOM + player.position.x,
+    y: (input.mouseScreen.y - window.innerHeight / 2) / CAMERA_ZOOM + player.position.y
+  };
+};
+
+const updateAimAngle = (state: GameState, input: InputState, player: { position: { x: number; y: number } }) => {
+  if (!input.mouseWorld) {
+    return;
+  }
+
+  const dx = input.mouseWorld.x - player.position.x;
+  const dy = input.mouseWorld.y - player.position.y;
+  if (Math.hypot(dx, dy) > 0.01) {
+    state.aimAngle = Math.atan2(dy, dx);
+  }
+};
+
+const clearQueuedUse = (input: InputState) => {
+  if (input.useQueued) {
+    input.useQueued = false;
+  }
+};
+
 const startGame = async () => {
   if (document.fonts && document.fonts.load) {
     try {
@@ -61,27 +94,19 @@ const startGame = async () => {
     onUpdate: (delta) => {
       state.time += delta;
 
-      const player = state.entities.find((entity) => entity.id === state.playerId);
-      if (player && input.mouseScreen) {
-        input.mouseWorld = {
-          x: (input.mouseScreen.x - window.innerWidth / 2) / CAMERA_ZOOM + player.position.x,
-          y: (input.mouseScreen.y - window.innerHeight / 2) / CAMERA_ZOOM + player.position.y
-        };
-      }
-
-      if (player && input.mouseWorld) {
-        const dx = input.mouseWorld.x - player.position.x;
-        const dy = input.mouseWorld.y - player.position.y;
-        if (Math.hypot(dx, dy) > 0.01) {
-          state.aimAngle = Math.atan2(dy, dx);
-        }
+      const player = getPlayerEntity(state);
+      if (player) {
+        updateMouseWorldPosition(input, player);
+        updateAimAngle(state, input, player);
       }
 
       if (!state.isDead) {
         updateMovement(state, input, delta);
-        updateRaft(state, input);
         constrainPlayerToIslands(state);
         updateCrafting(state, input);
+        if (!state.crafting.isOpen) {
+          updateRaft(state, input);
+        }
       }
 
       updateResourceRespawns(state, delta);
@@ -89,17 +114,18 @@ const startGame = async () => {
       if (!state.isDead) {
         gatherNearbyResource(state, input);
         updateUseCooldown(delta);
-        updatePlayerAttack(state, input, delta);
-        useSelectedItem(state, input);
+        if (!state.crafting.isOpen) {
+          updatePlayerAttack(state, input, delta);
+          useSelectedItem(state, input);
+        }
         dropSelectedItem(state, input);
+        pickupGroundItems(state);
       }
 
       updateCrabs(state, delta);
       updateSurvival(state, delta);
 
-      if (input.useQueued) {
-        input.useQueued = false;
-      }
+      clearQueuedUse(input);
     },
     onRender: () => {
       render(ctx, state);

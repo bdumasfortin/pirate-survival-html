@@ -1,0 +1,4 @@
+export const GROUND_ITEM_PICKUP_RANGE = 24;
+export const GROUND_ITEM_DROP_OFFSET = 18;
+export const GROUND_ITEM_RENDER_SIZE = 18;
+export const GROUND_ITEM_PICKUP_COOLDOWN = 1.5;

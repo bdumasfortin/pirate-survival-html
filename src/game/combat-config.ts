@@ -1,0 +1,8 @@
+export const PLAYER_ATTACK_RANGE = 32;
+export const PLAYER_ATTACK_DAMAGE = 14;
+export const PLAYER_ATTACK_COOLDOWN = 0.4;
+export const PLAYER_ATTACK_CONE_SPREAD = 0.9;
+
+export const ATTACK_EFFECT_DURATION = 0.12;
+export const CRAB_HIT_FLASH_DURATION = 0.18;
+export const DAMAGE_FLASH_DURATION = 0.25;

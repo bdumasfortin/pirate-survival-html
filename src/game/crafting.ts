@@ -1,5 +1,5 @@
 import type { InventoryState } from "./inventory";
-import type { ResourceKind } from "../world/world";
+import type { ResourceKind } from "../world/types";
 import { addToInventory, getAvailableSpace, getTotalOfKind, removeFromInventory } from "./inventory";
 
 export type RecipeIngredient = {
