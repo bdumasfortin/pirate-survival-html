@@ -1,5 +1,6 @@
 import { type InputState } from "../core/input";
 import type { GameState } from "../game/state";
+import { getEquipmentSlotForItem } from "../game/equipment";
 import { clamp } from "../core/math";
 import { BERRY_RESTORE_RATIO, CRAB_MEAT_RESTORE_RATIO, ITEM_USE_COOLDOWN } from "../game/use-config";
 
@@ -17,11 +18,28 @@ export const useSelectedItem = (state: GameState, input: InputState) => {
   }
 
   const slot = state.inventory.slots[state.inventory.selectedIndex];
-  if (!slot || slot.quantity <= 0 || (slot.kind !== "berries" && slot.kind !== "crabmeat")) {
+  if (!slot || slot.quantity <= 0 || !slot.kind) {
     return;
   }
 
   input.useQueued = false;
+
+  const equipSlot = getEquipmentSlotForItem(slot.kind);
+  if (equipSlot) {
+    if (!state.equipment.slots[equipSlot]) {
+      state.equipment.slots[equipSlot] = slot.kind;
+      slot.quantity -= 1;
+      if (slot.quantity <= 0) {
+        slot.quantity = 0;
+        slot.kind = null;
+      }
+    }
+    return;
+  }
+
+  if (slot.kind !== "berries" && slot.kind !== "crabmeat") {
+    return;
+  }
 
   if (useCooldown > 0) {
     return;

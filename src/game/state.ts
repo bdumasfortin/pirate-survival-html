@@ -4,6 +4,7 @@ import { createCrabs, type Crab } from "./creatures";
 import type { Enemy } from "./enemies";
 import type { GroundItem } from "./ground-items";
 import { addToInventory, createInventory, type InventoryState } from "./inventory";
+import { createEquipmentState, type EquipmentState } from "./equipment";
 import { createRaftState, type RaftState } from "./raft";
 import { createSurvivalStats, type SurvivalStats } from "./survival";
 import { createWorld } from "../world/world";
@@ -26,6 +27,7 @@ export type GameState = {
   playerId: number;
   world: WorldState;
   inventory: InventoryState;
+  equipment: EquipmentState;
   survival: SurvivalStats;
   crafting: CraftingState;
   raft: RaftState;
@@ -45,6 +47,8 @@ const seedDevInventory = (inventory: InventoryState) => {
   addToInventory(inventory, "raft", 1);
   addToInventory(inventory, "sword", 1);
   addToInventory(inventory, "crabhelmet", 1);
+  addToInventory(inventory, "wolfcloak", 1);
+  addToInventory(inventory, "krakenring", 1);
 };
 
 export const createInitialState = (): GameState => {
@@ -71,6 +75,7 @@ export const createInitialState = (): GameState => {
     playerId: player.id,
     world,
     inventory,
+    equipment: createEquipmentState(),
     survival: createSurvivalStats(),
     crafting: createCraftingState(),
     raft: createRaftState(),
@@ -85,6 +90,8 @@ export const createInitialState = (): GameState => {
     attackEffect: null
   };
 };
+
+
 
 
 

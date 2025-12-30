@@ -1,4 +1,5 @@
 import type { ResourceKind } from "../world/types";
+import type { EquipmentSlotType } from "../game/equipment";
 import crabUrl from "../assets/svg/crab.svg";
 import pirateUrl from "../assets/svg/pirate.svg";
 import bushUrl from "../assets/svg/bush.svg";
@@ -12,6 +13,14 @@ import redberryUrl from "../assets/svg/items/redberry.svg";
 import sabreUrl from "../assets/svg/items/sabre.svg";
 import crabmeatUrl from "../assets/svg/items/crabmeat.svg";
 import crabhelmetUrl from "../assets/svg/items/crabhelmet.svg";
+import wolfcloakUrl from "../assets/svg/items/wolfcloak.svg";
+import krakenringUrl from "../assets/svg/items/krakenring.svg";
+import placeholderHelmetUrl from "../assets/svg/placeholders/placeholder-helmet.svg";
+import placeholderCloakUrl from "../assets/svg/placeholders/placeholder-cloak.svg";
+import placeholderChestUrl from "../assets/svg/placeholders/placeholder-chest.svg";
+import placeholderLegsUrl from "../assets/svg/placeholders/placeholder-legs.svg";
+import placeholderBootsUrl from "../assets/svg/placeholders/placeholder-boots.svg";
+import placeholderRingUrl from "../assets/svg/placeholders/placeholder-ring.svg";
 
 const loadImage = (url: string) => {
   const image = new Image();
@@ -30,6 +39,15 @@ export const worldImages = {
   raft: loadImage(raftUrl)
 };
 
+export const equipmentPlaceholderImages: Record<EquipmentSlotType, HTMLImageElement> = {
+  helmet: loadImage(placeholderHelmetUrl),
+  cloak: loadImage(placeholderCloakUrl),
+  chest: loadImage(placeholderChestUrl),
+  legs: loadImage(placeholderLegsUrl),
+  boots: loadImage(placeholderBootsUrl),
+  ring: loadImage(placeholderRingUrl)
+};
+
 export const itemImages: Record<ResourceKind, HTMLImageElement> = {
   wood: loadImage(itemWoodUrl),
   rock: loadImage(itemRockUrl),
@@ -37,5 +55,10 @@ export const itemImages: Record<ResourceKind, HTMLImageElement> = {
   berries: loadImage(redberryUrl),
   sword: loadImage(sabreUrl),
   crabmeat: loadImage(crabmeatUrl),
-  crabhelmet: loadImage(crabhelmetUrl)
+  crabhelmet: loadImage(crabhelmetUrl),
+  wolfcloak: loadImage(wolfcloakUrl),
+  krakenring: loadImage(krakenringUrl)
 };
+
+
+

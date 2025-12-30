@@ -1,4 +1,5 @@
 import type { GameState } from "../game/state";
+import { EQUIPMENT_SLOT_ORDER, type EquipmentSlotType } from "../game/equipment";
 import type { ResourceKind, ResourceNodeType } from "../world/types";
 import { findClosestIslandEdge } from "../world/island-geometry";
 import { canCraft, recipes } from "../game/crafting";
@@ -6,7 +7,7 @@ import type { Recipe } from "../game/crafting";
 import { getNearestGatherableResource } from "../systems/gathering";
 import { DAMAGE_FLASH_DURATION } from "../game/combat-config";
 import { RAFT_INTERACTION_DISTANCE } from "../game/raft-config";
-import { isImageReady, itemImages } from "./assets";
+import { equipmentPlaceholderImages, isImageReady, itemImages } from "./assets";
 import { drawRoundedRect } from "./render-helpers";
 import {
   ACTION_PROMPT_FONT_SIZE,
@@ -20,6 +21,11 @@ import {
   CRAFT_TILE_GAP,
   CRAFT_TILE_RADIUS,
   CRAFT_TILE_SIZE,
+  EQUIPMENT_GRID_COLUMNS,
+  EQUIPMENT_GRID_ROWS,
+  EQUIPMENT_SLOT_GAP,
+  EQUIPMENT_SLOT_RADIUS,
+  EQUIPMENT_SLOT_SIZE,
   HUD_MARGIN,
   INVENTORY_BAR_MARGIN,
   INVENTORY_BAR_PADDING,
@@ -36,7 +42,9 @@ const resourceColors: Record<ResourceKind, string> = {
   raft: "#caa05a",
   sword: "#c7c9cc",
   crabmeat: "#c66a4b",
-  crabhelmet: "#6f87b7"
+  crabhelmet: "#6f87b7",
+  wolfcloak: "#7d6d4f",
+  krakenring: "#5aa1c9"
 };
 
 const promptLabels: Record<ResourceNodeType, string> = {
@@ -47,6 +55,11 @@ const promptLabels: Record<ResourceNodeType, string> = {
 
 const getItemIcon = (kind: ResourceKind) => {
   const image = itemImages[kind];
+  return isImageReady(image) ? image : null;
+};
+
+const getPlaceholderIcon = (slot: EquipmentSlotType) => {
+  const image = equipmentPlaceholderImages[slot];
   return isImageReady(image) ? image : null;
 };
 
@@ -118,6 +131,82 @@ const renderInventory = (ctx: CanvasRenderingContext2D, state: GameState) => {
       ctx.textAlign = "right";
       ctx.textBaseline = "bottom";
       ctx.fillText(String(slot.quantity), x + INVENTORY_SLOT_SIZE - 6, y + INVENTORY_SLOT_SIZE - 4);
+    }
+  });
+};
+
+const renderEquipment = (ctx: CanvasRenderingContext2D, state: GameState) => {
+  const { innerHeight } = window;
+  const totalWidth = EQUIPMENT_GRID_COLUMNS * EQUIPMENT_SLOT_SIZE + (EQUIPMENT_GRID_COLUMNS - 1) * EQUIPMENT_SLOT_GAP;
+  const totalHeight = EQUIPMENT_GRID_ROWS * EQUIPMENT_SLOT_SIZE + (EQUIPMENT_GRID_ROWS - 1) * EQUIPMENT_SLOT_GAP;
+  const startX = HUD_MARGIN;
+  const startY = innerHeight - HUD_MARGIN - totalHeight;
+
+  ctx.save();
+  ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = "rgba(12, 22, 26, 0.6)";
+  drawRoundedRect(
+    ctx,
+    startX - 12,
+    startY - 12,
+    totalWidth + 24,
+    totalHeight + 24,
+    14
+  );
+  ctx.fill();
+  ctx.restore();
+
+  EQUIPMENT_SLOT_ORDER.forEach((slotType, index) => {
+    const column = index % EQUIPMENT_GRID_COLUMNS;
+    const row = Math.floor(index / EQUIPMENT_GRID_COLUMNS);
+    const x = startX + column * (EQUIPMENT_SLOT_SIZE + EQUIPMENT_SLOT_GAP);
+    const y = startY + row * (EQUIPMENT_SLOT_SIZE + EQUIPMENT_SLOT_GAP);
+    const equipped = state.equipment.slots[slotType];
+
+    ctx.save();
+    ctx.fillStyle = "rgba(20, 32, 38, 0.85)";
+    ctx.strokeStyle = "#5f6b6d";
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+    ctx.shadowBlur = 5;
+    drawRoundedRect(ctx, x, y, EQUIPMENT_SLOT_SIZE, EQUIPMENT_SLOT_SIZE, EQUIPMENT_SLOT_RADIUS);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    const iconSize = EQUIPMENT_SLOT_SIZE * 0.6;
+    if (equipped) {
+      const icon = getItemIcon(equipped);
+      if (icon) {
+        ctx.drawImage(
+          icon,
+          x + (EQUIPMENT_SLOT_SIZE - iconSize) / 2,
+          y + (EQUIPMENT_SLOT_SIZE - iconSize) / 2,
+          iconSize,
+          iconSize
+        );
+      } else {
+        ctx.beginPath();
+        ctx.arc(x + EQUIPMENT_SLOT_SIZE / 2, y + EQUIPMENT_SLOT_SIZE / 2, EQUIPMENT_SLOT_SIZE * 0.22, 0, Math.PI * 2);
+        ctx.fillStyle = resourceColors[equipped] ?? "#f0d58b";
+        ctx.fill();
+      }
+      return;
+    }
+
+    const placeholder = getPlaceholderIcon(slotType);
+    if (placeholder) {
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.drawImage(
+        placeholder,
+        x + (EQUIPMENT_SLOT_SIZE - iconSize) / 2,
+        y + (EQUIPMENT_SLOT_SIZE - iconSize) / 2,
+        iconSize,
+        iconSize
+      );
+      ctx.restore();
     }
   });
 };
@@ -449,8 +538,18 @@ export const renderHud = (ctx: CanvasRenderingContext2D, state: GameState) => {
   if (!raftPrompted) {
     renderInteractionPrompt(ctx, state);
   }
+  renderEquipment(ctx, state);
   renderInventory(ctx, state);
   renderHints(ctx);
   renderDamageFlash(ctx, state);
   renderDeathOverlay(ctx, state);
 };
+
+
+
+
+
+
+
+
+
