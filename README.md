@@ -9,6 +9,7 @@
 Open the URL printed by Vite (default is `http://localhost:5173`).
 
 ## Deploy (GitHub Pages)
+- Project page URL: `https://bdumasfortin.github.io/pirate-survival-html/`
 - Push to `main` and GitHub Actions will build + deploy automatically.
 - Pages source should be set to GitHub Actions in the repo settings.
 
