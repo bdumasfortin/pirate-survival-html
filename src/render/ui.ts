@@ -42,6 +42,7 @@ const resourceColors: Record<ResourceKind, string> = {
   raft: "#caa05a",
   sword: "#c7c9cc",
   crabmeat: "#c66a4b",
+  wolfmeat: "#b96c54",
   crabhelmet: "#6f87b7",
   wolfcloak: "#7d6d4f",
   krakenring: "#5aa1c9"
@@ -53,7 +54,15 @@ const promptLabels: Record<ResourceNodeType, string> = {
   bush: "E to collect"
 };
 
+const ARMOR_BAR_GAP = 16;
+
 const buildVersionLabel = `v${__APP_VERSION__}${import.meta.env.DEV ? "-dev" : ""}`;
+
+let activeSeedLabel = "Seed: --";
+
+export const setHudSeed = (seed: string) => {
+  activeSeedLabel = `Seed: ${seed}`;
+};
 
 const getItemIcon = (kind: ResourceKind) => {
   const image = itemImages[kind];
@@ -213,7 +222,7 @@ const renderEquipment = (ctx: CanvasRenderingContext2D, state: GameState) => {
   });
 };
 
-const drawActionPrompt = (ctx: CanvasRenderingContext2D, text: string) => {
+const drawActionPrompt = (ctx: CanvasRenderingContext2D, text: string, barStackHeight = BAR_HEIGHT) => {
   const { innerWidth, innerHeight } = window;
   const fontSize = ACTION_PROMPT_FONT_SIZE;
   const paddingX = ACTION_PROMPT_PADDING_X;
@@ -226,7 +235,7 @@ const drawActionPrompt = (ctx: CanvasRenderingContext2D, text: string) => {
   const height = fontSize + paddingY * 2;
   const inventoryTop = innerHeight - INVENTORY_BAR_PADDING - INVENTORY_SLOT_SIZE - INVENTORY_BAR_MARGIN;
   const x = (innerWidth - width) / 2;
-  const y = Math.max(24, inventoryTop - 14 - height - (BAR_HEIGHT + 50));
+  const y = Math.max(24, inventoryTop - 14 - height - (barStackHeight + 50));
 
   ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
   ctx.shadowBlur = 10;
@@ -243,6 +252,11 @@ const drawActionPrompt = (ctx: CanvasRenderingContext2D, text: string) => {
   ctx.restore();
 };
 
+const getBarStackHeight = (state: GameState) => {
+  const armorVisible = state.survival.maxArmor > 0;
+  return BAR_HEIGHT + (armorVisible ? BAR_HEIGHT + ARMOR_BAR_GAP : 0);
+};
+
 const renderInteractionPrompt = (ctx: CanvasRenderingContext2D, state: GameState) => {
   const player = state.entities.find((entity) => entity.id === state.playerId);
   if (!player) {
@@ -255,7 +269,8 @@ const renderInteractionPrompt = (ctx: CanvasRenderingContext2D, state: GameState
   }
 
   const text = promptLabels[target.nodeType];
-  drawActionPrompt(ctx, text);
+  const barStackHeight = getBarStackHeight(state);
+  drawActionPrompt(ctx, text, barStackHeight);
 };
 
 const renderRaftPrompt = (ctx: CanvasRenderingContext2D, state: GameState) => {
@@ -279,7 +294,8 @@ const renderRaftPrompt = (ctx: CanvasRenderingContext2D, state: GameState) => {
   }
 
   const text = state.raft.isOnRaft ? "LMB to disembark" : "LMB to board";
-  drawActionPrompt(ctx, text);
+  const barStackHeight = getBarStackHeight(state);
+  drawActionPrompt(ctx, text, barStackHeight);
   return true;
 };
 
@@ -294,30 +310,36 @@ const renderSurvivalBars = (ctx: CanvasRenderingContext2D, state: GameState) => 
   const healthX = startX;
   const hungerX = startX + inventoryWidth - BAR_WIDTH;
 
-  const drawBar = (x: number, value: number, max: number, color: string) => {
+  const drawBar = (x: number, yPos: number, value: number, max: number, color: string) => {
     const ratio = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
 
     ctx.save();
     ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
     ctx.shadowBlur = 8;
     ctx.fillStyle = "rgba(12, 22, 26, 0.55)";
-    drawRoundedRect(ctx, x - 10, y - 8, BAR_WIDTH + 20, BAR_HEIGHT + 16, 8);
+    drawRoundedRect(ctx, x - 10, yPos - 8, BAR_WIDTH + 20, BAR_HEIGHT + 16, 8);
     ctx.fill();
     ctx.restore();
 
     ctx.save();
     ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
-    drawRoundedRect(ctx, x, y, BAR_WIDTH, BAR_HEIGHT, 7);
+    drawRoundedRect(ctx, x, yPos, BAR_WIDTH, BAR_HEIGHT, 7);
     ctx.fill();
 
     ctx.fillStyle = color;
-    drawRoundedRect(ctx, x, y, BAR_WIDTH * ratio, BAR_HEIGHT, 7);
+    drawRoundedRect(ctx, x, yPos, BAR_WIDTH * ratio, BAR_HEIGHT, 7);
     ctx.fill();
     ctx.restore();
   };
 
-  drawBar(healthX, stats.health, stats.maxHealth, "#e2534b");
-  drawBar(hungerX, stats.hunger, stats.maxHunger, "#d9a441");
+  const armorVisible = stats.maxArmor > 0;
+  if (armorVisible) {
+    const armorY = y - BAR_HEIGHT - ARMOR_BAR_GAP - 2;
+    drawBar(healthX, armorY, stats.armor, stats.maxArmor, "#4b8fe2");
+  }
+
+  drawBar(healthX, y, stats.health, stats.maxHealth, "#e2534b");
+  drawBar(hungerX, y, stats.hunger, stats.maxHunger, "#d9a441");
 };
 
 const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => {
@@ -467,6 +489,7 @@ const renderBuildVersion = (ctx: CanvasRenderingContext2D) => {
   ctx.textAlign = "right";
   ctx.textBaseline = "top";
   ctx.fillText(buildVersionLabel, innerWidth - HUD_MARGIN, HUD_MARGIN);
+  ctx.fillText(activeSeedLabel, innerWidth - HUD_MARGIN, HUD_MARGIN + fontSize + 6);
   ctx.restore();
 };
 const renderHints = (ctx: CanvasRenderingContext2D) => {
@@ -559,3 +582,6 @@ export const renderHud = (ctx: CanvasRenderingContext2D, state: GameState) => {
   renderDamageFlash(ctx, state);
   renderDeathOverlay(ctx, state);
 };
+
+
+

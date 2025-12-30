@@ -15,6 +15,8 @@ import {
 } from "../game/combat-config";
 import { GROUND_ITEM_DROP_OFFSET } from "../game/ground-items-config";
 import { KRAKEN_STATS } from "../game/creatures-config";
+import { getEquippedItemCount } from "../game/equipment";
+import { ARMOR_PER_PIECE, ARMOR_REGEN_DELAY } from "../game/survival-config";
 
 const WANDER_SPEED_SCALE = 0.4;
 
@@ -22,13 +24,41 @@ let playerAttackTimer = 0;
 
 const randomBetween = (min: number, max: number) => min + Math.random() * (max - min);
 
+const applyMonsterDamage = (state: GameState, damage: number) => {
+  const stats = state.survival;
+  const maxArmor = getEquippedItemCount(state.equipment) * ARMOR_PER_PIECE;
+  stats.maxArmor = maxArmor;
+  stats.armor = clamp(stats.armor, 0, stats.maxArmor);
+
+  let remaining = damage;
+
+  if (stats.armor > 0) {
+    const absorbed = Math.min(stats.armor, remaining);
+    stats.armor = clamp(stats.armor - absorbed, 0, stats.maxArmor);
+    remaining -= absorbed;
+  }
+
+  if (remaining > 0) {
+    stats.health = clamp(stats.health - remaining, 0, stats.maxHealth);
+  }
+
+  stats.armorRegenTimer = ARMOR_REGEN_DELAY;
+  state.damageFlashTimer = DAMAGE_FLASH_DURATION;
+
+  if (stats.health <= 0) {
+    stats.health = 0;
+    state.isDead = true;
+    state.damageFlashTimer = 0;
+    state.attackEffect = null;
+  }
+};
+
 export const updateCrabs = (state: GameState, delta: number) => {
   for (const enemy of state.enemies) {
     enemy.hitTimer = Math.max(0, enemy.hitTimer - delta);
   }
 
   const player = state.entities.find((entity) => entity.id === state.playerId);
-  const stats = state.survival;
 
   if (!player) {
     return;
@@ -56,16 +86,8 @@ export const updateCrabs = (state: GameState, delta: number) => {
       const hitRange = kraken.radius + player.radius;
 
       if (distance <= hitRange && kraken.attackTimer <= 0) {
-        stats.health = clamp(stats.health - kraken.damage, 0, stats.maxHealth);
+        applyMonsterDamage(state, kraken.damage);
         kraken.attackTimer = kraken.attackCooldown;
-        state.damageFlashTimer = DAMAGE_FLASH_DURATION;
-
-        if (stats.health <= 0) {
-          stats.health = 0;
-          state.isDead = true;
-          state.damageFlashTimer = 0;
-          state.attackEffect = null;
-        }
       }
 
       continue;
@@ -112,16 +134,8 @@ export const updateCrabs = (state: GameState, delta: number) => {
     const hitRange = creature.attackRange + player.radius;
 
     if (postDist <= hitRange && creature.attackTimer <= 0) {
-      stats.health = clamp(stats.health - creature.damage, 0, stats.maxHealth);
+      applyMonsterDamage(state, creature.damage);
       creature.attackTimer = creature.attackCooldown;
-      state.damageFlashTimer = DAMAGE_FLASH_DURATION;
-
-      if (stats.health <= 0) {
-        stats.health = 0;
-        state.isDead = true;
-        state.damageFlashTimer = 0;
-        state.attackEffect = null;
-      }
     }
   }
 };
@@ -222,7 +236,10 @@ export const updatePlayerAttack = (state: GameState, input: InputState, delta: n
           }
           break;
         case "wolf":
-          dropItem("wolfcloak");
+          dropItem("wolfmeat");
+          if (target.isBoss) {
+            dropItem("wolfcloak", 1.2);
+          }
           break;
         case "kraken":
           dropItem("krakenring");

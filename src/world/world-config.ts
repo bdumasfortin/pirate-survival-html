@@ -1,19 +1,30 @@
 import type { Vec2 } from "../core/types";
-import type { ResourceKind, ResourceNodeType, YieldRange } from "./types";
+import type { IslandType, ResourceKind, ResourceNodeType, YieldRange } from "./types";
 
 export type IslandSpec = {
   center: Vec2;
   baseRadius: number;
   seed: number;
+  type: IslandType;
 };
 
-export const WORLD_ISLAND_SPECS: IslandSpec[] = [
-  { center: { x: 0, y: 0 }, baseRadius: 420, seed: 11 },
-  { center: { x: 820, y: -200 }, baseRadius: 300, seed: 21 },
-  { center: { x: -760, y: 140 }, baseRadius: 310, seed: 31 },
-  { center: { x: 120, y: 860 }, baseRadius: 280, seed: 41 },
-  { center: { x: -520, y: -780 }, baseRadius: 290, seed: 51 }
-];
+export const WORLD_GEN_CONFIG = {
+  islandCount: 100,
+  spawnRadius: 420,
+  radiusMin: 220,
+  radiusMax: 380,
+  ringMin: 650,
+  ringMax: 2400,
+  edgePadding: 120,
+  placementAttempts: 120
+};
+
+export const ISLAND_TYPE_WEIGHTS: Record<IslandType, number> = {
+  standard: 5,
+  forest: 5,
+  beach: 1,
+  wolfBoss: 0
+};
 
 export const ISLAND_SHAPE_CONFIG = {
   pointCount: 72,
@@ -66,3 +77,10 @@ export const RESOURCE_NODE_CONFIGS: ResourceNodeConfig[] = [
     respawnTime: 20
   }
 ];
+
+export const RESOURCE_NODE_CONFIGS_BY_TYPE: Record<IslandType, ResourceNodeConfig[]> = {
+  standard: RESOURCE_NODE_CONFIGS,
+  forest: RESOURCE_NODE_CONFIGS,
+  wolfBoss: RESOURCE_NODE_CONFIGS,
+  beach: RESOURCE_NODE_CONFIGS.filter((config) => config.nodeType === "rock")
+};

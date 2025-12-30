@@ -48,7 +48,7 @@ const seedDevInventory = (inventory: InventoryState) => {
   addToInventory(inventory, "krakenring", 1);
 };
 
-export const createInitialState = (): GameState => {
+export const createInitialState = (seed: string | number): GameState => {
   const player: Entity = {
     id: 1,
     position: { x: 0, y: 0 },
@@ -58,7 +58,7 @@ export const createInitialState = (): GameState => {
     tag: "player"
   };
 
-  const world = createWorld();
+  const world = createWorld(seed);
   const enemies = createEnemies(world);
   const inventory = createInventory();
 
@@ -86,3 +86,4 @@ export const createInitialState = (): GameState => {
     attackEffect: null
   };
 };
+

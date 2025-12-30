@@ -39,3 +39,6 @@ export const getEquipmentSlotForItem = (kind: ResourceKind): EquipmentSlotType |
   }
 };
 
+export const getEquippedItemCount = (equipment: EquipmentState) =>
+  Object.values(equipment.slots).filter((item) => item).length;
+

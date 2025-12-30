@@ -1,11 +1,24 @@
 import type { Vec2 } from "../core/types";
 
+export type IslandType = "standard" | "forest" | "beach" | "wolfBoss";
+
 export type Island = {
   center: Vec2;
   points: Vec2[];
+  type: IslandType;
 };
 
-export type ResourceKind = "wood" | "rock" | "berries" | "raft" | "sword" | "crabmeat" | "crabhelmet" | "wolfcloak" | "krakenring";
+export type ResourceKind =
+  | "wood"
+  | "rock"
+  | "berries"
+  | "raft"
+  | "sword"
+  | "crabmeat"
+  | "wolfmeat"
+  | "crabhelmet"
+  | "wolfcloak"
+  | "krakenring";
 export type ResourceNodeType = "tree" | "rock" | "bush";
 
 export type YieldRange = {
@@ -30,4 +43,3 @@ export type WorldState = {
   islands: Island[];
   resources: ResourceNode[];
 };
-

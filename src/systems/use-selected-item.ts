@@ -2,7 +2,7 @@ import { type InputState } from "../core/input";
 import type { GameState } from "../game/state";
 import { getEquipmentSlotForItem } from "../game/equipment";
 import { clamp } from "../core/math";
-import { BERRY_RESTORE_RATIO, CRAB_MEAT_RESTORE_RATIO, ITEM_USE_COOLDOWN } from "../game/use-config";
+import { BERRY_RESTORE_RATIO, CRAB_MEAT_RESTORE_RATIO, ITEM_USE_COOLDOWN, WOLF_MEAT_RESTORE_RATIO } from "../game/use-config";
 
 let useCooldown = 0;
 
@@ -37,7 +37,7 @@ export const useSelectedItem = (state: GameState, input: InputState) => {
     return;
   }
 
-  if (slot.kind !== "berries" && slot.kind !== "crabmeat") {
+  if (slot.kind !== "berries" && slot.kind !== "crabmeat" && slot.kind !== "wolfmeat") {
     return;
   }
 
@@ -46,7 +46,11 @@ export const useSelectedItem = (state: GameState, input: InputState) => {
   }
 
   const stats = state.survival;
-  const restoreRatio = slot.kind === "crabmeat" ? CRAB_MEAT_RESTORE_RATIO : BERRY_RESTORE_RATIO;
+  const restoreRatio = slot.kind === "wolfmeat"
+    ? WOLF_MEAT_RESTORE_RATIO
+    : slot.kind === "crabmeat"
+      ? CRAB_MEAT_RESTORE_RATIO
+      : BERRY_RESTORE_RATIO;
   const restore = stats.maxHunger * restoreRatio;
   stats.hunger = clamp(stats.hunger + restore, 0, stats.maxHunger);
 
