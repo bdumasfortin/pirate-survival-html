@@ -53,7 +53,9 @@
 - `src/render/assets.ts` asset registry for SVG sprites.
 - `src/render/render-helpers.ts` shared canvas drawing helpers.
 - `src/render/ui-config.ts` HUD/layout constants.
-- `src/render/renderer.ts` world render + HUD (inventory, prompts, bars, crafting).
+- `src/render/world.ts` world/background rendering (islands, entities, effects).
+- `src/render/ui.ts` HUD rendering (inventory, prompts, crafting, bars).
+- `src/render/renderer.ts` render orchestrator.
 - `src/world/types.ts` world domain types.
 - `src/world/world-config.ts` island/resource config data.
 - `src/world/world.ts` island creation + resource seeding.

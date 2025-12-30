@@ -51,7 +51,7 @@ bindInventorySelection(state.inventory, () => !state.crafting.isOpen && !state.i
 
 const getPlayerEntity = (state: GameState) => state.entities.find((entity) => entity.id === state.playerId);
 
-const updateMouseWorldPosition = (state: GameState, input: InputState, player: { position: { x: number; y: number } }) => {
+const updateMouseWorldPosition = (input: InputState, player: { position: { x: number; y: number } }) => {
   if (!input.mouseScreen) {
     return;
   }
@@ -95,7 +95,7 @@ const startGame = async () => {
 
       const player = getPlayerEntity(state);
       if (player) {
-        updateMouseWorldPosition(state, input, player);
+        updateMouseWorldPosition(input, player);
         updateAimAngle(state, input, player);
       }
 
