@@ -3,6 +3,9 @@ import type { InputState } from "../core/input";
 import { PLAYER_SPEED, RAFT_SPEED } from "../game/config";
 
 export const updateMovement = (state: GameState, input: InputState, delta: number) => {
+  if (state.isDead) {
+    return;
+  }
   const player = state.entities.find((entity) => entity.id === state.playerId);
 
   if (!player) {
@@ -23,3 +26,4 @@ export const updateMovement = (state: GameState, input: InputState, delta: numbe
   player.position.x += player.velocity.x * delta;
   player.position.y += player.velocity.y * delta;
 };
+

@@ -45,7 +45,7 @@ const input = createInputState();
 
 bindKeyboard(input);
 bindMouse(input);
-bindInventorySelection(state.inventory, () => !state.crafting.isOpen);
+bindInventorySelection(state.inventory, () => !state.crafting.isOpen && !state.isDead);
 
 const startGame = async () => {
   if (document.fonts && document.fonts.load) {
@@ -68,16 +68,23 @@ const startGame = async () => {
         };
       }
 
-      updateMovement(state, input, delta);
-      updateRaft(state, input);
-      constrainPlayerToIslands(state);
-      updateCrafting(state, input);
+      if (!state.isDead) {
+        updateMovement(state, input, delta);
+        updateRaft(state, input);
+        constrainPlayerToIslands(state);
+        updateCrafting(state, input);
+      }
+
       updateResourceRespawns(state, delta);
-      gatherNearbyResource(state, input);
-      updateUseCooldown(delta);
-      updatePlayerAttack(state, input, delta);
-      useSelectedItem(state, input);
-      dropSelectedItem(state, input);
+
+      if (!state.isDead) {
+        gatherNearbyResource(state, input);
+        updateUseCooldown(delta);
+        updatePlayerAttack(state, input, delta);
+        useSelectedItem(state, input);
+        dropSelectedItem(state, input);
+      }
+
       updateCrabs(state, delta);
       updateSurvival(state, delta);
     },

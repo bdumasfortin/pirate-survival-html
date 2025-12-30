@@ -26,6 +26,7 @@ export type GameState = {
   survival: SurvivalStats;
   crafting: CraftingState;
   raft: RaftState;
+  isDead: boolean;
   crabs: Crab[];
   enemies: Enemy[];
   attackEffect: AttackEffect | null;
@@ -56,9 +57,13 @@ export const createInitialState = (): GameState => {
     survival: createSurvivalStats(),
     crafting: createCraftingState(),
     raft: createRaftState(),
+    isDead: false,
     crabs,
     enemies: crabs,
     attackEffect: null
   };
 };
+
+
+
 

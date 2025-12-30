@@ -260,6 +260,23 @@ const renderHints = (ctx: CanvasRenderingContext2D) => {
   ctx.restore();
 };
 
+const renderDeathOverlay = (ctx: CanvasRenderingContext2D, state: GameState) => {
+  if (!state.isDead) {
+    return;
+  }
+
+  const { innerWidth, innerHeight } = window;
+  ctx.save();
+  ctx.fillStyle = "rgba(8, 10, 12, 0.72)";
+  ctx.fillRect(0, 0, innerWidth, innerHeight);
+
+  ctx.fillStyle = "#f6e7c1";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `48px ${UI_FONT}`;
+  ctx.fillText("You Died", innerWidth / 2, innerHeight / 2);
+  ctx.restore();
+};
 const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => {
   if (!state.crafting.isOpen) {
     return;
@@ -367,4 +384,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState) => {
   renderInteractionPrompt(ctx, state);
   renderInventory(ctx, state);
   renderHints(ctx);
+  renderDeathOverlay(ctx, state);
 };
+
+

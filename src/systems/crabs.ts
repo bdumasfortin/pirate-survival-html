@@ -82,6 +82,12 @@ export const updateCrabs = (state: GameState, delta: number) => {
     if (postDist <= hitRange && crab.attackTimer <= 0) {
       stats.health = clamp(stats.health - crab.damage, 0, stats.maxHealth);
       crab.attackTimer = crab.attackCooldown;
+
+      if (stats.health <= 0) {
+        stats.health = 0;
+        state.isDead = true;
+        state.attackEffect = null;
+      }
     }
   }
 };
@@ -164,6 +170,11 @@ export const updatePlayerAttack = (state: GameState, input: InputState, delta: n
 
   playerAttackTimer = PLAYER_ATTACK_COOLDOWN;
 };
+
+
+
+
+
 
 
 
