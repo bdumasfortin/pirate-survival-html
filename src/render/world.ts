@@ -1,9 +1,10 @@
 import type { GameState } from "../game/state";
 import type { ResourceNodeType } from "../world/types";
 import { CAMERA_ZOOM } from "./ui-config";
+import { GROUND_ITEM_RENDER_SIZE } from "../game/ground-items-config";
 import { CRAB_HIT_FLASH_DURATION } from "../game/combat-config";
 import { drawIsland, insetPoints } from "./render-helpers";
-import { isImageReady, worldImages } from "./assets";
+import { isImageReady, itemImages, worldImages } from "./assets";
 
 const SEA_GRADIENT_TOP = "#2c7a7b";
 const SEA_GRADIENT_BOTTOM = "#0b2430";
@@ -11,6 +12,11 @@ const ISLAND_INSET_SCALE = 0.82;
 const RESOURCE_IMAGE_SCALE = 1.4;
 const BUSH_BARREN_COLOR = "#4a3a59";
 const BUSH_BARREN_ALPHA = 0.5;
+const GROUND_ITEM_GLOW_COLOR = "#ffffff";
+const GROUND_ITEM_SPARKLE_COUNT = 5;
+const GROUND_ITEM_SPARKLE_RADIUS = 1.4;
+const GROUND_ITEM_SPARKLE_ORBIT = 10;
+const GROUND_ITEM_SPARKLE_SPEED = 1.8;
 const ATTACK_EFFECT_COLOR = "rgba(255, 233, 180, 0.4)";
 const PLAYER_COLOR = "#222222";
 const DEFAULT_ENTITY_COLOR = "#f56565";
@@ -27,6 +33,11 @@ const enemyColors: Record<string, string> = {
 
 const { crab: crabImage, pirate: pirateImage, bush: bushImage, palmtree: palmtreeImage, rock: rockImage, raft: raftImage } =
   worldImages;
+
+const getItemIcon = (kind: keyof typeof itemImages) => {
+  const image = itemImages[kind];
+  return isImageReady(image) ? image : null;
+};
 
 const renderBackground = (ctx: CanvasRenderingContext2D) => {
   const { innerWidth, innerHeight } = window;
@@ -47,6 +58,38 @@ const renderIslands = (ctx: CanvasRenderingContext2D, state: GameState) => {
     const inner = insetPoints(island.points, island.center, ISLAND_INSET_SCALE);
     ctx.fillStyle = "#7dbb6a";
     drawIsland(ctx, inner);
+  });
+};
+
+const renderGroundItems = (ctx: CanvasRenderingContext2D, state: GameState) => {
+  const size = GROUND_ITEM_RENDER_SIZE;
+  const time = state.time;
+  state.groundItems.forEach((item) => {
+    const icon = getItemIcon(item.kind);
+    if (icon) {
+      ctx.drawImage(icon, item.position.x - size / 2, item.position.y - size / 2, size, size);
+    } else {
+      ctx.beginPath();
+      ctx.arc(item.position.x, item.position.y, size * 0.4, 0, Math.PI * 2);
+      ctx.fillStyle = "#f0d58b";
+      ctx.fill();
+    }
+
+    ctx.save();
+    for (let i = 0; i < GROUND_ITEM_SPARKLE_COUNT; i += 1) {
+      const angle = time * GROUND_ITEM_SPARKLE_SPEED + item.id * 0.7 + (i / GROUND_ITEM_SPARKLE_COUNT) * Math.PI * 2;
+      const pulse = 0.5 + 0.5 * Math.sin(time * 3 + i * 1.7);
+      const orbit = GROUND_ITEM_SPARKLE_ORBIT + pulse * 2;
+      const x = item.position.x + Math.cos(angle) * orbit;
+      const y = item.position.y + Math.sin(angle) * orbit;
+
+      ctx.globalAlpha = 0.3 + pulse * 0.5;
+      ctx.beginPath();
+      ctx.arc(x, y, GROUND_ITEM_SPARKLE_RADIUS, 0, Math.PI * 2);
+      ctx.fillStyle = GROUND_ITEM_GLOW_COLOR;
+      ctx.fill();
+    }
+    ctx.restore();
   });
 };
 
@@ -203,6 +246,7 @@ export const renderWorld = (ctx: CanvasRenderingContext2D, state: GameState) => 
 
   renderIslands(ctx, state);
   renderResources(ctx, state);
+  renderGroundItems(ctx, state);
   renderEnemies(ctx, state);
   renderAttackEffect(ctx, state);
   renderEntities(ctx, state);

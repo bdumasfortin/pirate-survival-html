@@ -23,6 +23,7 @@
 - Combat: crab AI + player melee attack using sword on LMB.
 - Boss crab on the leftmost island (oversized).
 - Item use: left-click uses berries to restore hunger (cooldown 0.33s).
+- Ground items: dropped items render on the ground and auto-pickup nearby.
 - Survival bars: health and hunger UI with decay over time.
 - Raft: LMB board/disembark near shore when raft is selected.
 - UI: bottom hotbar with item icons, action prompts, hints, survival bars.
@@ -45,6 +46,7 @@
 - `src/systems/movement.ts` movement updates.
 - `src/systems/collisions.ts` island boundary constraints + sliding.
 - `src/systems/gathering.ts` resource interaction + respawn.
+- `src/systems/ground-items.ts` ground item pickup.
 - `src/systems/crafting.ts` crafting menu toggle + recipe crafting.
 - `src/systems/crabs.ts` crab behavior + player attack.
 - `src/systems/raft.ts` raft boarding + disembarking.
@@ -77,9 +79,10 @@
 8) Player attack (LMB with sword)
 9) Item use (LMB with berries)
 10) Drop (Q)
-11) Crab behavior
-12) Survival decay
-13) Render
+11) Ground item pickup
+12) Crab behavior
+13) Survival decay
+14) Render
 
 ## Notes
 - Systems are intentionally stateless; mutate the passed `GameState`.

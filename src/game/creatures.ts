@@ -53,9 +53,10 @@ const randomPointInIsland = (island: Island, radiusScale: number) => {
   return position;
 };
 
-const createCrab = (id: number, position: Vec2, homeIslandIndex: number, stats: CrabStats): Crab => ({
+const createCrab = (id: number, position: Vec2, homeIslandIndex: number, stats: CrabStats, isBoss = false): Crab => ({
   id,
   kind: "crab",
+  isBoss,
   position,
   velocity: { x: 0, y: 0 },
   radius: stats.radius,
@@ -90,7 +91,7 @@ export const createCrabs = (world: WorldState): Crab[] => {
   const bossIslandIndex = getLeftmostIslandIndex(world.islands);
   const bossIsland = world.islands[bossIslandIndex];
   const bossPosition = randomPointInIsland(bossIsland, CRAB_BOSS_RADIUS_SCALE);
-  crabs.push(createCrab(CRAB_SPAWN_COUNT + 1, bossPosition, bossIslandIndex, CRAB_BOSS_STATS));
+  crabs.push(createCrab(CRAB_SPAWN_COUNT + 1, bossPosition, bossIslandIndex, CRAB_BOSS_STATS, true));
 
   return crabs;
 };

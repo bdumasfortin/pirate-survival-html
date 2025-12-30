@@ -3,6 +3,7 @@ import type { Vec2 } from "../core/types";
 export type Enemy = {
   id: number;
   kind: "crab";
+  isBoss?: boolean;
   position: Vec2;
   velocity?: Vec2;
   radius: number;

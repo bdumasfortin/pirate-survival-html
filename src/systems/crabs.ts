@@ -11,6 +11,7 @@ import {
   PLAYER_ATTACK_DAMAGE,
   PLAYER_ATTACK_RANGE
 } from "../game/combat-config";
+import { GROUND_ITEM_DROP_OFFSET } from "../game/ground-items-config";
 
 let playerAttackTimer = 0;
 
@@ -147,6 +148,35 @@ export const updatePlayerAttack = (state: GameState, input: InputState, delta: n
     target.hitTimer = CRAB_HIT_FLASH_DURATION;
 
     if (target.health <= 0) {
+      const angle = Math.random() * Math.PI * 2;
+      const offset = GROUND_ITEM_DROP_OFFSET;
+      state.groundItems.push({
+        id: state.nextGroundItemId++,
+        kind: "crabmeat",
+        quantity: 1,
+        position: {
+          x: target.position.x + Math.cos(angle) * offset,
+          y: target.position.y + Math.sin(angle) * offset
+        },
+        droppedAt: state.time
+      });
+
+
+      if (target.isBoss) {
+        const helmAngle = Math.random() * Math.PI * 2;
+        const helmOffset = GROUND_ITEM_DROP_OFFSET * 1.2;
+        state.groundItems.push({
+          id: state.nextGroundItemId++,
+          kind: "crabhelmet",
+          quantity: 1,
+          position: {
+            x: target.position.x + Math.cos(helmAngle) * helmOffset,
+            y: target.position.y + Math.sin(helmAngle) * helmOffset
+          },
+          droppedAt: state.time
+        });
+      }
+
       state.enemies.splice(closestIndex, 1);
     }
   }

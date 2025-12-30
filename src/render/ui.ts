@@ -34,7 +34,9 @@ const resourceColors: Record<ResourceKind, string> = {
   rock: "#9aa0a6",
   berries: "#8b4fd6",
   raft: "#caa05a",
-  sword: "#c7c9cc"
+  sword: "#c7c9cc",
+  crabmeat: "#c66a4b",
+  crabhelmet: "#6f87b7"
 };
 
 const promptLabels: Record<ResourceNodeType, string> = {

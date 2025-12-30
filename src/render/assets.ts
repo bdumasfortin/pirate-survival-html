@@ -10,6 +10,8 @@ import itemRockUrl from "../assets/svg/items/item-rock.svg";
 import itemRaftUrl from "../assets/svg/items/item-raft.svg";
 import redberryUrl from "../assets/svg/items/redberry.svg";
 import sabreUrl from "../assets/svg/items/sabre.svg";
+import crabmeatUrl from "../assets/svg/items/crabmeat.svg";
+import crabhelmetUrl from "../assets/svg/items/crabhelmet.svg";
 
 const loadImage = (url: string) => {
   const image = new Image();
@@ -33,5 +35,7 @@ export const itemImages: Record<ResourceKind, HTMLImageElement> = {
   rock: loadImage(itemRockUrl),
   raft: loadImage(itemRaftUrl),
   berries: loadImage(redberryUrl),
-  sword: loadImage(sabreUrl)
+  sword: loadImage(sabreUrl),
+  crabmeat: loadImage(crabmeatUrl),
+  crabhelmet: loadImage(crabhelmetUrl)
 };

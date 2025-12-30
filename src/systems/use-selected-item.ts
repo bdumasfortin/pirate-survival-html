@@ -1,7 +1,7 @@
 import { type InputState } from "../core/input";
 import type { GameState } from "../game/state";
 import { clamp } from "../core/math";
-import { BERRY_RESTORE_RATIO, ITEM_USE_COOLDOWN } from "../game/use-config";
+import { BERRY_RESTORE_RATIO, CRAB_MEAT_RESTORE_RATIO, ITEM_USE_COOLDOWN } from "../game/use-config";
 
 let useCooldown = 0;
 
@@ -17,7 +17,7 @@ export const useSelectedItem = (state: GameState, input: InputState) => {
   }
 
   const slot = state.inventory.slots[state.inventory.selectedIndex];
-  if (!slot || slot.quantity <= 0 || slot.kind !== "berries") {
+  if (!slot || slot.quantity <= 0 || (slot.kind !== "berries" && slot.kind !== "crabmeat")) {
     return;
   }
 
@@ -28,7 +28,8 @@ export const useSelectedItem = (state: GameState, input: InputState) => {
   }
 
   const stats = state.survival;
-  const restore = stats.maxHunger * BERRY_RESTORE_RATIO;
+  const restoreRatio = slot.kind === "crabmeat" ? CRAB_MEAT_RESTORE_RATIO : BERRY_RESTORE_RATIO;
+  const restore = stats.maxHunger * restoreRatio;
   stats.hunger = clamp(stats.hunger + restore, 0, stats.maxHunger);
 
   slot.quantity -= 1;

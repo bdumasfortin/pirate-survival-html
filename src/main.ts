@@ -11,6 +11,7 @@ import { gatherNearbyResource, updateResourceRespawns } from "./systems/gatherin
 import { updateRaft } from "./systems/raft";
 import { updateSurvival } from "./systems/survival";
 import { dropSelectedItem } from "./systems/drop-selected-item";
+import { pickupGroundItems } from "./systems/ground-items";
 import { updateUseCooldown, useSelectedItem } from "./systems/use-selected-item";
 import { render } from "./render/renderer";
 
@@ -118,6 +119,7 @@ const startGame = async () => {
           useSelectedItem(state, input);
         }
         dropSelectedItem(state, input);
+        pickupGroundItems(state);
       }
 
       updateCrabs(state, delta);

@@ -5,7 +5,7 @@ export type Island = {
   points: Vec2[];
 };
 
-export type ResourceKind = "wood" | "rock" | "berries" | "raft" | "sword";
+export type ResourceKind = "wood" | "rock" | "berries" | "raft" | "sword" | "crabmeat" | "crabhelmet";
 export type ResourceNodeType = "tree" | "rock" | "bush";
 
 export type YieldRange = {
