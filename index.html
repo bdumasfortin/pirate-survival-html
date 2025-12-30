@@ -12,6 +12,20 @@
   <body>
     <div id="app">
       <canvas id="game"></canvas>
+      <div id="seed-menu" class="overlay">
+        <div class="menu-card">
+          <h1>Set Sail</h1>
+          <label for="seed-input">Seed</label>
+          <div class="seed-row">
+            <input id="seed-input" type="text" placeholder="Enter seed" autocomplete="off" />
+            <button id="seed-random" type="button">Random</button>
+          </div>
+          <button id="start-game" type="button" class="primary">Start Game</button>
+        </div>
+      </div>
+      <div id="loading-overlay" class="overlay hidden">
+        <div class="loading-card">Generating world...</div>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

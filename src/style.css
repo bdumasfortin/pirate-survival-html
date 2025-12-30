@@ -31,3 +31,98 @@ canvas {
   height: 100%;
   cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'><circle cx='4' cy='4' r='2.2' fill='%23ffd54f'/></svg>") 4 4, auto;
 }
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(6, 12, 16, 0.78);
+  z-index: 10;
+}
+
+.overlay.hidden {
+  display: none;
+}
+
+.menu-card,
+.loading-card {
+  background: rgba(12, 22, 26, 0.9);
+  border: 1px solid rgba(246, 231, 193, 0.18);
+  border-radius: 18px;
+  padding: 28px 30px;
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.45);
+}
+
+.menu-card {
+  width: min(420px, 90vw);
+}
+
+.menu-card h1 {
+  margin: 0 0 14px;
+  font-size: 34px;
+  font-weight: 300;
+  letter-spacing: 0.5px;
+}
+
+.menu-card label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 18px;
+}
+
+.seed-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.seed-row input {
+  flex: 1;
+  background: rgba(8, 14, 18, 0.7);
+  border: 1px solid rgba(246, 231, 193, 0.2);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: inherit;
+  font-size: 18px;
+  font-family: inherit;
+}
+
+.seed-row input::placeholder {
+  color: rgba(246, 231, 193, 0.4);
+}
+
+button {
+  background: rgba(22, 34, 40, 0.9);
+  border: 1px solid rgba(246, 231, 193, 0.24);
+  border-radius: 12px;
+  color: inherit;
+  font-size: 18px;
+  font-family: inherit;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+button.primary {
+  width: 100%;
+  background: rgba(240, 213, 139, 0.18);
+  border-color: rgba(240, 213, 139, 0.6);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3);
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.loading-card {
+  font-size: 22px;
+  letter-spacing: 0.4px;
+}

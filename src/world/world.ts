@@ -1,10 +1,12 @@
 import type { Vec2 } from "../core/types";
 import type { Island, ResourceNode, WorldState, YieldRange } from "./types";
 import type { IslandSpec } from "./world-config";
-import { ISLAND_SHAPE_CONFIG, RESOURCE_NODE_CONFIGS, RESOURCE_PLACEMENT_CONFIG, WORLD_ISLAND_SPECS } from "./world-config";
+import { ISLAND_SHAPE_CONFIG, RESOURCE_NODE_CONFIGS, RESOURCE_PLACEMENT_CONFIG, WORLD_GEN_CONFIG } from "./world-config";
 import { isPointInPolygon } from "./island-geometry";
 
-const createRng = (seed: number) => {
+type Rng = () => number;
+
+const createRng = (seed: number): Rng => {
   let t = seed >>> 0;
   return () => {
     t += 0x6d2b79f5;
@@ -14,6 +16,30 @@ const createRng = (seed: number) => {
     return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
   };
 };
+
+const normalizeSeed = (seed: string | number) => {
+  if (typeof seed === "number" && Number.isFinite(seed)) {
+    return seed >>> 0;
+  }
+
+  const value = String(seed).trim();
+  if (value.length === 0) {
+    return 0;
+  }
+
+  if (/^-?\d+$/.test(value)) {
+    return Number.parseInt(value, 10) >>> 0;
+  }
+
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+};
+
+const randomBetween = (rng: Rng, min: number, max: number) => min + rng() * (max - min);
 
 const smoothPoints = (points: Vec2[], passes: number) => {
   let current = points;
@@ -60,7 +86,6 @@ const createIsland = (spec: IslandSpec): Island => {
   return { center, points: smoothPoints(points, smoothingPasses) };
 };
 
-
 const getIslandRadius = (island: Island) => {
   const sum = island.points.reduce((acc, point) => {
     return acc + Math.hypot(point.x - island.center.x, point.y - island.center.y);
@@ -68,14 +93,14 @@ const getIslandRadius = (island: Island) => {
   return sum / island.points.length;
 };
 
-const rollYield = (rng: () => number, range: YieldRange) => {
+const rollYield = (rng: Rng, range: YieldRange) => {
   if (range.max <= range.min) {
     return range.min;
   }
   return Math.floor(rng() * (range.max - range.min + 1)) + range.min;
 };
 
-const getRandomPointInIsland = (island: Island, rng: () => number) => {
+const getRandomPointInIsland = (island: Island, rng: Rng) => {
   const islandRadius = getIslandRadius(island) * RESOURCE_PLACEMENT_CONFIG.radiusScale;
   let position: Vec2 = island.center;
 
@@ -126,10 +151,84 @@ const createResourcesForIsland = (island: Island, seed: number, startId: number)
   return { resources, nextId: id };
 };
 
+const getMaxRadiusRatio = () => 1 + ISLAND_SHAPE_CONFIG.ampA + ISLAND_SHAPE_CONFIG.ampB + ISLAND_SHAPE_CONFIG.jitter;
+
+const isIslandSeparated = (candidate: IslandSpec, existing: IslandSpec[], padding: number) => {
+  const maxRadiusRatio = getMaxRadiusRatio();
+  const candidateRadius = candidate.baseRadius * maxRadiusRatio;
+
+  for (const other of existing) {
+    const otherRadius = other.baseRadius * maxRadiusRatio;
+    const distance = Math.hypot(candidate.center.x - other.center.x, candidate.center.y - other.center.y);
+
+    if (distance < candidateRadius + otherRadius + padding) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+const createIslandSpecs = (seed: number): IslandSpec[] => {
+  const rng = createRng(seed);
+  const {
+    islandCount,
+    spawnRadius,
+    radiusMin,
+    radiusMax,
+    ringMin,
+    ringMax,
+    edgePadding,
+    placementAttempts
+  } = WORLD_GEN_CONFIG;
+  const specs: IslandSpec[] = [
+    {
+      center: { x: 0, y: 0 },
+      baseRadius: spawnRadius,
+      seed: seed + 1
+    }
+  ];
+
+  for (let i = 1; i < islandCount; i += 1) {
+    const baseRadius = randomBetween(rng, radiusMin, radiusMax);
+    const islandSeed = Math.floor(rng() * 1_000_000_000) + seed + i * 37;
+    let placed = false;
+    let ringOffset = 0;
+    let attempts = 0;
+
+    while (!placed) {
+      const angle = rng() * Math.PI * 2;
+      const ring = randomBetween(rng, ringMin, ringMax) + ringOffset;
+      const candidate: IslandSpec = {
+        center: {
+          x: Math.cos(angle) * ring,
+          y: Math.sin(angle) * ring
+        },
+        baseRadius,
+        seed: islandSeed
+      };
+
+      if (isIslandSeparated(candidate, specs, edgePadding)) {
+        specs.push(candidate);
+        placed = true;
+      } else {
+        attempts += 1;
+        if (attempts >= placementAttempts) {
+          ringOffset += edgePadding;
+          attempts = 0;
+        }
+      }
+    }
+  }
+
+  return specs;
+};
+
 const createIslands = (specs: IslandSpec[]) => specs.map((spec) => createIsland(spec));
 
-export const createWorld = (): WorldState => {
-  const specs: IslandSpec[] = WORLD_ISLAND_SPECS;
+export const createWorld = (seed: string | number): WorldState => {
+  const normalizedSeed = normalizeSeed(seed);
+  const specs = createIslandSpecs(normalizedSeed);
 
   const islands = createIslands(specs);
   const resources: ResourceNode[] = [];
@@ -146,3 +245,4 @@ export const createWorld = (): WorldState => {
     resources
   };
 };
+

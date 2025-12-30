@@ -7,13 +7,16 @@ export type IslandSpec = {
   seed: number;
 };
 
-export const WORLD_ISLAND_SPECS: IslandSpec[] = [
-  { center: { x: 0, y: 0 }, baseRadius: 420, seed: 11 },
-  { center: { x: 820, y: -200 }, baseRadius: 300, seed: 21 },
-  { center: { x: -760, y: 140 }, baseRadius: 310, seed: 31 },
-  { center: { x: 120, y: 860 }, baseRadius: 280, seed: 41 },
-  { center: { x: -520, y: -780 }, baseRadius: 290, seed: 51 }
-];
+export const WORLD_GEN_CONFIG = {
+  islandCount: 5,
+  spawnRadius: 420,
+  radiusMin: 260,
+  radiusMax: 340,
+  ringMin: 620,
+  ringMax: 980,
+  edgePadding: 80,
+  placementAttempts: 80
+};
 
 export const ISLAND_SHAPE_CONFIG = {
   pointCount: 72,

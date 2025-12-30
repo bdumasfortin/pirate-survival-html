@@ -55,6 +55,12 @@ const promptLabels: Record<ResourceNodeType, string> = {
 
 const buildVersionLabel = `v${__APP_VERSION__}${import.meta.env.DEV ? "-dev" : ""}`;
 
+let activeSeedLabel = "Seed: --";
+
+export const setHudSeed = (seed: string) => {
+  activeSeedLabel = `Seed: ${seed}`;
+};
+
 const getItemIcon = (kind: ResourceKind) => {
   const image = itemImages[kind];
   return isImageReady(image) ? image : null;
@@ -467,6 +473,7 @@ const renderBuildVersion = (ctx: CanvasRenderingContext2D) => {
   ctx.textAlign = "right";
   ctx.textBaseline = "top";
   ctx.fillText(buildVersionLabel, innerWidth - HUD_MARGIN, HUD_MARGIN);
+  ctx.fillText(activeSeedLabel, innerWidth - HUD_MARGIN, HUD_MARGIN + fontSize + 6);
   ctx.restore();
 };
 const renderHints = (ctx: CanvasRenderingContext2D) => {
@@ -559,3 +566,6 @@ export const renderHud = (ctx: CanvasRenderingContext2D, state: GameState) => {
   renderDamageFlash(ctx, state);
   renderDeathOverlay(ctx, state);
 };
+
+
+
