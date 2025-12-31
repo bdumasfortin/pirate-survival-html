@@ -6,8 +6,6 @@ import {
   DEFAULT_ROOM_PLAYER_COUNT,
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
-  ROOM_MAX_PLAYERS,
-  ROOM_MIN_PLAYERS,
   isValidRoomCode,
   normalizeRoomCode,
   type RoomClientMessage,
@@ -49,6 +47,7 @@ type Room = {
 const PORT = Number(process.env.PORT ?? "8787");
 const ROOM_IDLE_TTL_MS = 10 * 60 * 1000;
 const ROOM_CLEANUP_INTERVAL_MS = 30 * 1000;
+const FIXED_ROOM_PLAYER_COUNT = DEFAULT_ROOM_PLAYER_COUNT;
 
 const rooms = new Map<string, Room>();
 const clients = new Map<WebSocket, Client>();
@@ -61,11 +60,6 @@ const createId = () => {
 };
 
 const createSeed = () => randomBytes(8).toString("hex");
-
-const clampPlayerCount = (value: number) => {
-  const rounded = Math.floor(value);
-  return Math.max(ROOM_MIN_PLAYERS, Math.min(ROOM_MAX_PLAYERS, rounded));
-};
 
 const buildPlayersList = (room: Room): RoomPlayerInfo[] =>
   Array.from(room.players.values())
@@ -188,7 +182,7 @@ const handleCreateRoom = (client: Client, message: Extract<RoomClientMessage, { 
     return;
   }
 
-  const playerCount = clampPlayerCount(message.playerCount ?? DEFAULT_ROOM_PLAYER_COUNT);
+  const playerCount = FIXED_ROOM_PLAYER_COUNT;
   const seed = message.seed ?? createSeed();
   const inputDelayFrames = Math.max(0, Math.floor(message.inputDelayFrames ?? DEFAULT_INPUT_DELAY_FRAMES));
   const code = generateRoomCode();
