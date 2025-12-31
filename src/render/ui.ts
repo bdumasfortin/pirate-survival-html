@@ -1,5 +1,5 @@
 import type { GameState } from "../game/state";
-import { EQUIPMENT_SLOT_ORDER, type EquipmentSlotType } from "../game/equipment";
+import { EQUIPMENT_SLOT_ORDER, getEquipmentSlotKind, type EquipmentSlotType } from "../game/equipment";
 import type { ResourceKind, ResourceNodeType } from "../world/types";
 import { findClosestIslandEdge } from "../world/island-geometry";
 import { canCraft, recipes } from "../game/crafting";
@@ -7,6 +7,8 @@ import type { Recipe } from "../game/crafting";
 import { getNearestGatherableResource } from "../systems/gathering";
 import { DAMAGE_FLASH_DURATION } from "../game/combat-config";
 import { RAFT_INTERACTION_DISTANCE } from "../game/raft-config";
+import { INVENTORY_SLOT_COUNT, isEntityAlive } from "../core/ecs";
+import { resourceNodeTypeFromIndex } from "../world/resource-kinds";
 import { equipmentPlaceholderImages, isImageReady, itemImages } from "./assets";
 import { drawRoundedRect } from "./render-helpers";
 import {
@@ -34,6 +36,11 @@ import {
   INVENTORY_SLOT_SIZE,
   UI_FONT
 } from "./ui-config";
+import {
+  getInventorySelectedIndex,
+  getInventorySlotKind,
+  getInventorySlotQuantity
+} from "../game/inventory";
 
 const resourceColors: Record<ResourceKind, string> = {
   wood: "#a06a3b",
@@ -64,6 +71,8 @@ export const setHudSeed = (seed: string) => {
   activeSeedLabel = `Seed: ${seed}`;
 };
 
+const getLocalPlayerId = (state: GameState) => state.playerIds[state.localPlayerIndex];
+
 const getItemIcon = (kind: ResourceKind) => {
   const image = itemImages[kind];
   return isImageReady(image) ? image : null;
@@ -76,10 +85,17 @@ const getPlaceholderIcon = (slot: EquipmentSlotType) => {
 
 const renderInventory = (ctx: CanvasRenderingContext2D, state: GameState) => {
   const { innerWidth, innerHeight } = window;
-  const totalWidth = state.inventory.slots.length * INVENTORY_SLOT_SIZE +
-    (state.inventory.slots.length - 1) * INVENTORY_SLOT_GAP;
+  const playerId = getLocalPlayerId(state);
+  const ecs = state.ecs;
+  if (playerId === undefined || !isEntityAlive(ecs, playerId)) {
+    return;
+  }
+
+  const totalWidth = INVENTORY_SLOT_COUNT * INVENTORY_SLOT_SIZE +
+    (INVENTORY_SLOT_COUNT - 1) * INVENTORY_SLOT_GAP;
   const startX = (innerWidth - totalWidth) / 2;
   const startY = innerHeight - INVENTORY_BAR_PADDING - INVENTORY_SLOT_SIZE;
+  const selectedIndex = getInventorySelectedIndex(ecs, playerId);
 
   ctx.save();
   ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
@@ -96,14 +112,14 @@ const renderInventory = (ctx: CanvasRenderingContext2D, state: GameState) => {
   ctx.fill();
   ctx.restore();
 
-  state.inventory.slots.forEach((slot, index) => {
+  for (let index = 0; index < INVENTORY_SLOT_COUNT; index += 1) {
     const x = startX + index * (INVENTORY_SLOT_SIZE + INVENTORY_SLOT_GAP);
     const y = startY;
 
     ctx.save();
     ctx.fillStyle = "rgba(20, 32, 38, 0.85)";
-    ctx.strokeStyle = index === state.inventory.selectedIndex ? "#f0d58b" : "#5f6b6d";
-    ctx.lineWidth = index === state.inventory.selectedIndex ? 2.5 : 1.5;
+    ctx.strokeStyle = index === selectedIndex ? "#f0d58b" : "#5f6b6d";
+    ctx.lineWidth = index === selectedIndex ? 2.5 : 1.5;
     ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
     ctx.shadowBlur = 6;
     drawRoundedRect(ctx, x, y, INVENTORY_SLOT_SIZE, INVENTORY_SLOT_SIZE, INVENTORY_CORNER_RADIUS);
@@ -111,10 +127,12 @@ const renderInventory = (ctx: CanvasRenderingContext2D, state: GameState) => {
     ctx.stroke();
     ctx.restore();
 
-    if (slot.kind && slot.quantity > 0) {
-      const color = resourceColors[slot.kind];
+    const slotKind = getInventorySlotKind(ecs, playerId, index);
+    const slotQuantity = getInventorySlotQuantity(ecs, playerId, index);
+    if (slotKind && slotQuantity > 0) {
+      const color = resourceColors[slotKind];
       const iconSize = INVENTORY_SLOT_SIZE * 0.6;
-      const icon = getItemIcon(slot.kind);
+      const icon = getItemIcon(slotKind);
 
       if (icon) {
         ctx.drawImage(
@@ -141,9 +159,9 @@ const renderInventory = (ctx: CanvasRenderingContext2D, state: GameState) => {
       ctx.fillStyle = "#f0d58b";
       ctx.textAlign = "right";
       ctx.textBaseline = "bottom";
-      ctx.fillText(String(slot.quantity), x + INVENTORY_SLOT_SIZE - 6, y + INVENTORY_SLOT_SIZE - 4);
+      ctx.fillText(String(slotQuantity), x + INVENTORY_SLOT_SIZE - 6, y + INVENTORY_SLOT_SIZE - 4);
     }
-  });
+  }
 };
 
 const renderEquipment = (ctx: CanvasRenderingContext2D, state: GameState) => {
@@ -152,6 +170,12 @@ const renderEquipment = (ctx: CanvasRenderingContext2D, state: GameState) => {
   const totalHeight = EQUIPMENT_GRID_ROWS * EQUIPMENT_SLOT_SIZE + (EQUIPMENT_GRID_ROWS - 1) * EQUIPMENT_SLOT_GAP;
   const startX = HUD_MARGIN;
   const startY = innerHeight - HUD_MARGIN - totalHeight;
+  const playerId = getLocalPlayerId(state);
+  const ecs = state.ecs;
+
+  if (playerId === undefined || !isEntityAlive(ecs, playerId)) {
+    return;
+  }
 
   ctx.save();
   ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
@@ -173,7 +197,7 @@ const renderEquipment = (ctx: CanvasRenderingContext2D, state: GameState) => {
     const row = Math.floor(index / EQUIPMENT_GRID_COLUMNS);
     const x = startX + column * (EQUIPMENT_SLOT_SIZE + EQUIPMENT_SLOT_GAP);
     const y = startY + row * (EQUIPMENT_SLOT_SIZE + EQUIPMENT_SLOT_GAP);
-    const equipped = state.equipment.slots[slotType];
+    const equipped = getEquipmentSlotKind(ecs, playerId, slotType);
 
     ctx.save();
     ctx.fillStyle = "rgba(20, 32, 38, 0.85)";
@@ -252,58 +276,72 @@ const drawActionPrompt = (ctx: CanvasRenderingContext2D, text: string, barStackH
   ctx.restore();
 };
 
-const getBarStackHeight = (state: GameState) => {
-  const armorVisible = state.survival.maxArmor > 0;
+const getBarStackHeight = (state: GameState, playerId: number) => {
+  const armorVisible = state.ecs.playerMaxArmor[playerId] > 0;
   return BAR_HEIGHT + (armorVisible ? BAR_HEIGHT + ARMOR_BAR_GAP : 0);
 };
 
 const renderInteractionPrompt = (ctx: CanvasRenderingContext2D, state: GameState) => {
-  const player = state.entities.find((entity) => entity.id === state.playerId);
-  if (!player) {
+  const playerId = getLocalPlayerId(state);
+  const ecs = state.ecs;
+  if (playerId === undefined || !isEntityAlive(ecs, playerId)) {
     return;
   }
 
-  const target = getNearestGatherableResource(player.position, player.radius, state.world.resources);
-  if (!target) {
+  const position = { x: ecs.position.x[playerId], y: ecs.position.y[playerId] };
+  const radius = ecs.radius[playerId];
+  const targetId = getNearestGatherableResource(ecs, position, radius);
+  if (targetId === null) {
     return;
   }
 
-  const text = promptLabels[target.nodeType];
-  const barStackHeight = getBarStackHeight(state);
+  const nodeType = resourceNodeTypeFromIndex(ecs.resourceNodeType[targetId]);
+  const text = promptLabels[nodeType];
+  const barStackHeight = getBarStackHeight(state, playerId);
   drawActionPrompt(ctx, text, barStackHeight);
 };
 
 const renderRaftPrompt = (ctx: CanvasRenderingContext2D, state: GameState) => {
-  if (state.isDead || state.crafting.isOpen) {
+  const playerId = getLocalPlayerId(state);
+  const ecs = state.ecs;
+  const crafting = state.crafting[state.localPlayerIndex];
+
+  if (playerId === undefined || !isEntityAlive(ecs, playerId)) {
     return false;
   }
 
-  const player = state.entities.find((entity) => entity.id === state.playerId);
-  if (!player) {
+  if (ecs.playerIsDead[playerId] || crafting?.isOpen) {
     return false;
   }
 
-  const slot = state.inventory.slots[state.inventory.selectedIndex];
-  if (!slot || slot.kind !== "raft" || slot.quantity <= 0) {
+  const selectedIndex = getInventorySelectedIndex(ecs, playerId);
+  const slotKind = getInventorySlotKind(ecs, playerId, selectedIndex);
+  const slotQuantity = getInventorySlotQuantity(ecs, playerId, selectedIndex);
+  if (slotKind !== "raft" || slotQuantity <= 0) {
     return false;
   }
 
-  const closest = findClosestIslandEdge(player.position, state.world.islands);
+  const position = { x: ecs.position.x[playerId], y: ecs.position.y[playerId] };
+  const closest = findClosestIslandEdge(position, state.world.islands);
   if (!closest || closest.distance > RAFT_INTERACTION_DISTANCE) {
     return false;
   }
 
-  const text = state.raft.isOnRaft ? "LMB to disembark" : "LMB to board";
-  const barStackHeight = getBarStackHeight(state);
+  const text = ecs.playerIsOnRaft[playerId] ? "LMB to disembark" : "LMB to board";
+  const barStackHeight = getBarStackHeight(state, playerId);
   drawActionPrompt(ctx, text, barStackHeight);
   return true;
 };
 
 const renderSurvivalBars = (ctx: CanvasRenderingContext2D, state: GameState) => {
   const { innerWidth, innerHeight } = window;
-  const stats = state.survival;
-  const inventoryWidth = state.inventory.slots.length * INVENTORY_SLOT_SIZE +
-    (state.inventory.slots.length - 1) * INVENTORY_SLOT_GAP;
+  const playerId = getLocalPlayerId(state);
+  const ecs = state.ecs;
+  if (playerId === undefined || !isEntityAlive(ecs, playerId)) {
+    return;
+  }
+  const inventoryWidth = INVENTORY_SLOT_COUNT * INVENTORY_SLOT_SIZE +
+    (INVENTORY_SLOT_COUNT - 1) * INVENTORY_SLOT_GAP;
   const startX = (innerWidth - inventoryWidth) / 2;
   const inventoryTop = innerHeight - INVENTORY_BAR_PADDING - INVENTORY_SLOT_SIZE - INVENTORY_BAR_MARGIN;
   const y = Math.max(HUD_MARGIN, inventoryTop - BAR_HEIGHT - 18);
@@ -332,18 +370,19 @@ const renderSurvivalBars = (ctx: CanvasRenderingContext2D, state: GameState) => 
     ctx.restore();
   };
 
-  const armorVisible = stats.maxArmor > 0;
+  const armorVisible = ecs.playerMaxArmor[playerId] > 0;
   if (armorVisible) {
     const armorY = y - BAR_HEIGHT - ARMOR_BAR_GAP - 2;
-    drawBar(healthX, armorY, stats.armor, stats.maxArmor, "#4b8fe2");
+    drawBar(healthX, armorY, ecs.playerArmor[playerId], ecs.playerMaxArmor[playerId], "#4b8fe2");
   }
 
-  drawBar(healthX, y, stats.health, stats.maxHealth, "#e2534b");
-  drawBar(hungerX, y, stats.hunger, stats.maxHunger, "#d9a441");
+  drawBar(healthX, y, ecs.playerHealth[playerId], ecs.playerMaxHealth[playerId], "#e2534b");
+  drawBar(hungerX, y, ecs.playerHunger[playerId], ecs.playerMaxHunger[playerId], "#d9a441");
 };
 
 const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => {
-  if (!state.crafting.isOpen) {
+  const crafting = state.crafting[state.localPlayerIndex];
+  if (!crafting?.isOpen) {
     return;
   }
 
@@ -356,6 +395,7 @@ const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => 
   const columnX = columnCenterX - CRAFT_TILE_SIZE / 2;
   const totalHeight = recipes.length * CRAFT_TILE_SIZE + (recipes.length - 1) * CRAFT_TILE_GAP;
   const startY = (innerHeight - totalHeight) / 2;
+  const playerId = getLocalPlayerId(state);
 
   ctx.save();
   ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
@@ -372,7 +412,7 @@ const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => 
   ctx.fill();
   ctx.restore();
 
-  const selectedIndex = Math.max(0, Math.min(state.crafting.selectedIndex, recipes.length - 1));
+  const selectedIndex = Math.max(0, Math.min(crafting.selectedIndex, recipes.length - 1));
   const selectedRecipe: Recipe | undefined = recipes[selectedIndex];
   const selectedY = startY + selectedIndex * (CRAFT_TILE_SIZE + CRAFT_TILE_GAP);
 
@@ -380,7 +420,7 @@ const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => 
     const x = columnX;
     const y = startY + index * (CRAFT_TILE_SIZE + CRAFT_TILE_GAP);
     const selected = index === selectedIndex;
-    const craftable = canCraft(state.inventory, recipe);
+    const craftable = playerId !== undefined ? canCraft(state.ecs, playerId, recipe) : false;
 
     ctx.save();
     ctx.fillStyle = "rgba(20, 32, 38, 0.9)";
@@ -494,20 +534,20 @@ const renderBuildVersion = (ctx: CanvasRenderingContext2D) => {
 };
 
 const renderPlayerCoords = (ctx: CanvasRenderingContext2D, state: GameState) => {
-  const player = state.entities.find((entity) => entity.id === state.playerId);
-  if (!player) {
+  const playerId = getLocalPlayerId(state);
+  const ecs = state.ecs;
+  if (playerId === undefined || !isEntityAlive(ecs, playerId)) {
     return;
   }
 
-  const { innerWidth } = window;
   const fontSize = 14;
   const lineHeight = fontSize + 4;
   const paddingX = 12;
   const paddingTop = 8;
   const paddingBottom = 4;
   const lines = [
-    `X: ${Math.round(player.position.x)}`,
-    `Y: ${Math.round(player.position.y)}`
+    `X: ${Math.round(ecs.position.x[playerId])}`,
+    `Y: ${Math.round(ecs.position.y[playerId])}`
   ];
 
   ctx.save();
@@ -582,12 +622,18 @@ const renderHints = (ctx: CanvasRenderingContext2D) => {
 };
 
 const renderDamageFlash = (ctx: CanvasRenderingContext2D, state: GameState) => {
-  if (state.isDead || state.damageFlashTimer <= 0) {
+  const playerId = getLocalPlayerId(state);
+  const ecs = state.ecs;
+  if (playerId === undefined) {
     return;
   }
 
   const { innerWidth, innerHeight } = window;
-  const alpha = state.damageFlashTimer / DAMAGE_FLASH_DURATION;
+  const damageFlashTimer = ecs.playerDamageFlashTimer[playerId];
+  if (ecs.playerIsDead[playerId] || damageFlashTimer <= 0) {
+    return;
+  }
+  const alpha = damageFlashTimer / DAMAGE_FLASH_DURATION;
 
   ctx.save();
   ctx.fillStyle = `rgba(180, 30, 30, ${0.35 * alpha})`;
@@ -596,7 +642,8 @@ const renderDamageFlash = (ctx: CanvasRenderingContext2D, state: GameState) => {
 };
 
 const renderDeathOverlay = (ctx: CanvasRenderingContext2D, state: GameState) => {
-  if (!state.isDead) {
+  const playerId = getLocalPlayerId(state);
+  if (playerId === undefined || !state.ecs.playerIsDead[playerId]) {
     return;
   }
 

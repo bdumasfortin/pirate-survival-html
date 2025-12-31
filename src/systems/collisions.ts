@@ -1,6 +1,7 @@
 import type { GameState } from "../game/state";
 import type { Vec2 } from "../core/types";
 import type { Island } from "../world/types";
+import { isEntityAlive, type EntityId } from "../core/ecs";
 import {
   closestPointOnPolygon,
   findClosestIslandEdge,
@@ -37,45 +38,47 @@ const pushPlayerOutOfIsland = (position: Vec2, radius: number, island: Island) =
   };
 };
 
-export const constrainPlayerToIslands = (state: GameState) => {
-  const player = state.entities.find((entity) => entity.id === state.playerId);
-
-  if (!player || state.world.islands.length === 0) {
+export const constrainPlayerToIslands = (state: GameState, playerId: EntityId) => {
+  const ecs = state.ecs;
+  if (!isEntityAlive(ecs, playerId) || state.world.islands.length === 0) {
     return;
   }
 
   const islands = state.world.islands;
+  const position = { x: ecs.position.x[playerId], y: ecs.position.y[playerId] };
+  const prevPosition = { x: ecs.prevPosition.x[playerId], y: ecs.prevPosition.y[playerId] };
+  const radius = ecs.radius[playerId];
 
-  if (state.raft.isOnRaft) {
-    const containing = findContainingIsland(player.position, islands);
+  if (ecs.playerIsOnRaft[playerId]) {
+    const containing = findContainingIsland(position, islands);
     if (containing) {
-      const next = pushPlayerOutOfIsland(player.position, player.radius, containing);
-      player.position.x = next.x;
-      player.position.y = next.y;
+      const next = pushPlayerOutOfIsland(position, radius, containing);
+      ecs.position.x[playerId] = next.x;
+      ecs.position.y[playerId] = next.y;
     }
     return;
   }
 
-  const currentIsland = findContainingIsland(player.position, islands);
+  const currentIsland = findContainingIsland(position, islands);
 
   if (currentIsland) {
     return;
   }
 
-  const previousIsland = findContainingIsland(player.prevPosition, islands);
-  const closestEdge = findClosestIslandEdge(player.position, islands);
+  const previousIsland = findContainingIsland(prevPosition, islands);
+  const closestEdge = findClosestIslandEdge(position, islands);
   const targetIsland = previousIsland ?? closestEdge?.island ?? islands[0];
 
   if (previousIsland) {
-    const slide = trySlide(player.position, player.prevPosition, previousIsland);
+    const slide = trySlide(position, prevPosition, previousIsland);
     if (slide) {
-      player.position.x = slide.x;
-      player.position.y = slide.y;
+      ecs.position.x[playerId] = slide.x;
+      ecs.position.y[playerId] = slide.y;
       return;
     }
   }
 
-  const closest = closestPointOnPolygon(player.position, targetIsland.points);
+  const closest = closestPointOnPolygon(position, targetIsland.points);
   const toCenter = {
     x: targetIsland.center.x - closest.point.x,
     y: targetIsland.center.y - closest.point.y
@@ -83,6 +86,6 @@ export const constrainPlayerToIslands = (state: GameState) => {
   const length = Math.hypot(toCenter.x, toCenter.y) || 1;
   const buffer = 0.5;
 
-  player.position.x = closest.point.x + (toCenter.x / length) * (player.radius + buffer);
-  player.position.y = closest.point.y + (toCenter.y / length) * (player.radius + buffer);
+  ecs.position.x[playerId] = closest.point.x + (toCenter.x / length) * (radius + buffer);
+  ecs.position.y[playerId] = closest.point.y + (toCenter.y / length) * (radius + buffer);
 };

@@ -1,10 +1,9 @@
+import type { EcsWorld, EntityId } from "../core/ecs";
+import { EQUIPMENT_SLOT_COUNT } from "../core/ecs";
 import type { ResourceKind } from "../world/types";
+import { resourceKindFromIndex, resourceKindToIndex } from "../world/resource-kinds";
 
 export type EquipmentSlotType = "helmet" | "cloak" | "chest" | "legs" | "boots" | "ring";
-
-export type EquipmentState = {
-  slots: Record<EquipmentSlotType, ResourceKind | null>;
-};
 
 export const EQUIPMENT_SLOT_ORDER: EquipmentSlotType[] = [
   "helmet",
@@ -15,16 +14,16 @@ export const EQUIPMENT_SLOT_ORDER: EquipmentSlotType[] = [
   "ring"
 ];
 
-export const createEquipmentState = (): EquipmentState => ({
-  slots: {
-    helmet: null,
-    cloak: null,
-    chest: null,
-    legs: null,
-    boots: null,
-    ring: null
-  }
-});
+const EQUIPMENT_SLOT_INDEX: Record<EquipmentSlotType, number> = {
+  helmet: 0,
+  cloak: 1,
+  chest: 2,
+  legs: 3,
+  boots: 4,
+  ring: 5
+};
+
+const getSlotOffset = (entityId: EntityId, slotIndex: number) => entityId * EQUIPMENT_SLOT_COUNT + slotIndex;
 
 export const getEquipmentSlotForItem = (kind: ResourceKind): EquipmentSlotType | null => {
   switch (kind) {
@@ -39,6 +38,33 @@ export const getEquipmentSlotForItem = (kind: ResourceKind): EquipmentSlotType |
   }
 };
 
-export const getEquippedItemCount = (equipment: EquipmentState) =>
-  Object.values(equipment.slots).filter((item) => item).length;
+export const getEquipmentSlotIndex = (slotType: EquipmentSlotType) => EQUIPMENT_SLOT_INDEX[slotType];
+
+export const getEquipmentSlotKindIndex = (ecs: EcsWorld, entityId: EntityId, slotType: EquipmentSlotType) => {
+  const offset = getSlotOffset(entityId, getEquipmentSlotIndex(slotType));
+  return ecs.equipmentKind[offset];
+};
+
+export const getEquipmentSlotKind = (ecs: EcsWorld, entityId: EntityId, slotType: EquipmentSlotType): ResourceKind | null => {
+  const kindIndex = getEquipmentSlotKindIndex(ecs, entityId, slotType);
+  return kindIndex === 0 ? null : resourceKindFromIndex(kindIndex);
+};
+
+export const setEquipmentSlotKind = (ecs: EcsWorld, entityId: EntityId, slotType: EquipmentSlotType, kind: ResourceKind | null) => {
+  const offset = getSlotOffset(entityId, getEquipmentSlotIndex(slotType));
+  ecs.equipmentKind[offset] = kind ? resourceKindToIndex(kind) : 0;
+};
+
+export const getEquippedItemCount = (ecs: EcsWorld, entityId: EntityId) => {
+  const base = entityId * EQUIPMENT_SLOT_COUNT;
+  let count = 0;
+
+  for (let index = 0; index < EQUIPMENT_SLOT_COUNT; index += 1) {
+    if (ecs.equipmentKind[base + index] !== 0) {
+      count += 1;
+    }
+  }
+
+  return count;
+};
 

@@ -8,46 +8,64 @@ import {
   HUNGER_DECAY_RATE,
   STARVATION_DAMAGE_RATE
 } from "../game/survival-config";
+import type { EntityId } from "../core/ecs";
 
-export const updateSurvival = (state: GameState, delta: number) => {
-  if (state.damageFlashTimer > 0) {
-    state.damageFlashTimer = Math.max(0, state.damageFlashTimer - delta);
+export const updateSurvival = (state: GameState, playerIndex: number, playerId: EntityId, delta: number) => {
+  const ecs = state.ecs;
+
+  if (ecs.playerDamageFlashTimer[playerId] > 0) {
+    ecs.playerDamageFlashTimer[playerId] = Math.max(0, ecs.playerDamageFlashTimer[playerId] - delta);
   }
 
-  if (state.isDead) {
+  if (ecs.playerIsDead[playerId]) {
     return;
   }
 
-  const stats = state.survival;
-  const prevHealth = stats.health;
+  const prevHealth = ecs.playerHealth[playerId];
 
-  const equippedCount = getEquippedItemCount(state.equipment);
+  const equippedCount = getEquippedItemCount(ecs, playerId);
   const maxArmor = equippedCount * ARMOR_PER_PIECE;
-  stats.maxArmor = maxArmor;
-  stats.armor = clamp(stats.armor, 0, stats.maxArmor);
+  ecs.playerMaxArmor[playerId] = maxArmor;
+  ecs.playerArmor[playerId] = clamp(ecs.playerArmor[playerId], 0, ecs.playerMaxArmor[playerId]);
 
-  if (stats.armorRegenTimer > 0) {
-    stats.armorRegenTimer = Math.max(0, stats.armorRegenTimer - delta);
+  if (ecs.playerArmorRegenTimer[playerId] > 0) {
+    ecs.playerArmorRegenTimer[playerId] = Math.max(0, ecs.playerArmorRegenTimer[playerId] - delta);
   }
 
-  stats.hunger = clamp(stats.hunger - delta * HUNGER_DECAY_RATE, 0, stats.maxHunger);
+  ecs.playerHunger[playerId] = clamp(
+    ecs.playerHunger[playerId] - delta * HUNGER_DECAY_RATE,
+    0,
+    ecs.playerMaxHunger[playerId]
+  );
 
-  if (stats.hunger <= 0) {
-    stats.health = clamp(stats.health - delta * STARVATION_DAMAGE_RATE, 0, stats.maxHealth);
+  if (ecs.playerHunger[playerId] <= 0) {
+    ecs.playerHealth[playerId] = clamp(
+      ecs.playerHealth[playerId] - delta * STARVATION_DAMAGE_RATE,
+      0,
+      ecs.playerMaxHealth[playerId]
+    );
   }
 
-  if (stats.maxArmor > 0 && stats.armor < stats.maxArmor && stats.armorRegenTimer <= 0) {
-    stats.armor = clamp(stats.armor + delta * ARMOR_REGEN_RATE, 0, stats.maxArmor);
+  if (ecs.playerMaxArmor[playerId] > 0 &&
+    ecs.playerArmor[playerId] < ecs.playerMaxArmor[playerId] &&
+    ecs.playerArmorRegenTimer[playerId] <= 0) {
+    ecs.playerArmor[playerId] = clamp(
+      ecs.playerArmor[playerId] + delta * ARMOR_REGEN_RATE,
+      0,
+      ecs.playerMaxArmor[playerId]
+    );
   }
 
-  if (stats.health < prevHealth) {
-    state.damageFlashTimer = DAMAGE_FLASH_DURATION;
+  if (ecs.playerHealth[playerId] < prevHealth) {
+    ecs.playerDamageFlashTimer[playerId] = DAMAGE_FLASH_DURATION;
   }
 
-  if (stats.health <= 0) {
-    stats.health = 0;
-    state.isDead = true;
-    state.damageFlashTimer = 0;
-    state.attackEffect = null;
+  if (ecs.playerHealth[playerId] <= 0) {
+    ecs.playerHealth[playerId] = 0;
+    ecs.playerIsDead[playerId] = 1;
+    ecs.playerDamageFlashTimer[playerId] = 0;
+    if (state.attackEffects[playerIndex]) {
+      state.attackEffects[playerIndex] = null;
+    }
   }
 };

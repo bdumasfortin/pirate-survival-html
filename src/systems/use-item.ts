@@ -1,20 +1,18 @@
-import type { InventoryState } from "../game/inventory";
+import type { EcsWorld, EntityId } from "../core/ecs";
 import type { ResourceKind } from "../world/types";
+import { getInventorySelectedIndex, getInventorySlotKind, getInventorySlotQuantity, setInventorySlotQuantity } from "../game/inventory";
 
-export const consumeSelectedItem = (inventory: InventoryState): ResourceKind | null => {
-  const slot = inventory.slots[inventory.selectedIndex];
+export const consumeSelectedItem = (ecs: EcsWorld, entityId: EntityId): ResourceKind | null => {
+  const selectedIndex = getInventorySelectedIndex(ecs, entityId);
+  const slotKind = getInventorySlotKind(ecs, entityId, selectedIndex);
+  const slotQuantity = getInventorySlotQuantity(ecs, entityId, selectedIndex);
 
-  if (!slot || slot.quantity <= 0 || !slot.kind) {
+  if (!slotKind || slotQuantity <= 0) {
     return null;
   }
 
-  const kind = slot.kind;
-  slot.quantity -= 1;
-
-  if (slot.quantity <= 0) {
-    slot.quantity = 0;
-    slot.kind = null;
-  }
+  const kind = slotKind;
+  setInventorySlotQuantity(ecs, entityId, selectedIndex, slotQuantity - 1);
 
   return kind;
 };

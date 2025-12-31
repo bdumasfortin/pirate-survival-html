@@ -1,6 +1,6 @@
-import type { InventoryState } from "./inventory";
 import type { ResourceKind } from "../world/types";
 import { addToInventory, getAvailableSpace, getTotalOfKind, removeFromInventory } from "./inventory";
+import type { EcsWorld, EntityId } from "../core/ecs";
 
 export type RecipeIngredient = {
   kind: ResourceKind;
@@ -45,19 +45,19 @@ export const recipes: Recipe[] = [
   }
 ];
 
-export const canCraft = (inventory: InventoryState, recipe: Recipe) =>
-  recipe.inputs.every((ingredient) => getTotalOfKind(inventory, ingredient.kind) >= ingredient.amount) &&
-  getAvailableSpace(inventory, recipe.output.kind) >= recipe.output.amount;
+export const canCraft = (ecs: EcsWorld, entityId: EntityId, recipe: Recipe) =>
+  recipe.inputs.every((ingredient) => getTotalOfKind(ecs, entityId, ingredient.kind) >= ingredient.amount) &&
+  getAvailableSpace(ecs, entityId, recipe.output.kind) >= recipe.output.amount;
 
-export const craftRecipe = (inventory: InventoryState, recipe: Recipe) => {
-  if (!canCraft(inventory, recipe)) {
+export const craftRecipe = (ecs: EcsWorld, entityId: EntityId, recipe: Recipe) => {
+  if (!canCraft(ecs, entityId, recipe)) {
     return false;
   }
 
   recipe.inputs.forEach((ingredient) => {
-    removeFromInventory(inventory, ingredient.kind, ingredient.amount);
+    removeFromInventory(ecs, entityId, ingredient.kind, ingredient.amount);
   });
 
-  addToInventory(inventory, recipe.output.kind, recipe.output.amount);
+  addToInventory(ecs, entityId, recipe.output.kind, recipe.output.amount);
   return true;
 };

@@ -1,4 +1,4 @@
-import type { InventoryState } from "../game/inventory";
+import { INVENTORY_SLOT_COUNT } from "./ecs";
 import type { Vec2 } from "./types";
 
 export type InputState = {
@@ -13,6 +13,8 @@ export type InputState = {
   closeCraftQueued: boolean;
   craftIndexQueued: number | null;
   craftScrollQueued: number;
+  inventoryIndexQueued: number | null;
+  inventoryScrollQueued: number;
   mouseScreen: Vec2 | null;
   mouseWorld: Vec2 | null;
 };
@@ -29,6 +31,8 @@ export const createInputState = (): InputState => ({
   closeCraftQueued: false,
   craftIndexQueued: null,
   craftScrollQueued: 0,
+  inventoryIndexQueued: null,
+  inventoryScrollQueued: 0,
   mouseScreen: null,
   mouseWorld: null
 });
@@ -91,6 +95,8 @@ export const bindKeyboard = (state: InputState) => {
     state.closeCraftQueued = false;
     state.craftIndexQueued = null;
     state.craftScrollQueued = 0;
+    state.inventoryIndexQueued = null;
+    state.inventoryScrollQueued = 0;
   };
 
   const resetInputState = () => {
@@ -226,6 +232,26 @@ export const consumeCraftIndex = (state: InputState) => {
   return index;
 };
 
+export const consumeInventoryIndex = (state: InputState) => {
+  if (state.inventoryIndexQueued === null) {
+    return null;
+  }
+
+  const index = state.inventoryIndexQueued;
+  state.inventoryIndexQueued = null;
+  return index;
+};
+
+export const consumeInventoryScroll = (state: InputState) => {
+  if (state.inventoryScrollQueued === 0) {
+    return 0;
+  }
+
+  const delta = state.inventoryScrollQueued;
+  state.inventoryScrollQueued = 0;
+  return delta;
+};
+
 const clampIndex = (index: number, length: number) => {
   if (length <= 0) {
     return 0;
@@ -233,9 +259,9 @@ const clampIndex = (index: number, length: number) => {
   return (index + length) % length;
 };
 
-export const bindInventorySelection = (inventory: InventoryState, canSelect: () => boolean = () => true) => {
+export const bindInventorySelection = (state: InputState, canSelect: () => boolean = () => true) => {
   const setIndex = (index: number) => {
-    inventory.selectedIndex = clampIndex(index, inventory.slots.length);
+    state.inventoryIndexQueued = clampIndex(index, INVENTORY_SLOT_COUNT);
   };
 
   const handleKey = (event: KeyboardEvent) => {
@@ -271,7 +297,7 @@ export const bindInventorySelection = (inventory: InventoryState, canSelect: () 
 
     event.preventDefault();
     const direction = event.deltaY > 0 ? 1 : -1;
-    setIndex(inventory.selectedIndex + direction);
+    state.inventoryScrollQueued += direction;
   };
 
   window.addEventListener("keydown", handleKey);

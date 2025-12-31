@@ -6,6 +6,7 @@ export type Island = {
   center: Vec2;
   points: Vec2[];
   type: IslandType;
+  seed: number;
 };
 
 export type ResourceKind =
@@ -26,20 +27,6 @@ export type YieldRange = {
   max: number;
 };
 
-export type ResourceNode = {
-  id: number;
-  nodeType: ResourceNodeType;
-  kind: ResourceKind;
-  position: Vec2;
-  rotation: number;
-  radius: number;
-  yield: YieldRange;
-  remaining: number;
-  respawnTime: number;
-  respawnTimer: number;
-};
-
 export type WorldState = {
   islands: Island[];
-  resources: ResourceNode[];
 };

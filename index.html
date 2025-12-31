@@ -12,14 +12,60 @@
   <body>
     <div id="app">
       <canvas id="game"></canvas>
+      <div id="net-indicator" class="net-indicator hidden">Resyncing...</div>
       <div id="seed-menu" class="overlay">
         <div class="menu-card">
-          <label for="seed-input">World seed</label>
-          <div class="seed-row">
-            <input id="seed-input" type="text" placeholder="Enter seed" autocomplete="off" />
-            <button id="seed-random" type="button">Random</button>
+          <div class="mode-toggle">
+            <button id="mode-solo" type="button" class="mode-btn active">Solo</button>
+            <button id="mode-multi" type="button" class="mode-btn">Multiplayer</button>
           </div>
-          <button id="start-game" type="button" class="primary">Start Game</button>
+
+          <div id="solo-panel" class="menu-panel">
+            <label for="seed-input">World seed</label>
+            <div class="seed-row">
+              <input id="seed-input" type="text" placeholder="Enter seed" autocomplete="off" />
+              <button id="seed-random" type="button">Random</button>
+            </div>
+            <button id="start-game" type="button" class="primary">Start Game</button>
+          </div>
+
+          <div id="multi-panel" class="menu-panel hidden">
+            <label for="server-url">Server URL</label>
+            <input id="server-url" type="text" placeholder="ws://localhost:8787" autocomplete="off" />
+
+            <div class="mode-toggle">
+              <button id="multi-create" type="button" class="mode-btn active">Host Room</button>
+              <button id="multi-join" type="button" class="mode-btn">Join Room</button>
+            </div>
+
+            <div class="menu-row">
+              <div class="menu-field join-only">
+                <label for="room-code">Room code</label>
+                <input id="room-code" type="text" placeholder="ABCDE" maxlength="5" autocomplete="off" />
+              </div>
+            </div>
+
+            <label for="seed-input-mp" class="create-only">Host seed (optional)</label>
+            <div class="seed-row create-only">
+              <input id="seed-input-mp" type="text" placeholder="Enter seed" autocomplete="off" />
+              <button id="seed-random-mp" type="button">Random</button>
+            </div>
+
+            <div class="menu-actions">
+              <button id="create-room" type="button" class="create-only">Create Room</button>
+              <button id="join-room" type="button" class="join-only hidden">Join Room</button>
+            </div>
+
+            <div class="status-box">
+              <div class="status-text" id="room-status">Status: idle</div>
+              <div class="status-info">
+                <span>Room: <strong id="room-code-display">--</strong></span>
+                <span>Players: <strong id="room-player-count">0/0</strong></span>
+              </div>
+            </div>
+
+            <button id="start-room" type="button" class="primary create-only" disabled>Start Room</button>
+          </div>
         </div>
       </div>
       <div id="loading-overlay" class="overlay hidden">

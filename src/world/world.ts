@@ -1,5 +1,9 @@
 import type { Vec2 } from "../core/types";
-import type { Island, IslandType, ResourceNode, WorldState, YieldRange } from "./types";
+import { normalizeSeed } from "../core/seed";
+import type { EcsWorld } from "../core/ecs";
+import { ComponentMask, createEntity, EntityTag } from "../core/ecs";
+import { resourceKindToIndex, resourceNodeTypeToIndex } from "./resource-kinds";
+import type { Island, IslandType, WorldState, YieldRange } from "./types";
 import type { IslandSpec } from "./world-config";
 import {
   ISLAND_SHAPE_CONFIG,
@@ -21,28 +25,6 @@ const createRng = (seed: number): Rng => {
     x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
     return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
   };
-};
-
-const normalizeSeed = (seed: string | number) => {
-  if (typeof seed === "number" && Number.isFinite(seed)) {
-    return seed >>> 0;
-  }
-
-  const value = String(seed).trim();
-  if (value.length === 0) {
-    return 0;
-  }
-
-  if (/^-?\d+$/.test(value)) {
-    return Number.parseInt(value, 10) >>> 0;
-  }
-
-  let hash = 2166136261;
-  for (let i = 0; i < value.length; i += 1) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
 };
 
 const randomBetween = (rng: Rng, min: number, max: number) => min + rng() * (max - min);
@@ -89,7 +71,7 @@ const createIsland = (spec: IslandSpec): Island => {
     });
   }
 
-  return { center, points: smoothPoints(points, smoothingPasses), type };
+  return { center, points: smoothPoints(points, smoothingPasses), type, seed };
 };
 
 const getIslandRadius = (island: Island) => {
@@ -126,10 +108,10 @@ const getRandomPointInIsland = (island: Island, rng: Rng) => {
   return position;
 };
 
-const createResourcesForIsland = (island: Island, seed: number, startId: number) => {
+const RESOURCE_MASK = ComponentMask.Position | ComponentMask.Radius | ComponentMask.Tag | ComponentMask.Resource;
+
+const spawnResourcesForIsland = (ecs: EcsWorld, island: Island, seed: number) => {
   const rng = createRng(seed);
-  const resources: ResourceNode[] = [];
-  let id = startId;
 
   const configs = RESOURCE_NODE_CONFIGS_BY_TYPE[island.type];
 
@@ -137,24 +119,20 @@ const createResourcesForIsland = (island: Island, seed: number, startId: number)
     for (let i = 0; i < config.count; i += 1) {
       const position = getRandomPointInIsland(island, rng);
       const remaining = rollYield(rng, config.yield);
-
-      resources.push({
-        id,
-        nodeType: config.nodeType,
-        kind: config.kind,
-        position,
-        rotation: rng() * Math.PI * 2,
-        radius: config.radius,
-        yield: config.yield,
-        remaining,
-        respawnTime: config.respawnTime,
-        respawnTimer: 0
-      });
-      id += 1;
+      const id = createEntity(ecs, RESOURCE_MASK, EntityTag.Resource);
+      ecs.position.x[id] = position.x;
+      ecs.position.y[id] = position.y;
+      ecs.radius[id] = config.radius;
+      ecs.resourceNodeType[id] = resourceNodeTypeToIndex(config.nodeType);
+      ecs.resourceKind[id] = resourceKindToIndex(config.kind);
+      ecs.resourceRotation[id] = rng() * Math.PI * 2;
+      ecs.resourceYieldMin[id] = config.yield.min;
+      ecs.resourceYieldMax[id] = config.yield.max;
+      ecs.resourceRemaining[id] = remaining;
+      ecs.resourceRespawnTime[id] = config.respawnTime;
+      ecs.resourceRespawnTimer[id] = 0;
     }
   }
-
-  return { resources, nextId: id };
 };
 
 const getMaxRadiusRatio = () => 1 + ISLAND_SHAPE_CONFIG.ampA + ISLAND_SHAPE_CONFIG.ampB + ISLAND_SHAPE_CONFIG.jitter;
@@ -273,17 +251,14 @@ export const createWorld = (seed: string | number): WorldState => {
   const specs = createIslandSpecs(normalizedSeed);
 
   const islands = createIslands(specs);
-  const resources: ResourceNode[] = [];
-  let nextId = 1;
-
-  for (let i = 0; i < islands.length; i += 1) {
-    const result = createResourcesForIsland(islands[i], specs[i].seed + 100, nextId);
-    resources.push(...result.resources);
-    nextId = result.nextId;
-  }
 
   return {
-    islands,
-    resources
+    islands
   };
+};
+
+export const spawnWorldResources = (ecs: EcsWorld, world: WorldState) => {
+  world.islands.forEach((island) => {
+    spawnResourcesForIsland(ecs, island, island.seed + 100);
+  });
 };
