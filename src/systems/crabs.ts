@@ -1,9 +1,9 @@
 import type { InputState } from "../core/input";
 import type { GameState } from "../game/state";
-import type { Crab, Kraken, Wolf } from "../game/creatures";
 import type { ResourceKind } from "../world/types";
 import { clamp, normalize } from "../core/math";
-import { isEntityAlive } from "../core/ecs";
+import { ComponentMask, destroyEntity, forEachEntity, isEntityAlive } from "../core/ecs";
+import { ENEMY_KIND_TO_INDEX } from "../game/enemy-kinds";
 import { isPointInPolygon } from "../world/island-geometry";
 import {
   ATTACK_EFFECT_DURATION,
@@ -22,6 +22,7 @@ import { ARMOR_PER_PIECE, ARMOR_REGEN_DELAY } from "../game/survival-config";
 const WANDER_SPEED_SCALE = 0.4;
 
 let playerAttackTimer = 0;
+const ENEMY_MASK = ComponentMask.Enemy | ComponentMask.Position | ComponentMask.Velocity | ComponentMask.Radius;
 
 const randomBetween = (min: number, max: number) => min + Math.random() * (max - min);
 
@@ -55,10 +56,6 @@ const applyMonsterDamage = (state: GameState, damage: number) => {
 };
 
 export const updateCrabs = (state: GameState, delta: number) => {
-  for (const enemy of state.enemies) {
-    enemy.hitTimer = Math.max(0, enemy.hitTimer - delta);
-  }
-
   const playerId = state.playerId;
   const ecs = state.ecs;
   if (!isEntityAlive(ecs, playerId)) {
@@ -69,80 +66,81 @@ export const updateCrabs = (state: GameState, delta: number) => {
   const playerY = ecs.position.y[playerId];
   const playerRadius = ecs.radius[playerId];
 
-  for (const enemy of state.enemies) {
-    if (enemy.kind === "kraken") {
-      const kraken = enemy as Kraken;
-      kraken.attackTimer = Math.max(0, kraken.attackTimer - delta);
-      kraken.wanderTimer -= delta;
+  forEachEntity(ecs, ENEMY_MASK, (id) => {
+    ecs.enemyHitTimer[id] = Math.max(0, ecs.enemyHitTimer[id] - delta);
 
-      if (kraken.wanderTimer <= 0) {
-        kraken.wanderAngle = Math.random() * Math.PI * 2;
-        kraken.wanderTimer = randomBetween(KRAKEN_STATS.wanderTimerMin, KRAKEN_STATS.wanderTimerMax);
+    if (ecs.enemyKind[id] === ENEMY_KIND_TO_INDEX.kraken) {
+      ecs.enemyAttackTimer[id] = Math.max(0, ecs.enemyAttackTimer[id] - delta);
+      ecs.enemyWanderTimer[id] -= delta;
+
+      if (ecs.enemyWanderTimer[id] <= 0) {
+        ecs.enemyWanderAngle[id] = Math.random() * Math.PI * 2;
+        ecs.enemyWanderTimer[id] = randomBetween(KRAKEN_STATS.wanderTimerMin, KRAKEN_STATS.wanderTimerMax);
       }
 
-      kraken.velocity.x = Math.cos(kraken.wanderAngle) * kraken.speed * WANDER_SPEED_SCALE;
-      kraken.velocity.y = Math.sin(kraken.wanderAngle) * kraken.speed * WANDER_SPEED_SCALE;
-      kraken.position.x += kraken.velocity.x * delta;
-      kraken.position.y += kraken.velocity.y * delta;
+      ecs.velocity.x[id] = Math.cos(ecs.enemyWanderAngle[id]) * ecs.enemySpeed[id] * WANDER_SPEED_SCALE;
+      ecs.velocity.y[id] = Math.sin(ecs.enemyWanderAngle[id]) * ecs.enemySpeed[id] * WANDER_SPEED_SCALE;
+      ecs.position.x[id] += ecs.velocity.x[id] * delta;
+      ecs.position.y[id] += ecs.velocity.y[id] * delta;
 
-      const dx = playerX - kraken.position.x;
-      const dy = playerY - kraken.position.y;
+      const dx = playerX - ecs.position.x[id];
+      const dy = playerY - ecs.position.y[id];
       const distance = Math.hypot(dx, dy);
-      const hitRange = kraken.radius + playerRadius;
+      const hitRange = ecs.radius[id] + playerRadius;
 
-      if (distance <= hitRange && kraken.attackTimer <= 0) {
-        applyMonsterDamage(state, kraken.damage);
-        kraken.attackTimer = kraken.attackCooldown;
+      if (distance <= hitRange && ecs.enemyAttackTimer[id] <= 0) {
+        applyMonsterDamage(state, ecs.enemyDamage[id]);
+        ecs.enemyAttackTimer[id] = ecs.enemyAttackCooldown[id];
       }
 
-      continue;
+      return;
     }
 
-    if (enemy.kind !== "crab" && enemy.kind !== "wolf") {
-      continue;
+    if (ecs.enemyKind[id] !== ENEMY_KIND_TO_INDEX.crab && ecs.enemyKind[id] !== ENEMY_KIND_TO_INDEX.wolf) {
+      return;
     }
 
-    const creature = enemy as Crab | Wolf;
-    creature.attackTimer = Math.max(0, creature.attackTimer - delta);
+    ecs.enemyAttackTimer[id] = Math.max(0, ecs.enemyAttackTimer[id] - delta);
 
-    const island = state.world.islands[creature.homeIslandIndex] ?? state.world.islands[0];
-    const dx = playerX - creature.position.x;
-    const dy = playerY - creature.position.y;
+    const islandIndex = ecs.enemyHomeIsland[id];
+    const island = state.world.islands[islandIndex] ?? state.world.islands[0];
+    const dx = playerX - ecs.position.x[id];
+    const dy = playerY - ecs.position.y[id];
     const distance = Math.hypot(dx, dy);
 
-    if (distance < creature.aggroRange) {
+    if (distance < ecs.enemyAggroRange[id]) {
       const dir = normalize(dx, dy);
-      creature.velocity.x = dir.x * creature.speed;
-      creature.velocity.y = dir.y * creature.speed;
+      ecs.velocity.x[id] = dir.x * ecs.enemySpeed[id];
+      ecs.velocity.y[id] = dir.y * ecs.enemySpeed[id];
     } else {
-      creature.wanderTimer -= delta;
-      if (creature.wanderTimer <= 0) {
-        creature.wanderAngle = Math.random() * Math.PI * 2;
-        creature.wanderTimer = 1.5 + Math.random() * 2.5;
+      ecs.enemyWanderTimer[id] -= delta;
+      if (ecs.enemyWanderTimer[id] <= 0) {
+        ecs.enemyWanderAngle[id] = Math.random() * Math.PI * 2;
+        ecs.enemyWanderTimer[id] = 1.5 + Math.random() * 2.5;
       }
-      creature.velocity.x = Math.cos(creature.wanderAngle) * creature.speed * WANDER_SPEED_SCALE;
-      creature.velocity.y = Math.sin(creature.wanderAngle) * creature.speed * WANDER_SPEED_SCALE;
+      ecs.velocity.x[id] = Math.cos(ecs.enemyWanderAngle[id]) * ecs.enemySpeed[id] * WANDER_SPEED_SCALE;
+      ecs.velocity.y[id] = Math.sin(ecs.enemyWanderAngle[id]) * ecs.enemySpeed[id] * WANDER_SPEED_SCALE;
     }
 
-    creature.position.x += creature.velocity.x * delta;
-    creature.position.y += creature.velocity.y * delta;
+    ecs.position.x[id] += ecs.velocity.x[id] * delta;
+    ecs.position.y[id] += ecs.velocity.y[id] * delta;
 
-    if (island && !isPointInPolygon(creature.position, island.points)) {
-      const toCenter = normalize(island.center.x - creature.position.x, island.center.y - creature.position.y);
-      creature.position.x += toCenter.x * creature.speed * delta;
-      creature.position.y += toCenter.y * creature.speed * delta;
+    if (island && !isPointInPolygon({ x: ecs.position.x[id], y: ecs.position.y[id] }, island.points)) {
+      const toCenter = normalize(island.center.x - ecs.position.x[id], island.center.y - ecs.position.y[id]);
+      ecs.position.x[id] += toCenter.x * ecs.enemySpeed[id] * delta;
+      ecs.position.y[id] += toCenter.y * ecs.enemySpeed[id] * delta;
     }
 
-    const postDx = playerX - creature.position.x;
-    const postDy = playerY - creature.position.y;
+    const postDx = playerX - ecs.position.x[id];
+    const postDy = playerY - ecs.position.y[id];
     const postDist = Math.hypot(postDx, postDy);
-    const hitRange = creature.attackRange + playerRadius;
+    const hitRange = ecs.enemyAttackRange[id] + playerRadius;
 
-    if (postDist <= hitRange && creature.attackTimer <= 0) {
-      applyMonsterDamage(state, creature.damage);
-      creature.attackTimer = creature.attackCooldown;
+    if (postDist <= hitRange && ecs.enemyAttackTimer[id] <= 0) {
+      applyMonsterDamage(state, ecs.enemyDamage[id]);
+      ecs.enemyAttackTimer[id] = ecs.enemyAttackCooldown[id];
     }
-  }
+  });
 };
 
 export const updatePlayerAttack = (state: GameState, input: InputState, delta: number) => {
@@ -207,24 +205,23 @@ export const updatePlayerAttack = (state: GameState, input: InputState, delta: n
   let closestIndex = -1;
   let closestDistance = Number.POSITIVE_INFINITY;
 
-  for (let i = 0; i < state.enemies.length; i += 1) {
-    const enemy = state.enemies[i];
-    const dx = enemy.position.x - playerX;
-    const dy = enemy.position.y - playerY;
+  forEachEntity(ecs, ENEMY_MASK, (id) => {
+    const dx = ecs.position.x[id] - playerX;
+    const dy = ecs.position.y[id] - playerY;
     const dist = Math.hypot(dx, dy);
 
-    if (dist <= attackReach + enemy.radius && dist < closestDistance) {
+    if (dist <= attackReach + ecs.radius[id] && dist < closestDistance) {
       closestDistance = dist;
-      closestIndex = i;
+      closestIndex = id;
     }
-  }
+  });
 
   if (closestIndex >= 0) {
-    const target = state.enemies[closestIndex];
-    target.health -= PLAYER_ATTACK_DAMAGE;
-    target.hitTimer = CRAB_HIT_FLASH_DURATION;
+    const targetId = closestIndex;
+    ecs.enemyHealth[targetId] -= PLAYER_ATTACK_DAMAGE;
+    ecs.enemyHitTimer[targetId] = CRAB_HIT_FLASH_DURATION;
 
-    if (target.health <= 0) {
+    if (ecs.enemyHealth[targetId] <= 0) {
       const dropItem = (kind: ResourceKind, offsetScale = 1) => {
         const angle = Math.random() * Math.PI * 2;
         const offset = GROUND_ITEM_DROP_OFFSET * offsetScale;
@@ -233,34 +230,34 @@ export const updatePlayerAttack = (state: GameState, input: InputState, delta: n
           kind,
           quantity: 1,
           position: {
-            x: target.position.x + Math.cos(angle) * offset,
-            y: target.position.y + Math.sin(angle) * offset
+            x: ecs.position.x[targetId] + Math.cos(angle) * offset,
+            y: ecs.position.y[targetId] + Math.sin(angle) * offset
           },
           droppedAt: state.time
         });
       };
 
-      switch (target.kind) {
-        case "crab":
+      switch (ecs.enemyKind[targetId]) {
+        case ENEMY_KIND_TO_INDEX.crab:
           dropItem("crabmeat");
-          if (target.isBoss) {
+          if (ecs.enemyIsBoss[targetId]) {
             dropItem("crabhelmet", 1.2);
           }
           break;
-        case "wolf":
+        case ENEMY_KIND_TO_INDEX.wolf:
           dropItem("wolfmeat");
-          if (target.isBoss) {
+          if (ecs.enemyIsBoss[targetId]) {
             dropItem("wolfcloak", 1.2);
           }
           break;
-        case "kraken":
+        case ENEMY_KIND_TO_INDEX.kraken:
           dropItem("krakenring");
           break;
         default:
           break;
       }
 
-      state.enemies.splice(closestIndex, 1);
+      destroyEntity(ecs, targetId);
     }
   }
 

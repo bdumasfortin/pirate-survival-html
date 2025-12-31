@@ -8,6 +8,7 @@ import { getNearestGatherableResource } from "../systems/gathering";
 import { DAMAGE_FLASH_DURATION } from "../game/combat-config";
 import { RAFT_INTERACTION_DISTANCE } from "../game/raft-config";
 import { isEntityAlive } from "../core/ecs";
+import { resourceNodeTypeFromIndex } from "../world/resource-kinds";
 import { equipmentPlaceholderImages, isImageReady, itemImages } from "./assets";
 import { drawRoundedRect } from "./render-helpers";
 import {
@@ -267,12 +268,13 @@ const renderInteractionPrompt = (ctx: CanvasRenderingContext2D, state: GameState
 
   const position = { x: ecs.position.x[playerId], y: ecs.position.y[playerId] };
   const radius = ecs.radius[playerId];
-  const target = getNearestGatherableResource(position, radius, state.world.resources);
-  if (!target) {
+  const targetId = getNearestGatherableResource(ecs, position, radius);
+  if (targetId === null) {
     return;
   }
 
-  const text = promptLabels[target.nodeType];
+  const nodeType = resourceNodeTypeFromIndex(ecs.resourceNodeType[targetId]);
+  const text = promptLabels[nodeType];
   const barStackHeight = getBarStackHeight(state);
   drawActionPrompt(ctx, text, barStackHeight);
 };

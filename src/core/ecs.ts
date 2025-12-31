@@ -4,7 +4,7 @@ export type EntityId = number;
 
 export enum EntityTag {
   Player = 1,
-  Crab = 2,
+  Enemy = 2,
   Resource = 3
 }
 
@@ -13,7 +13,9 @@ export const ComponentMask = {
   PrevPosition: 1 << 1,
   Velocity: 1 << 2,
   Radius: 1 << 3,
-  Tag: 1 << 4
+  Tag: 1 << 4,
+  Enemy: 1 << 5,
+  Resource: 1 << 6
 } as const;
 
 export type Vec2Store = {
@@ -31,6 +33,28 @@ export type EcsWorld = {
   prevPosition: Vec2Store;
   velocity: Vec2Store;
   radius: Float32Array;
+  enemyKind: Uint8Array;
+  enemyIsBoss: Uint8Array;
+  enemyHealth: Float32Array;
+  enemyMaxHealth: Float32Array;
+  enemyHitTimer: Float32Array;
+  enemyDamage: Float32Array;
+  enemySpeed: Float32Array;
+  enemyAggroRange: Float32Array;
+  enemyAttackRange: Float32Array;
+  enemyAttackCooldown: Float32Array;
+  enemyAttackTimer: Float32Array;
+  enemyWanderAngle: Float32Array;
+  enemyWanderTimer: Float32Array;
+  enemyHomeIsland: Int16Array;
+  resourceNodeType: Uint8Array;
+  resourceKind: Uint8Array;
+  resourceRotation: Float32Array;
+  resourceYieldMin: Int16Array;
+  resourceYieldMax: Int16Array;
+  resourceRemaining: Int16Array;
+  resourceRespawnTime: Float32Array;
+  resourceRespawnTimer: Float32Array;
 };
 
 export const DEFAULT_ENTITY_MASK = ComponentMask.Position |
@@ -60,6 +84,28 @@ const resizeWorld = (world: EcsWorld, capacity: number) => {
   world.prevPosition = resizeVec2Store(world.prevPosition, capacity);
   world.velocity = resizeVec2Store(world.velocity, capacity);
   world.radius = resizeFloat32(world.radius, capacity);
+  world.enemyKind = resizeUint8(world.enemyKind, capacity);
+  world.enemyIsBoss = resizeUint8(world.enemyIsBoss, capacity);
+  world.enemyHealth = resizeFloat32(world.enemyHealth, capacity);
+  world.enemyMaxHealth = resizeFloat32(world.enemyMaxHealth, capacity);
+  world.enemyHitTimer = resizeFloat32(world.enemyHitTimer, capacity);
+  world.enemyDamage = resizeFloat32(world.enemyDamage, capacity);
+  world.enemySpeed = resizeFloat32(world.enemySpeed, capacity);
+  world.enemyAggroRange = resizeFloat32(world.enemyAggroRange, capacity);
+  world.enemyAttackRange = resizeFloat32(world.enemyAttackRange, capacity);
+  world.enemyAttackCooldown = resizeFloat32(world.enemyAttackCooldown, capacity);
+  world.enemyAttackTimer = resizeFloat32(world.enemyAttackTimer, capacity);
+  world.enemyWanderAngle = resizeFloat32(world.enemyWanderAngle, capacity);
+  world.enemyWanderTimer = resizeFloat32(world.enemyWanderTimer, capacity);
+  world.enemyHomeIsland = resizeInt16(world.enemyHomeIsland, capacity);
+  world.resourceNodeType = resizeUint8(world.resourceNodeType, capacity);
+  world.resourceKind = resizeUint8(world.resourceKind, capacity);
+  world.resourceRotation = resizeFloat32(world.resourceRotation, capacity);
+  world.resourceYieldMin = resizeInt16(world.resourceYieldMin, capacity);
+  world.resourceYieldMax = resizeInt16(world.resourceYieldMax, capacity);
+  world.resourceRemaining = resizeInt16(world.resourceRemaining, capacity);
+  world.resourceRespawnTime = resizeFloat32(world.resourceRespawnTime, capacity);
+  world.resourceRespawnTimer = resizeFloat32(world.resourceRespawnTimer, capacity);
   world.capacity = capacity;
 };
 
@@ -81,6 +127,12 @@ const resizeFloat32 = (source: Float32Array, capacity: number) => {
   return next;
 };
 
+const resizeInt16 = (source: Int16Array, capacity: number) => {
+  const next = new Int16Array(capacity);
+  next.set(source);
+  return next;
+};
+
 export const createEcsWorld = (capacity = 64): EcsWorld => ({
   capacity,
   nextId: 0,
@@ -90,7 +142,29 @@ export const createEcsWorld = (capacity = 64): EcsWorld => ({
   position: createVec2Store(capacity),
   prevPosition: createVec2Store(capacity),
   velocity: createVec2Store(capacity),
-  radius: new Float32Array(capacity)
+  radius: new Float32Array(capacity),
+  enemyKind: new Uint8Array(capacity),
+  enemyIsBoss: new Uint8Array(capacity),
+  enemyHealth: new Float32Array(capacity),
+  enemyMaxHealth: new Float32Array(capacity),
+  enemyHitTimer: new Float32Array(capacity),
+  enemyDamage: new Float32Array(capacity),
+  enemySpeed: new Float32Array(capacity),
+  enemyAggroRange: new Float32Array(capacity),
+  enemyAttackRange: new Float32Array(capacity),
+  enemyAttackCooldown: new Float32Array(capacity),
+  enemyAttackTimer: new Float32Array(capacity),
+  enemyWanderAngle: new Float32Array(capacity),
+  enemyWanderTimer: new Float32Array(capacity),
+  enemyHomeIsland: new Int16Array(capacity),
+  resourceNodeType: new Uint8Array(capacity),
+  resourceKind: new Uint8Array(capacity),
+  resourceRotation: new Float32Array(capacity),
+  resourceYieldMin: new Int16Array(capacity),
+  resourceYieldMax: new Int16Array(capacity),
+  resourceRemaining: new Int16Array(capacity),
+  resourceRespawnTime: new Float32Array(capacity),
+  resourceRespawnTimer: new Float32Array(capacity)
 });
 
 export const ensureCapacity = (world: EcsWorld, id: number) => {

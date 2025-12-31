@@ -1,57 +1,59 @@
 import { consumeInteract, type InputState } from "../core/input";
+import { ComponentMask, destroyEntity, forEachEntity, isEntityAlive, type EcsWorld, type EntityId } from "../core/ecs";
 import { addToInventory } from "../game/inventory";
 import type { GameState } from "../game/state";
-import { isEntityAlive } from "../core/ecs";
-import type { ResourceNode, YieldRange } from "../world/types";
+import { resourceKindFromIndex } from "../world/resource-kinds";
 
 export const GATHER_RANGE = 10;
+const RESOURCE_MASK = ComponentMask.Resource | ComponentMask.Position | ComponentMask.Radius;
 
-const rollYield = (range: YieldRange) => {
-  if (range.max <= range.min) {
-    return range.min;
+const rollYield = (min: number, max: number) => {
+  if (max <= min) {
+    return min;
   }
-  return Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 
 export const getNearestGatherableResource = (
+  ecs: EcsWorld,
   playerPos: { x: number; y: number },
-  playerRadius: number,
-  resources: ResourceNode[]
-) => {
-  let nearest: ResourceNode | null = null;
+  playerRadius: number
+): EntityId | null => {
+  let nearestId: EntityId | null = null;
   let nearestDist = Number.POSITIVE_INFINITY;
 
-  for (const resource of resources) {
-    if (resource.remaining <= 0) {
-      continue;
+  forEachEntity(ecs, RESOURCE_MASK, (id) => {
+    if (ecs.resourceRemaining[id] <= 0) {
+      return;
     }
 
-    const dx = playerPos.x - resource.position.x;
-    const dy = playerPos.y - resource.position.y;
+    const dx = playerPos.x - ecs.position.x[id];
+    const dy = playerPos.y - ecs.position.y[id];
     const dist = Math.hypot(dx, dy);
-    const reach = playerRadius + resource.radius + GATHER_RANGE;
+    const reach = playerRadius + ecs.radius[id] + GATHER_RANGE;
 
     if (dist <= reach && dist < nearestDist) {
-      nearest = resource;
+      nearestId = id;
       nearestDist = dist;
     }
-  }
+  });
 
-  return nearest;
+  return nearestId;
 };
 
 export const updateResourceRespawns = (state: GameState, delta: number) => {
-  for (const resource of state.world.resources) {
-    if (resource.remaining > 0 || resource.respawnTime <= 0) {
-      continue;
+  const ecs = state.ecs;
+  forEachEntity(ecs, RESOURCE_MASK, (id) => {
+    if (ecs.resourceRemaining[id] > 0 || ecs.resourceRespawnTime[id] <= 0) {
+      return;
     }
 
-    resource.respawnTimer -= delta;
-    if (resource.respawnTimer <= 0) {
-      resource.remaining = rollYield(resource.yield);
-      resource.respawnTimer = 0;
+    ecs.resourceRespawnTimer[id] -= delta;
+    if (ecs.resourceRespawnTimer[id] <= 0) {
+      ecs.resourceRemaining[id] = rollYield(ecs.resourceYieldMin[id], ecs.resourceYieldMax[id]);
+      ecs.resourceRespawnTimer[id] = 0;
     }
-  }
+  });
 };
 
 export const gatherNearbyResource = (state: GameState, input: InputState) => {
@@ -67,28 +69,26 @@ export const gatherNearbyResource = (state: GameState, input: InputState) => {
 
   const position = { x: ecs.position.x[playerId], y: ecs.position.y[playerId] };
   const radius = ecs.radius[playerId];
-  const target = getNearestGatherableResource(position, radius, state.world.resources);
-  if (!target) {
+  const targetId = getNearestGatherableResource(ecs, position, radius);
+  if (targetId === null) {
     return;
   }
 
-  const added = addToInventory(state.inventory, target.kind, 1);
+  const kind = resourceKindFromIndex(ecs.resourceKind[targetId]);
+  const added = addToInventory(state.inventory, kind, 1);
   if (added <= 0) {
     return;
   }
 
-  target.remaining -= added;
-  if (target.remaining > 0) {
+  ecs.resourceRemaining[targetId] -= added;
+  if (ecs.resourceRemaining[targetId] > 0) {
     return;
   }
 
-  if (target.respawnTime > 0) {
-    target.respawnTimer = target.respawnTime;
+  if (ecs.resourceRespawnTime[targetId] > 0) {
+    ecs.resourceRespawnTimer[targetId] = ecs.resourceRespawnTime[targetId];
     return;
   }
 
-  const index = state.world.resources.findIndex((resource) => resource.id === target.id);
-  if (index >= 0) {
-    state.world.resources.splice(index, 1);
-  }
+  destroyEntity(ecs, targetId);
 };

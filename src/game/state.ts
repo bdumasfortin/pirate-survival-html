@@ -1,13 +1,12 @@
 import { createEcsWorld, createEntity, type EcsWorld, type EntityId } from "../core/ecs";
 import { createCraftingState, type CraftingState } from "./crafting";
 import { createEnemies } from "./creatures";
-import type { Enemy } from "./enemies";
 import type { GroundItem } from "./ground-items";
 import { addToInventory, createInventory, type InventoryState } from "./inventory";
 import { createEquipmentState, type EquipmentState } from "./equipment";
 import { createRaftState, type RaftState } from "./raft";
 import { createSurvivalStats, type SurvivalStats } from "./survival";
-import { createWorld } from "../world/world";
+import { createWorld, spawnWorldResources } from "../world/world";
 import type { WorldState } from "../world/types";
 import type { Vec2 } from "../core/types";
 
@@ -34,7 +33,6 @@ export type GameState = {
   aimAngle: number;
   moveAngle: number;
   damageFlashTimer: number;
-  enemies: Enemy[];
   groundItems: GroundItem[];
   nextGroundItemId: number;
   attackEffect: AttackEffect | null;
@@ -60,7 +58,8 @@ export const createInitialState = (seed: string | number): GameState => {
   ecs.radius[playerId] = 14;
 
   const world = createWorld(seed);
-  const enemies = createEnemies(world);
+  spawnWorldResources(ecs, world);
+  createEnemies(ecs, world);
   const inventory = createInventory();
 
   if (import.meta.env.DEV) {
@@ -81,7 +80,6 @@ export const createInitialState = (seed: string | number): GameState => {
     aimAngle: 0,
     moveAngle: 0,
     damageFlashTimer: 0,
-    enemies,
     groundItems: [],
     nextGroundItemId: 1,
     attackEffect: null
