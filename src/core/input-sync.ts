@@ -2,6 +2,7 @@ import type { InputState } from "./input";
 import {
   createInputBuffer,
   loadInputFrame,
+  readInputFrame,
   storeInputFrame,
   storeInputFrameData,
   type InputBuffer,
@@ -34,6 +35,14 @@ export const loadPlayerInputFrame = (sync: InputSyncState, playerIndex: number, 
     return false;
   }
   return loadInputFrame(buffer, frame, out);
+};
+
+export const readPlayerInputFrame = (sync: InputSyncState, playerIndex: number, frame: number) => {
+  const buffer = sync.buffers[playerIndex];
+  if (!buffer) {
+    return null;
+  }
+  return readInputFrame(buffer, frame);
 };
 
 export const applyRemoteInputFrame = (

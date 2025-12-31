@@ -1,22 +1,21 @@
 import type { GameState } from "../game/state";
 import type { InputState } from "../core/input";
-import { isEntityAlive } from "../core/ecs";
+import { isEntityAlive, type EntityId } from "../core/ecs";
 import { PLAYER_SPEED, RAFT_SPEED } from "../game/config";
 
-export const updateMovement = (state: GameState, input: InputState, delta: number) => {
-  if (state.isDead) {
-    return;
-  }
-  const playerId = state.playerId;
+export const updateMovement = (state: GameState, playerId: EntityId, input: InputState, delta: number) => {
   const ecs = state.ecs;
   if (!isEntityAlive(ecs, playerId)) {
+    return;
+  }
+  if (ecs.playerIsDead[playerId]) {
     return;
   }
 
   ecs.prevPosition.x[playerId] = ecs.position.x[playerId];
   ecs.prevPosition.y[playerId] = ecs.position.y[playerId];
 
-  const speed = state.raft.isOnRaft ? RAFT_SPEED : PLAYER_SPEED;
+  const speed = ecs.playerIsOnRaft[playerId] ? RAFT_SPEED : PLAYER_SPEED;
   const dirX = (input.right ? 1 : 0) - (input.left ? 1 : 0);
   const dirY = (input.down ? 1 : 0) - (input.up ? 1 : 0);
   const length = Math.hypot(dirX, dirY) || 1;
@@ -29,7 +28,7 @@ export const updateMovement = (state: GameState, input: InputState, delta: numbe
 
   const movementSpeed = Math.hypot(ecs.velocity.x[playerId], ecs.velocity.y[playerId]);
   if (movementSpeed > 0.01) {
-    state.moveAngle = Math.atan2(ecs.velocity.y[playerId], ecs.velocity.x[playerId]);
+    ecs.playerMoveAngle[playerId] = Math.atan2(ecs.velocity.y[playerId], ecs.velocity.x[playerId]);
   }
 };
 

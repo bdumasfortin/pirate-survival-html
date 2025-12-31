@@ -211,12 +211,7 @@ const renderEnemies = (ctx: CanvasRenderingContext2D, state: GameState) => {
   });
 };
 
-const renderAttackEffect = (ctx: CanvasRenderingContext2D, state: GameState) => {
-  const effect = state.attackEffect;
-  if (!effect) {
-    return;
-  }
-
+const renderAttackEffect = (ctx: CanvasRenderingContext2D, effect: NonNullable<GameState["attackEffects"][number]>) => {
   const alpha = effect.duration > 0 ? effect.timer / effect.duration : 0;
   const radius = effect.radius + (1 - alpha) * 4;
   const startAngle = effect.angle - effect.spread / 2;
@@ -233,49 +228,59 @@ const renderAttackEffect = (ctx: CanvasRenderingContext2D, state: GameState) => 
   ctx.restore();
 };
 
+const renderAttackEffects = (ctx: CanvasRenderingContext2D, state: GameState) => {
+  for (const effect of state.attackEffects) {
+    if (effect) {
+      renderAttackEffect(ctx, effect);
+    }
+  }
+};
+
 const renderEntities = (ctx: CanvasRenderingContext2D, state: GameState) => {
   const ecs = state.ecs;
-  const playerId = state.playerId;
-  if (!isEntityAlive(ecs, playerId)) {
-    return;
+
+  for (const playerId of state.playerIds) {
+    if (!isEntityAlive(ecs, playerId)) {
+      continue;
+    }
+
+    const x = ecs.position.x[playerId];
+    const y = ecs.position.y[playerId];
+    const radius = ecs.radius[playerId];
+
+    if (ecs.playerIsOnRaft[playerId] && isImageReady(raftImage)) {
+      const raftSize = radius * 3;
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(ecs.playerMoveAngle[playerId] + Math.PI / 2);
+      ctx.drawImage(raftImage, -raftSize / 2, -raftSize / 2, raftSize, raftSize);
+      ctx.restore();
+    }
+
+    if (isImageReady(pirateImage)) {
+      const size = radius * 2.4;
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(ecs.playerAimAngle[playerId] - Math.PI / 2);
+      ctx.drawImage(pirateImage, -size / 2, -size / 2, size, size);
+      ctx.restore();
+      continue;
+    }
+
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = PLAYER_COLOR;
+    ctx.fill();
   }
-
-  const x = ecs.position.x[playerId];
-  const y = ecs.position.y[playerId];
-  const radius = ecs.radius[playerId];
-
-  if (state.raft.isOnRaft && isImageReady(raftImage)) {
-    const raftSize = radius * 3;
-
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(state.moveAngle + Math.PI / 2);
-    ctx.drawImage(raftImage, -raftSize / 2, -raftSize / 2, raftSize, raftSize);
-    ctx.restore();
-  }
-
-  if (isImageReady(pirateImage)) {
-    const size = radius * 2.4;
-
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(state.aimAngle - Math.PI / 2);
-    ctx.drawImage(pirateImage, -size / 2, -size / 2, size, size);
-    ctx.restore();
-    return;
-  }
-
-  ctx.beginPath();
-  ctx.arc(x, y, radius, 0, Math.PI * 2);
-  ctx.fillStyle = PLAYER_COLOR;
-  ctx.fill();
 };
 
 export const renderWorld = (ctx: CanvasRenderingContext2D, state: GameState) => {
   renderBackground(ctx);
 
   const { innerWidth, innerHeight } = window;
-  const playerId = state.playerId;
+  const playerId = state.playerIds[state.localPlayerIndex];
   const ecs = state.ecs;
   const hasPlayer = isEntityAlive(ecs, playerId);
   const cameraX = hasPlayer ? ecs.position.x[playerId] : 0;
@@ -290,7 +295,7 @@ export const renderWorld = (ctx: CanvasRenderingContext2D, state: GameState) => 
   renderResources(ctx, state);
   renderGroundItems(ctx, state);
   renderEnemies(ctx, state);
-  renderAttackEffect(ctx, state);
+  renderAttackEffects(ctx, state);
   renderEntities(ctx, state);
 
   ctx.restore();

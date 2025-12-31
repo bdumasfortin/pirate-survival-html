@@ -1,12 +1,13 @@
 import type { InputState } from "../core/input";
 import type { GameState } from "../game/state";
-import { isEntityAlive } from "../core/ecs";
+import { isEntityAlive, type EntityId } from "../core/ecs";
 import { getInventorySelectedIndex, getInventorySlotKind, getInventorySlotQuantity } from "../game/inventory";
 import { RAFT_INTERACTION_DISTANCE, RAFT_SHORE_BUFFER } from "../game/raft-config";
 import { findClosestIslandEdge } from "../world/island-geometry";
 
-export const updateRaft = (state: GameState, input: InputState) => {
-  if (state.crafting.isOpen) {
+export const updateRaft = (state: GameState, playerIndex: number, playerId: EntityId, input: InputState) => {
+  const crafting = state.crafting[playerIndex];
+  if (crafting?.isOpen) {
     return;
   }
 
@@ -14,16 +15,15 @@ export const updateRaft = (state: GameState, input: InputState) => {
     return;
   }
 
-  const selectedIndex = getInventorySelectedIndex(state.ecs, state.playerId);
-  const slotKind = getInventorySlotKind(state.ecs, state.playerId, selectedIndex);
-  const slotQuantity = getInventorySlotQuantity(state.ecs, state.playerId, selectedIndex);
+  const selectedIndex = getInventorySelectedIndex(state.ecs, playerId);
+  const slotKind = getInventorySlotKind(state.ecs, playerId, selectedIndex);
+  const slotQuantity = getInventorySlotQuantity(state.ecs, playerId, selectedIndex);
   if (slotKind !== "raft" || slotQuantity <= 0) {
     return;
   }
 
   input.useQueued = false;
 
-  const playerId = state.playerId;
   const ecs = state.ecs;
   if (!isEntityAlive(ecs, playerId)) {
     return;
@@ -37,8 +37,8 @@ export const updateRaft = (state: GameState, input: InputState) => {
     return;
   }
 
-  if (state.raft.isOnRaft) {
-    state.raft.isOnRaft = false;
+  if (ecs.playerIsOnRaft[playerId]) {
+    ecs.playerIsOnRaft[playerId] = 0;
     const toLand = {
       x: closest.island.center.x - closest.point.x,
       y: closest.island.center.y - closest.point.y
@@ -51,7 +51,7 @@ export const updateRaft = (state: GameState, input: InputState) => {
     return;
   }
 
-  state.raft.isOnRaft = true;
+  ecs.playerIsOnRaft[playerId] = 1;
   const toWater = {
     x: closest.point.x - closest.island.center.x,
     y: closest.point.y - closest.island.center.y

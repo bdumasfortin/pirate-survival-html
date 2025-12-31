@@ -1,6 +1,6 @@
 import type { InputState } from "../core/input";
 import { consumeInventoryIndex, consumeInventoryScroll } from "../core/input";
-import { INVENTORY_SLOT_COUNT, isEntityAlive } from "../core/ecs";
+import { INVENTORY_SLOT_COUNT, isEntityAlive, type EntityId } from "../core/ecs";
 import type { GameState } from "../game/state";
 
 const clampIndex = (index: number, length: number) => {
@@ -10,8 +10,7 @@ const clampIndex = (index: number, length: number) => {
   return (index + length) % length;
 };
 
-export const updateInventorySelection = (state: GameState, input: InputState) => {
-  const playerId = state.playerId;
+export const updateInventorySelection = (state: GameState, playerId: EntityId, input: InputState) => {
   const ecs = state.ecs;
   if (!isEntityAlive(ecs, playerId)) {
     consumeInventoryIndex(input);

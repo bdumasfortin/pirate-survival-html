@@ -1,6 +1,6 @@
 import "./style.css";
 import { createInputState, bindKeyboard, bindInventorySelection, bindMouse, bindCraftScroll } from "./core/input";
-import { applyRemoteInputFrame, createInputSyncState, loadPlayerInputFrame, storeLocalInputFrame } from "./core/input-sync";
+import { applyRemoteInputFrame, createInputSyncState, loadPlayerInputFrame, readPlayerInputFrame, storeLocalInputFrame } from "./core/input-sync";
 import type { InputFrame } from "./core/input-buffer";
 import { startLoop } from "./core/loop";
 import { createInitialState } from "./game/state";
@@ -10,6 +10,8 @@ import { runDeterminismCheck } from "./dev/determinism";
 import { render } from "./render/renderer";
 import { setHudSeed } from "./render/ui";
 import { createHostSession, finalizeSessionStart, setSessionFrame } from "./net/session";
+import { decodeInputPacket, encodeInputPacket, type InputPacket } from "./net/input-wire";
+import { createLoopbackTransportPair, type Transport } from "./net/transport";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement | null;
 
@@ -70,8 +72,14 @@ const getSeedValue = () => {
   return value.length > 0 ? value : generateRandomSeed();
 };
 
+const URL_PARAMS = new URLSearchParams(window.location.search);
 let hasStarted = false;
-const SHOULD_RUN_DETERMINISM = import.meta.env.DEV && new URLSearchParams(window.location.search).has("determinism");
+const SHOULD_RUN_DETERMINISM = import.meta.env.DEV && URL_PARAMS.has("determinism");
+const NETWORK_MODE = URL_PARAMS.get("net");
+const INPUT_DELAY_FRAMES = Math.max(0, Number.parseInt(URL_PARAMS.get("inputDelay") ?? "0", 10) || 0);
+const LOOPBACK_LATENCY_MS = Math.max(0, Number.parseInt(URL_PARAMS.get("latencyMs") ?? "0", 10) || 0);
+const LOOPBACK_JITTER_MS = Math.max(0, Number.parseInt(URL_PARAMS.get("jitterMs") ?? "0", 10) || 0);
+const LOOPBACK_DROP_RATE = Math.min(1, Math.max(0, Number.parseFloat(URL_PARAMS.get("dropRate") ?? "0") || 0));
 const INPUT_BUFFER_FRAMES = 240;
 const ROLLBACK_BUFFER_FRAMES = 240;
 const PLAYER_COUNT = 1;
@@ -88,17 +96,18 @@ const startGame = async (seed: string) => {
   await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
 
   const session = createHostSession(seed, PLAYER_COUNT);
-  finalizeSessionStart(session, 0, 0);
+  finalizeSessionStart(session, 0, INPUT_DELAY_FRAMES);
 
-  const state = createInitialState(session.seed ?? seed);
+  const state = createInitialState(session.seed ?? seed, session.expectedPlayerCount, session.localPlayerIndex);
   setHudSeed(session.seed ?? seed);
   const liveInput = createInputState();
-  const frameInput = createInputState();
+  const frameInputs = Array.from({ length: session.expectedPlayerCount }, () => createInputState());
   const inputSync = createInputSyncState(session.expectedPlayerCount, session.localPlayerIndex, INPUT_BUFFER_FRAMES);
   const rollbackBuffer = createRollbackBuffer(ROLLBACK_BUFFER_FRAMES);
   let frame = session.startFrame;
   let pendingRollbackFrame: number | null = null;
   const remoteInputQueue: Array<{ playerIndex: number; frame: number; input: InputFrame }> = [];
+  let transport: Transport | null = null;
 
   const enqueueRemoteInput = (playerIndex: number, remoteFrame: number, inputFrame: InputFrame) => {
     remoteInputQueue.push({ playerIndex, frame: remoteFrame, input: inputFrame });
@@ -107,6 +116,28 @@ const startGame = async (seed: string) => {
   if (import.meta.env.DEV) {
     const devWindow = window as typeof window & { enqueueRemoteInput?: typeof enqueueRemoteInput };
     devWindow.enqueueRemoteInput = enqueueRemoteInput;
+  }
+
+  if (NETWORK_MODE === "loopback") {
+    const [localTransport, remoteTransport] = createLoopbackTransportPair({
+      latencyMs: LOOPBACK_LATENCY_MS,
+      jitterMs: LOOPBACK_JITTER_MS,
+      dropRate: LOOPBACK_DROP_RATE
+    });
+    transport = localTransport;
+    transport.onMessage((data) => {
+      const packet = decodeInputPacket(data);
+      if (packet) {
+        enqueueRemoteInput(packet.playerIndex, packet.frame, packet.input);
+      }
+    });
+
+    if (import.meta.env.DEV) {
+      const devWindow = window as typeof window & { sendLoopbackPacket?: (packet: InputPacket) => void };
+      devWindow.sendLoopbackPacket = (packet: InputPacket) => {
+        remoteTransport.send(encodeInputPacket(packet));
+      };
+    }
   }
 
   const flushRemoteInputs = () => {
@@ -123,15 +154,21 @@ const startGame = async (seed: string) => {
     remoteInputQueue.length = 0;
   };
 
+  const loadFrameInputs = (targetFrame: number) => {
+    for (let playerIndex = 0; playerIndex < session.expectedPlayerCount; playerIndex += 1) {
+      loadPlayerInputFrame(inputSync, playerIndex, targetFrame, frameInputs[playerIndex]);
+    }
+  };
+
   const resimulateFrom = (fromFrame: number, toFrame: number, delta: number) => {
     if (!restoreRollbackFrame(rollbackBuffer, state, fromFrame)) {
       return false;
     }
 
     for (let simFrame = fromFrame; simFrame < toFrame; simFrame += 1) {
-      loadPlayerInputFrame(inputSync, session.localPlayerIndex, simFrame, frameInput);
+      loadFrameInputs(simFrame);
       storeRollbackSnapshot(rollbackBuffer, simFrame, state);
-      simulateFrame(state, frameInput, delta);
+      simulateFrame(state, frameInputs, delta);
     }
 
     return true;
@@ -139,8 +176,14 @@ const startGame = async (seed: string) => {
 
   bindKeyboard(liveInput);
   bindMouse(liveInput);
-  bindCraftScroll(liveInput, () => state.crafting.isOpen);
-  bindInventorySelection(liveInput, () => !state.crafting.isOpen && !state.isDead);
+  bindCraftScroll(liveInput, () => state.crafting[state.localPlayerIndex]?.isOpen ?? false);
+  bindInventorySelection(liveInput, () => {
+    const localPlayerId = state.playerIds[state.localPlayerIndex];
+    if (localPlayerId === undefined) {
+      return false;
+    }
+    return !(state.crafting[state.localPlayerIndex]?.isOpen ?? false) && !state.ecs.playerIsDead[localPlayerId];
+  });
 
   if (document.fonts && document.fonts.load) {
     try {
@@ -158,7 +201,19 @@ const startGame = async (seed: string) => {
         return;
       }
 
-      storeLocalInputFrame(inputSync, frame, liveInput);
+      const inputFrameIndex = frame + INPUT_DELAY_FRAMES;
+      storeLocalInputFrame(inputSync, inputFrameIndex, liveInput);
+
+      if (transport) {
+        const outgoing = readPlayerInputFrame(inputSync, session.localPlayerIndex, inputFrameIndex);
+        if (outgoing) {
+          transport.send(encodeInputPacket({
+            playerIndex: session.localPlayerIndex,
+            frame: inputFrameIndex,
+            input: outgoing
+          }));
+        }
+      }
       flushRemoteInputs();
 
       if (pendingRollbackFrame !== null && pendingRollbackFrame < frame) {
@@ -167,9 +222,9 @@ const startGame = async (seed: string) => {
         resimulateFrom(rollbackFrame, frame, delta);
       }
 
-      loadPlayerInputFrame(inputSync, session.localPlayerIndex, frame, frameInput);
+      loadFrameInputs(frame);
       storeRollbackSnapshot(rollbackBuffer, frame, state);
-      simulateFrame(state, frameInput, delta);
+      simulateFrame(state, frameInputs, delta);
       frame += 1;
       setSessionFrame(session, frame);
     },

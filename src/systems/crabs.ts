@@ -3,7 +3,7 @@ import type { GameState } from "../game/state";
 import type { ResourceKind } from "../world/types";
 import { clamp, normalize } from "../core/math";
 import { nextFloat, nextRange } from "../core/rng";
-import { ComponentMask, destroyEntity, forEachEntity, isEntityAlive } from "../core/ecs";
+import { ComponentMask, destroyEntity, forEachEntity, isEntityAlive, type EntityId } from "../core/ecs";
 import { ENEMY_KIND_TO_INDEX } from "../game/enemy-kinds";
 import { isPointInPolygon } from "../world/island-geometry";
 import {
@@ -25,49 +25,81 @@ import { ARMOR_PER_PIECE, ARMOR_REGEN_DELAY } from "../game/survival-config";
 const WANDER_SPEED_SCALE = 0.4;
 const ENEMY_MASK = ComponentMask.Enemy | ComponentMask.Position | ComponentMask.Velocity | ComponentMask.Radius;
 
-const applyMonsterDamage = (state: GameState, damage: number) => {
-  const stats = state.survival;
-  const maxArmor = getEquippedItemCount(state.ecs, state.playerId) * ARMOR_PER_PIECE;
-  stats.maxArmor = maxArmor;
-  stats.armor = clamp(stats.armor, 0, stats.maxArmor);
+type LivingPlayer = {
+  playerId: EntityId;
+  index: number;
+  x: number;
+  y: number;
+  radius: number;
+};
+
+const applyMonsterDamage = (state: GameState, playerIndex: number, playerId: EntityId, damage: number) => {
+  const ecs = state.ecs;
+  const maxArmor = getEquippedItemCount(ecs, playerId) * ARMOR_PER_PIECE;
+  ecs.playerMaxArmor[playerId] = maxArmor;
+  ecs.playerArmor[playerId] = clamp(ecs.playerArmor[playerId], 0, ecs.playerMaxArmor[playerId]);
 
   let remaining = damage;
 
-  if (stats.armor > 0) {
-    const absorbed = Math.min(stats.armor, remaining);
-    stats.armor = clamp(stats.armor - absorbed, 0, stats.maxArmor);
+  if (ecs.playerArmor[playerId] > 0) {
+    const absorbed = Math.min(ecs.playerArmor[playerId], remaining);
+    ecs.playerArmor[playerId] = clamp(ecs.playerArmor[playerId] - absorbed, 0, ecs.playerMaxArmor[playerId]);
     remaining -= absorbed;
   }
 
   if (remaining > 0) {
-    stats.health = clamp(stats.health - remaining, 0, stats.maxHealth);
+    ecs.playerHealth[playerId] = clamp(ecs.playerHealth[playerId] - remaining, 0, ecs.playerMaxHealth[playerId]);
   }
 
-  stats.armorRegenTimer = ARMOR_REGEN_DELAY;
-  state.damageFlashTimer = DAMAGE_FLASH_DURATION;
+  ecs.playerArmorRegenTimer[playerId] = ARMOR_REGEN_DELAY;
+  ecs.playerDamageFlashTimer[playerId] = DAMAGE_FLASH_DURATION;
 
-  if (stats.health <= 0) {
-    stats.health = 0;
-    state.isDead = true;
-    state.damageFlashTimer = 0;
-    state.attackEffect = null;
+  if (ecs.playerHealth[playerId] <= 0) {
+    ecs.playerHealth[playerId] = 0;
+    ecs.playerIsDead[playerId] = 1;
+    ecs.playerDamageFlashTimer[playerId] = 0;
+    if (state.attackEffects[playerIndex]) {
+      state.attackEffects[playerIndex] = null;
+    }
   }
 };
 
 export const updateCrabs = (state: GameState, delta: number) => {
-  const playerId = state.playerId;
   const ecs = state.ecs;
   const rng = state.rng;
-  if (!isEntityAlive(ecs, playerId)) {
-    return;
+  const livingPlayers: LivingPlayer[] = [];
+  for (let index = 0; index < state.playerIds.length; index += 1) {
+    const playerId = state.playerIds[index];
+    if (!isEntityAlive(ecs, playerId) || ecs.playerIsDead[playerId]) {
+      continue;
+    }
+    livingPlayers.push({
+      playerId,
+      index,
+      x: ecs.position.x[playerId],
+      y: ecs.position.y[playerId],
+      radius: ecs.radius[playerId]
+    });
   }
 
-  const playerX = ecs.position.x[playerId];
-  const playerY = ecs.position.y[playerId];
-  const playerRadius = ecs.radius[playerId];
+  const findClosestPlayer = (x: number, y: number) => {
+    let closest: LivingPlayer | null = null;
+    let closestDistance = Number.POSITIVE_INFINITY;
+    for (const player of livingPlayers) {
+      const dx = player.x - x;
+      const dy = player.y - y;
+      const distance = Math.hypot(dx, dy);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closest = player;
+      }
+    }
+    return closest;
+  };
 
   forEachEntity(ecs, ENEMY_MASK, (id) => {
     ecs.enemyHitTimer[id] = Math.max(0, ecs.enemyHitTimer[id] - delta);
+    const target = livingPlayers.length > 0 ? findClosestPlayer(ecs.position.x[id], ecs.position.y[id]) : null;
 
     if (ecs.enemyKind[id] === ENEMY_KIND_TO_INDEX.kraken) {
       ecs.enemyAttackTimer[id] = Math.max(0, ecs.enemyAttackTimer[id] - delta);
@@ -83,14 +115,16 @@ export const updateCrabs = (state: GameState, delta: number) => {
       ecs.position.x[id] += ecs.velocity.x[id] * delta;
       ecs.position.y[id] += ecs.velocity.y[id] * delta;
 
-      const dx = playerX - ecs.position.x[id];
-      const dy = playerY - ecs.position.y[id];
-      const distance = Math.hypot(dx, dy);
-      const hitRange = ecs.radius[id] + playerRadius;
+      if (target) {
+        const dx = target.x - ecs.position.x[id];
+        const dy = target.y - ecs.position.y[id];
+        const distance = Math.hypot(dx, dy);
+        const hitRange = ecs.radius[id] + target.radius;
 
-      if (distance <= hitRange && ecs.enemyAttackTimer[id] <= 0) {
-        applyMonsterDamage(state, ecs.enemyDamage[id]);
-        ecs.enemyAttackTimer[id] = ecs.enemyAttackCooldown[id];
+        if (distance <= hitRange && ecs.enemyAttackTimer[id] <= 0) {
+          applyMonsterDamage(state, target.index, target.playerId, ecs.enemyDamage[id]);
+          ecs.enemyAttackTimer[id] = ecs.enemyAttackCooldown[id];
+        }
       }
 
       return;
@@ -104,12 +138,10 @@ export const updateCrabs = (state: GameState, delta: number) => {
 
     const islandIndex = ecs.enemyHomeIsland[id];
     const island = state.world.islands[islandIndex] ?? state.world.islands[0];
-    const dx = playerX - ecs.position.x[id];
-    const dy = playerY - ecs.position.y[id];
-    const distance = Math.hypot(dx, dy);
+    const distance = target ? Math.hypot(target.x - ecs.position.x[id], target.y - ecs.position.y[id]) : Number.POSITIVE_INFINITY;
 
-    if (distance < ecs.enemyAggroRange[id]) {
-      const dir = normalize(dx, dy);
+    if (target && distance < ecs.enemyAggroRange[id]) {
+      const dir = normalize(target.x - ecs.position.x[id], target.y - ecs.position.y[id]);
       ecs.velocity.x[id] = dir.x * ecs.enemySpeed[id];
       ecs.velocity.y[id] = dir.y * ecs.enemySpeed[id];
     } else {
@@ -131,25 +163,35 @@ export const updateCrabs = (state: GameState, delta: number) => {
       ecs.position.y[id] += toCenter.y * ecs.enemySpeed[id] * delta;
     }
 
-    const postDx = playerX - ecs.position.x[id];
-    const postDy = playerY - ecs.position.y[id];
-    const postDist = Math.hypot(postDx, postDy);
-    const hitRange = ecs.enemyAttackRange[id] + playerRadius;
+    if (target) {
+      const postDx = target.x - ecs.position.x[id];
+      const postDy = target.y - ecs.position.y[id];
+      const postDist = Math.hypot(postDx, postDy);
+      const hitRange = ecs.enemyAttackRange[id] + target.radius;
 
-    if (postDist <= hitRange && ecs.enemyAttackTimer[id] <= 0) {
-      applyMonsterDamage(state, ecs.enemyDamage[id]);
-      ecs.enemyAttackTimer[id] = ecs.enemyAttackCooldown[id];
+      if (postDist <= hitRange && ecs.enemyAttackTimer[id] <= 0) {
+        applyMonsterDamage(state, target.index, target.playerId, ecs.enemyDamage[id]);
+        ecs.enemyAttackTimer[id] = ecs.enemyAttackCooldown[id];
+      }
     }
   });
 };
 
-export const updatePlayerAttack = (state: GameState, input: InputState, delta: number) => {
-  state.playerAttackTimer = Math.max(0, state.playerAttackTimer - delta);
+export const updatePlayerAttack = (
+  state: GameState,
+  playerIndex: number,
+  playerId: EntityId,
+  input: InputState,
+  delta: number
+) => {
+  const ecs = state.ecs;
+  ecs.playerAttackTimer[playerId] = Math.max(0, ecs.playerAttackTimer[playerId] - delta);
 
-  if (state.attackEffect) {
-    state.attackEffect.timer = Math.max(0, state.attackEffect.timer - delta);
-    if (state.attackEffect.timer <= 0) {
-      state.attackEffect = null;
+  const effect = state.attackEffects[playerIndex];
+  if (effect) {
+    effect.timer = Math.max(0, effect.timer - delta);
+    if (effect.timer <= 0) {
+      state.attackEffects[playerIndex] = null;
     }
   }
 
@@ -157,21 +199,19 @@ export const updatePlayerAttack = (state: GameState, input: InputState, delta: n
     return;
   }
 
-  const selectedIndex = getInventorySelectedIndex(state.ecs, state.playerId);
-  const slotKind = getInventorySlotKind(state.ecs, state.playerId, selectedIndex);
-  const slotQuantity = getInventorySlotQuantity(state.ecs, state.playerId, selectedIndex);
+  const selectedIndex = getInventorySelectedIndex(ecs, playerId);
+  const slotKind = getInventorySlotKind(ecs, playerId, selectedIndex);
+  const slotQuantity = getInventorySlotQuantity(ecs, playerId, selectedIndex);
   if (slotKind !== "sword" || slotQuantity <= 0) {
     return;
   }
 
   input.useQueued = false;
 
-  if (state.playerAttackTimer > 0) {
+  if (ecs.playerAttackTimer[playerId] > 0) {
     return;
   }
 
-  const playerId = state.playerId;
-  const ecs = state.ecs;
   const rng = state.rng;
   if (!isEntityAlive(ecs, playerId)) {
     return;
@@ -193,7 +233,7 @@ export const updatePlayerAttack = (state: GameState, input: InputState, delta: n
   const coneSpread = PLAYER_ATTACK_CONE_SPREAD;
   const attackReach = coneRadius;
 
-  state.attackEffect = {
+  state.attackEffects[playerIndex] = {
     origin: {
       x: playerX,
       y: playerY
@@ -264,5 +304,5 @@ export const updatePlayerAttack = (state: GameState, input: InputState, delta: n
     }
   }
 
-  state.playerAttackTimer = PLAYER_ATTACK_COOLDOWN;
+  ecs.playerAttackTimer[playerId] = PLAYER_ATTACK_COOLDOWN;
 };

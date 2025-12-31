@@ -53,12 +53,11 @@ export const updateResourceRespawns = (state: GameState, delta: number) => {
   });
 };
 
-export const gatherNearbyResource = (state: GameState, input: InputState) => {
+export const gatherNearbyResource = (state: GameState, playerId: EntityId, input: InputState) => {
   if (!consumeInteract(input)) {
     return;
   }
 
-  const playerId = state.playerId;
   const ecs = state.ecs;
   if (!isEntityAlive(ecs, playerId)) {
     return;

@@ -40,6 +40,20 @@ export type EcsWorld = {
   prevPosition: Vec2Store;
   velocity: Vec2Store;
   radius: Float32Array;
+  playerAimAngle: Float32Array;
+  playerMoveAngle: Float32Array;
+  playerDamageFlashTimer: Float32Array;
+  playerAttackTimer: Float32Array;
+  playerUseCooldown: Float32Array;
+  playerHealth: Float32Array;
+  playerMaxHealth: Float32Array;
+  playerHunger: Float32Array;
+  playerMaxHunger: Float32Array;
+  playerArmor: Float32Array;
+  playerMaxArmor: Float32Array;
+  playerArmorRegenTimer: Float32Array;
+  playerIsDead: Uint8Array;
+  playerIsOnRaft: Uint8Array;
   enemyKind: Uint8Array;
   enemyIsBoss: Uint8Array;
   enemyHealth: Float32Array;
@@ -81,6 +95,20 @@ export type EcsSnapshot = {
   prevPosition: Vec2Store;
   velocity: Vec2Store;
   radius: Float32Array;
+  playerAimAngle: Float32Array;
+  playerMoveAngle: Float32Array;
+  playerDamageFlashTimer: Float32Array;
+  playerAttackTimer: Float32Array;
+  playerUseCooldown: Float32Array;
+  playerHealth: Float32Array;
+  playerMaxHealth: Float32Array;
+  playerHunger: Float32Array;
+  playerMaxHunger: Float32Array;
+  playerArmor: Float32Array;
+  playerMaxArmor: Float32Array;
+  playerArmorRegenTimer: Float32Array;
+  playerIsDead: Uint8Array;
+  playerIsOnRaft: Uint8Array;
   enemyKind: Uint8Array;
   enemyIsBoss: Uint8Array;
   enemyHealth: Float32Array;
@@ -139,6 +167,20 @@ const resizeWorld = (world: EcsWorld, capacity: number) => {
   world.prevPosition = resizeVec2Store(world.prevPosition, capacity);
   world.velocity = resizeVec2Store(world.velocity, capacity);
   world.radius = resizeFloat32(world.radius, capacity);
+  world.playerAimAngle = resizeFloat32(world.playerAimAngle, capacity);
+  world.playerMoveAngle = resizeFloat32(world.playerMoveAngle, capacity);
+  world.playerDamageFlashTimer = resizeFloat32(world.playerDamageFlashTimer, capacity);
+  world.playerAttackTimer = resizeFloat32(world.playerAttackTimer, capacity);
+  world.playerUseCooldown = resizeFloat32(world.playerUseCooldown, capacity);
+  world.playerHealth = resizeFloat32(world.playerHealth, capacity);
+  world.playerMaxHealth = resizeFloat32(world.playerMaxHealth, capacity);
+  world.playerHunger = resizeFloat32(world.playerHunger, capacity);
+  world.playerMaxHunger = resizeFloat32(world.playerMaxHunger, capacity);
+  world.playerArmor = resizeFloat32(world.playerArmor, capacity);
+  world.playerMaxArmor = resizeFloat32(world.playerMaxArmor, capacity);
+  world.playerArmorRegenTimer = resizeFloat32(world.playerArmorRegenTimer, capacity);
+  world.playerIsDead = resizeUint8(world.playerIsDead, capacity);
+  world.playerIsOnRaft = resizeUint8(world.playerIsOnRaft, capacity);
   world.enemyKind = resizeUint8(world.enemyKind, capacity);
   world.enemyIsBoss = resizeUint8(world.enemyIsBoss, capacity);
   world.enemyHealth = resizeFloat32(world.enemyHealth, capacity);
@@ -205,6 +247,20 @@ export const createEcsWorld = (capacity = 64): EcsWorld => ({
   prevPosition: createVec2Store(capacity),
   velocity: createVec2Store(capacity),
   radius: new Float32Array(capacity),
+  playerAimAngle: new Float32Array(capacity),
+  playerMoveAngle: new Float32Array(capacity),
+  playerDamageFlashTimer: new Float32Array(capacity),
+  playerAttackTimer: new Float32Array(capacity),
+  playerUseCooldown: new Float32Array(capacity),
+  playerHealth: new Float32Array(capacity),
+  playerMaxHealth: new Float32Array(capacity),
+  playerHunger: new Float32Array(capacity),
+  playerMaxHunger: new Float32Array(capacity),
+  playerArmor: new Float32Array(capacity),
+  playerMaxArmor: new Float32Array(capacity),
+  playerArmorRegenTimer: new Float32Array(capacity),
+  playerIsDead: new Uint8Array(capacity),
+  playerIsOnRaft: new Uint8Array(capacity),
   enemyKind: new Uint8Array(capacity),
   enemyIsBoss: new Uint8Array(capacity),
   enemyHealth: new Float32Array(capacity),
@@ -319,6 +375,20 @@ export const createEcsSnapshot = (world: EcsWorld): EcsSnapshot => ({
   prevPosition: cloneVec2Store(world.prevPosition),
   velocity: cloneVec2Store(world.velocity),
   radius: cloneFloat32(world.radius),
+  playerAimAngle: cloneFloat32(world.playerAimAngle),
+  playerMoveAngle: cloneFloat32(world.playerMoveAngle),
+  playerDamageFlashTimer: cloneFloat32(world.playerDamageFlashTimer),
+  playerAttackTimer: cloneFloat32(world.playerAttackTimer),
+  playerUseCooldown: cloneFloat32(world.playerUseCooldown),
+  playerHealth: cloneFloat32(world.playerHealth),
+  playerMaxHealth: cloneFloat32(world.playerMaxHealth),
+  playerHunger: cloneFloat32(world.playerHunger),
+  playerMaxHunger: cloneFloat32(world.playerMaxHunger),
+  playerArmor: cloneFloat32(world.playerArmor),
+  playerMaxArmor: cloneFloat32(world.playerMaxArmor),
+  playerArmorRegenTimer: cloneFloat32(world.playerArmorRegenTimer),
+  playerIsDead: cloneUint8(world.playerIsDead),
+  playerIsOnRaft: cloneUint8(world.playerIsOnRaft),
   enemyKind: cloneUint8(world.enemyKind),
   enemyIsBoss: cloneUint8(world.enemyIsBoss),
   enemyHealth: cloneFloat32(world.enemyHealth),
@@ -360,6 +430,20 @@ export const restoreEcsSnapshot = (world: EcsWorld, snapshot: EcsSnapshot) => {
   world.prevPosition = cloneVec2Store(snapshot.prevPosition);
   world.velocity = cloneVec2Store(snapshot.velocity);
   world.radius = cloneFloat32(snapshot.radius);
+  world.playerAimAngle = cloneFloat32(snapshot.playerAimAngle);
+  world.playerMoveAngle = cloneFloat32(snapshot.playerMoveAngle);
+  world.playerDamageFlashTimer = cloneFloat32(snapshot.playerDamageFlashTimer);
+  world.playerAttackTimer = cloneFloat32(snapshot.playerAttackTimer);
+  world.playerUseCooldown = cloneFloat32(snapshot.playerUseCooldown);
+  world.playerHealth = cloneFloat32(snapshot.playerHealth);
+  world.playerMaxHealth = cloneFloat32(snapshot.playerMaxHealth);
+  world.playerHunger = cloneFloat32(snapshot.playerHunger);
+  world.playerMaxHunger = cloneFloat32(snapshot.playerMaxHunger);
+  world.playerArmor = cloneFloat32(snapshot.playerArmor);
+  world.playerMaxArmor = cloneFloat32(snapshot.playerMaxArmor);
+  world.playerArmorRegenTimer = cloneFloat32(snapshot.playerArmorRegenTimer);
+  world.playerIsDead = cloneUint8(snapshot.playerIsDead);
+  world.playerIsOnRaft = cloneUint8(snapshot.playerIsOnRaft);
   world.enemyKind = cloneUint8(snapshot.enemyKind);
   world.enemyIsBoss = cloneUint8(snapshot.enemyIsBoss);
   world.enemyHealth = cloneFloat32(snapshot.enemyHealth);

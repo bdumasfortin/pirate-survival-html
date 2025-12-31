@@ -5,6 +5,7 @@ import { clamp } from "../core/math";
 import { getInventorySelectedIndex, getInventorySlotKind, getInventorySlotQuantity, setInventorySlotQuantity } from "../game/inventory";
 import type { ResourceKind } from "../world/types";
 import { BERRY_RESTORE_RATIO, CRAB_MEAT_RESTORE_RATIO, ITEM_USE_COOLDOWN, WOLF_MEAT_RESTORE_RATIO } from "../game/use-config";
+import type { EntityId } from "../core/ecs";
 
 const isConsumable = (kind: string) => kind === "berries" || kind === "crabmeat" || kind === "wolfmeat";
 const CONSUMABLE_RESTORE: Partial<Record<ResourceKind, number>> = {
@@ -13,19 +14,19 @@ const CONSUMABLE_RESTORE: Partial<Record<ResourceKind, number>> = {
   wolfmeat: WOLF_MEAT_RESTORE_RATIO
 };
 
-export const updateUseCooldown = (state: GameState, delta: number) => {
-  if (state.useCooldown > 0) {
-    state.useCooldown = Math.max(0, state.useCooldown - delta);
+export const updateUseCooldown = (state: GameState, playerId: EntityId, delta: number) => {
+  const ecs = state.ecs;
+  if (ecs.playerUseCooldown[playerId] > 0) {
+    ecs.playerUseCooldown[playerId] = Math.max(0, ecs.playerUseCooldown[playerId] - delta);
   }
 };
 
-export const useSelectedItem = (state: GameState, input: InputState) => {
+export const useSelectedItem = (state: GameState, playerId: EntityId, input: InputState) => {
   if (!input.useQueued) {
     return;
   }
 
   const ecs = state.ecs;
-  const playerId = state.playerId;
   const selectedIndex = getInventorySelectedIndex(ecs, playerId);
   const slotKind = getInventorySlotKind(ecs, playerId, selectedIndex);
   const slotQuantity = getInventorySlotQuantity(ecs, playerId, selectedIndex);
@@ -48,16 +49,16 @@ export const useSelectedItem = (state: GameState, input: InputState) => {
     return;
   }
 
-  if (state.useCooldown > 0) {
+  if (ecs.playerUseCooldown[playerId] > 0) {
     return;
   }
 
-  const stats = state.survival;
   const restoreRatio = CONSUMABLE_RESTORE[slotKind] ?? 0;
-  const restore = stats.maxHunger * restoreRatio;
-  stats.hunger = clamp(stats.hunger + restore, 0, stats.maxHunger);
+  const maxHunger = ecs.playerMaxHunger[playerId];
+  const restore = maxHunger * restoreRatio;
+  ecs.playerHunger[playerId] = clamp(ecs.playerHunger[playerId] + restore, 0, maxHunger);
 
   setInventorySlotQuantity(ecs, playerId, selectedIndex, slotQuantity - 1);
 
-  state.useCooldown = ITEM_USE_COOLDOWN;
+  ecs.playerUseCooldown[playerId] = ITEM_USE_COOLDOWN;
 };

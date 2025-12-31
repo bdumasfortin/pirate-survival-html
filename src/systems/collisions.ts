@@ -1,7 +1,7 @@
 import type { GameState } from "../game/state";
 import type { Vec2 } from "../core/types";
 import type { Island } from "../world/types";
-import { isEntityAlive } from "../core/ecs";
+import { isEntityAlive, type EntityId } from "../core/ecs";
 import {
   closestPointOnPolygon,
   findClosestIslandEdge,
@@ -38,8 +38,7 @@ const pushPlayerOutOfIsland = (position: Vec2, radius: number, island: Island) =
   };
 };
 
-export const constrainPlayerToIslands = (state: GameState) => {
-  const playerId = state.playerId;
+export const constrainPlayerToIslands = (state: GameState, playerId: EntityId) => {
   const ecs = state.ecs;
   if (!isEntityAlive(ecs, playerId) || state.world.islands.length === 0) {
     return;
@@ -50,7 +49,7 @@ export const constrainPlayerToIslands = (state: GameState) => {
   const prevPosition = { x: ecs.prevPosition.x[playerId], y: ecs.prevPosition.y[playerId] };
   const radius = ecs.radius[playerId];
 
-  if (state.raft.isOnRaft) {
+  if (ecs.playerIsOnRaft[playerId]) {
     const containing = findContainingIsland(position, islands);
     if (containing) {
       const next = pushPlayerOutOfIsland(position, radius, containing);

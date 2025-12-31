@@ -1,27 +1,18 @@
 import type { EntityId, EcsSnapshot } from "../core/ecs";
 import { createEcsSnapshot, restoreEcsSnapshot } from "../core/ecs";
 import type { CraftingState } from "./crafting";
-import type { RaftState } from "./raft";
 import type { AttackEffect, GameState } from "./state";
-import type { SurvivalStats } from "./survival";
 import type { WorldState } from "../world/types";
 
 export type GameStateSnapshot = {
   time: number;
   ecs: EcsSnapshot;
-  playerId: EntityId;
+  playerIds: EntityId[];
+  localPlayerIndex: number;
   world: WorldState;
   rngState: number;
-  survival: SurvivalStats;
-  crafting: CraftingState;
-  raft: RaftState;
-  isDead: boolean;
-  aimAngle: number;
-  moveAngle: number;
-  damageFlashTimer: number;
-  attackEffect: AttackEffect | null;
-  playerAttackTimer: number;
-  useCooldown: number;
+  crafting: CraftingState[];
+  attackEffects: Array<AttackEffect | null>;
 };
 
 export type RollbackBuffer = {
@@ -45,77 +36,34 @@ const cloneAttackEffect = (effect: AttackEffect | null): AttackEffect | null => 
   };
 };
 
-const cloneSurvival = (stats: SurvivalStats): SurvivalStats => ({
-  health: stats.health,
-  hunger: stats.hunger,
-  maxHealth: stats.maxHealth,
-  maxHunger: stats.maxHunger,
-  armor: stats.armor,
-  maxArmor: stats.maxArmor,
-  armorRegenTimer: stats.armorRegenTimer
-});
-
-const cloneCrafting = (crafting: CraftingState): CraftingState => ({
+const cloneCraftingState = (crafting: CraftingState): CraftingState => ({
   isOpen: crafting.isOpen,
   selectedIndex: crafting.selectedIndex
 });
 
-const cloneRaft = (raft: RaftState): RaftState => ({
-  isOnRaft: raft.isOnRaft
-});
+const cloneCraftingStates = (crafting: CraftingState[]) => crafting.map((entry) => cloneCraftingState(entry));
 
-const applySurvival = (target: SurvivalStats, source: SurvivalStats) => {
-  target.health = source.health;
-  target.hunger = source.hunger;
-  target.maxHealth = source.maxHealth;
-  target.maxHunger = source.maxHunger;
-  target.armor = source.armor;
-  target.maxArmor = source.maxArmor;
-  target.armorRegenTimer = source.armorRegenTimer;
-};
-
-const applyCrafting = (target: CraftingState, source: CraftingState) => {
-  target.isOpen = source.isOpen;
-  target.selectedIndex = source.selectedIndex;
-};
-
-const applyRaft = (target: RaftState, source: RaftState) => {
-  target.isOnRaft = source.isOnRaft;
-};
+const cloneAttackEffects = (effects: Array<AttackEffect | null>) => effects.map((effect) => cloneAttackEffect(effect));
 
 export const createGameStateSnapshot = (state: GameState): GameStateSnapshot => ({
   time: state.time,
   ecs: createEcsSnapshot(state.ecs),
-  playerId: state.playerId,
+  playerIds: [...state.playerIds],
+  localPlayerIndex: state.localPlayerIndex,
   world: state.world,
   rngState: state.rng.state,
-  survival: cloneSurvival(state.survival),
-  crafting: cloneCrafting(state.crafting),
-  raft: cloneRaft(state.raft),
-  isDead: state.isDead,
-  aimAngle: state.aimAngle,
-  moveAngle: state.moveAngle,
-  damageFlashTimer: state.damageFlashTimer,
-  attackEffect: cloneAttackEffect(state.attackEffect),
-  playerAttackTimer: state.playerAttackTimer,
-  useCooldown: state.useCooldown
+  crafting: cloneCraftingStates(state.crafting),
+  attackEffects: cloneAttackEffects(state.attackEffects)
 });
 
 export const restoreGameStateSnapshot = (state: GameState, snapshot: GameStateSnapshot) => {
   state.time = snapshot.time;
-  state.playerId = snapshot.playerId;
+  state.playerIds = [...snapshot.playerIds];
+  state.localPlayerIndex = snapshot.localPlayerIndex;
   state.world = snapshot.world;
   state.rng.state = snapshot.rngState;
-  applySurvival(state.survival, snapshot.survival);
-  applyCrafting(state.crafting, snapshot.crafting);
-  applyRaft(state.raft, snapshot.raft);
-  state.isDead = snapshot.isDead;
-  state.aimAngle = snapshot.aimAngle;
-  state.moveAngle = snapshot.moveAngle;
-  state.damageFlashTimer = snapshot.damageFlashTimer;
-  state.attackEffect = cloneAttackEffect(snapshot.attackEffect);
-  state.playerAttackTimer = snapshot.playerAttackTimer;
-  state.useCooldown = snapshot.useCooldown;
+  state.crafting = cloneCraftingStates(snapshot.crafting);
+  state.attackEffects = cloneAttackEffects(snapshot.attackEffects);
   restoreEcsSnapshot(state.ecs, snapshot.ecs);
 };
 

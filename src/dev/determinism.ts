@@ -77,6 +77,20 @@ const hashEcs = (hash: number, ecs: EcsWorld) => {
   next = hashFloatArray(next, ecs.velocity.x, entityCount);
   next = hashFloatArray(next, ecs.velocity.y, entityCount);
   next = hashFloatArray(next, ecs.radius, entityCount);
+  next = hashFloatArray(next, ecs.playerAimAngle, entityCount);
+  next = hashFloatArray(next, ecs.playerMoveAngle, entityCount);
+  next = hashFloatArray(next, ecs.playerDamageFlashTimer, entityCount);
+  next = hashFloatArray(next, ecs.playerAttackTimer, entityCount);
+  next = hashFloatArray(next, ecs.playerUseCooldown, entityCount);
+  next = hashFloatArray(next, ecs.playerHealth, entityCount);
+  next = hashFloatArray(next, ecs.playerMaxHealth, entityCount);
+  next = hashFloatArray(next, ecs.playerHunger, entityCount);
+  next = hashFloatArray(next, ecs.playerMaxHunger, entityCount);
+  next = hashFloatArray(next, ecs.playerArmor, entityCount);
+  next = hashFloatArray(next, ecs.playerMaxArmor, entityCount);
+  next = hashFloatArray(next, ecs.playerArmorRegenTimer, entityCount);
+  next = hashIntArray(next, ecs.playerIsDead, entityCount);
+  next = hashIntArray(next, ecs.playerIsOnRaft, entityCount);
 
   next = hashIntArray(next, ecs.enemyKind, entityCount);
   next = hashIntArray(next, ecs.enemyIsBoss, entityCount);
@@ -117,39 +131,31 @@ const hashEcs = (hash: number, ecs: EcsWorld) => {
 const hashState = (state: GameState) => {
   let hash = 2166136261;
   hash = mixHash(hash, floatToBits(state.time));
-  hash = mixHash(hash, state.playerId);
-  hash = mixHash(hash, state.isDead ? 1 : 0);
-  hash = mixHash(hash, floatToBits(state.aimAngle));
-  hash = mixHash(hash, floatToBits(state.moveAngle));
-  hash = mixHash(hash, floatToBits(state.damageFlashTimer));
-  hash = mixHash(hash, floatToBits(state.playerAttackTimer));
-  hash = mixHash(hash, floatToBits(state.useCooldown));
+  hash = mixHash(hash, state.localPlayerIndex);
+  hash = mixHash(hash, state.playerIds.length);
+  for (const playerId of state.playerIds) {
+    hash = mixHash(hash, playerId);
+  }
   hash = mixHash(hash, state.rng.state);
 
-  hash = mixHash(hash, floatToBits(state.survival.health));
-  hash = mixHash(hash, floatToBits(state.survival.hunger));
-  hash = mixHash(hash, floatToBits(state.survival.maxHealth));
-  hash = mixHash(hash, floatToBits(state.survival.maxHunger));
-  hash = mixHash(hash, floatToBits(state.survival.armor));
-  hash = mixHash(hash, floatToBits(state.survival.maxArmor));
-  hash = mixHash(hash, floatToBits(state.survival.armorRegenTimer));
+  for (const crafting of state.crafting) {
+    hash = mixHash(hash, crafting.isOpen ? 1 : 0);
+    hash = mixHash(hash, crafting.selectedIndex);
+  }
 
-  hash = mixHash(hash, state.crafting.isOpen ? 1 : 0);
-  hash = mixHash(hash, state.crafting.selectedIndex);
-
-  hash = mixHash(hash, state.raft.isOnRaft ? 1 : 0);
-
-  if (state.attackEffect) {
-    hash = mixHash(hash, 1);
-    hash = mixHash(hash, floatToBits(state.attackEffect.origin.x));
-    hash = mixHash(hash, floatToBits(state.attackEffect.origin.y));
-    hash = mixHash(hash, floatToBits(state.attackEffect.angle));
-    hash = mixHash(hash, floatToBits(state.attackEffect.radius));
-    hash = mixHash(hash, floatToBits(state.attackEffect.spread));
-    hash = mixHash(hash, floatToBits(state.attackEffect.timer));
-    hash = mixHash(hash, floatToBits(state.attackEffect.duration));
-  } else {
-    hash = mixHash(hash, 0);
+  for (const effect of state.attackEffects) {
+    if (effect) {
+      hash = mixHash(hash, 1);
+      hash = mixHash(hash, floatToBits(effect.origin.x));
+      hash = mixHash(hash, floatToBits(effect.origin.y));
+      hash = mixHash(hash, floatToBits(effect.angle));
+      hash = mixHash(hash, floatToBits(effect.radius));
+      hash = mixHash(hash, floatToBits(effect.spread));
+      hash = mixHash(hash, floatToBits(effect.timer));
+      hash = mixHash(hash, floatToBits(effect.duration));
+    } else {
+      hash = mixHash(hash, 0);
+    }
   }
 
   hash = hashWorld(hash, state.world);
@@ -192,13 +198,13 @@ const buildTestInputFrame = (frame: number): InputFrame => {
 };
 
 const runSimulation = (seed: string, frames: number) => {
-  const state = createInitialState(seed);
-  const input = createInputState();
+  const state = createInitialState(seed, 1, 0);
+  const inputs = [createInputState()];
   const delta = 1 / 60;
 
   for (let frame = 0; frame < frames; frame += 1) {
-    applyInputFrame(buildTestInputFrame(frame), input);
-    simulateFrame(state, input, delta);
+    applyInputFrame(buildTestInputFrame(frame), inputs[0]);
+    simulateFrame(state, inputs, delta);
   }
 
   return hashState(state);

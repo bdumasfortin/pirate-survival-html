@@ -71,6 +71,8 @@ export const setHudSeed = (seed: string) => {
   activeSeedLabel = `Seed: ${seed}`;
 };
 
+const getLocalPlayerId = (state: GameState) => state.playerIds[state.localPlayerIndex];
+
 const getItemIcon = (kind: ResourceKind) => {
   const image = itemImages[kind];
   return isImageReady(image) ? image : null;
@@ -83,9 +85,9 @@ const getPlaceholderIcon = (slot: EquipmentSlotType) => {
 
 const renderInventory = (ctx: CanvasRenderingContext2D, state: GameState) => {
   const { innerWidth, innerHeight } = window;
-  const playerId = state.playerId;
+  const playerId = getLocalPlayerId(state);
   const ecs = state.ecs;
-  if (!isEntityAlive(ecs, playerId)) {
+  if (playerId === undefined || !isEntityAlive(ecs, playerId)) {
     return;
   }
 
@@ -168,10 +170,10 @@ const renderEquipment = (ctx: CanvasRenderingContext2D, state: GameState) => {
   const totalHeight = EQUIPMENT_GRID_ROWS * EQUIPMENT_SLOT_SIZE + (EQUIPMENT_GRID_ROWS - 1) * EQUIPMENT_SLOT_GAP;
   const startX = HUD_MARGIN;
   const startY = innerHeight - HUD_MARGIN - totalHeight;
-  const playerId = state.playerId;
+  const playerId = getLocalPlayerId(state);
   const ecs = state.ecs;
 
-  if (!isEntityAlive(ecs, playerId)) {
+  if (playerId === undefined || !isEntityAlive(ecs, playerId)) {
     return;
   }
 
@@ -274,15 +276,15 @@ const drawActionPrompt = (ctx: CanvasRenderingContext2D, text: string, barStackH
   ctx.restore();
 };
 
-const getBarStackHeight = (state: GameState) => {
-  const armorVisible = state.survival.maxArmor > 0;
+const getBarStackHeight = (state: GameState, playerId: number) => {
+  const armorVisible = state.ecs.playerMaxArmor[playerId] > 0;
   return BAR_HEIGHT + (armorVisible ? BAR_HEIGHT + ARMOR_BAR_GAP : 0);
 };
 
 const renderInteractionPrompt = (ctx: CanvasRenderingContext2D, state: GameState) => {
-  const playerId = state.playerId;
+  const playerId = getLocalPlayerId(state);
   const ecs = state.ecs;
-  if (!isEntityAlive(ecs, playerId)) {
+  if (playerId === undefined || !isEntityAlive(ecs, playerId)) {
     return;
   }
 
@@ -295,18 +297,20 @@ const renderInteractionPrompt = (ctx: CanvasRenderingContext2D, state: GameState
 
   const nodeType = resourceNodeTypeFromIndex(ecs.resourceNodeType[targetId]);
   const text = promptLabels[nodeType];
-  const barStackHeight = getBarStackHeight(state);
+  const barStackHeight = getBarStackHeight(state, playerId);
   drawActionPrompt(ctx, text, barStackHeight);
 };
 
 const renderRaftPrompt = (ctx: CanvasRenderingContext2D, state: GameState) => {
-  if (state.isDead || state.crafting.isOpen) {
+  const playerId = getLocalPlayerId(state);
+  const ecs = state.ecs;
+  const crafting = state.crafting[state.localPlayerIndex];
+
+  if (playerId === undefined || !isEntityAlive(ecs, playerId)) {
     return false;
   }
 
-  const playerId = state.playerId;
-  const ecs = state.ecs;
-  if (!isEntityAlive(ecs, playerId)) {
+  if (ecs.playerIsDead[playerId] || crafting?.isOpen) {
     return false;
   }
 
@@ -323,15 +327,19 @@ const renderRaftPrompt = (ctx: CanvasRenderingContext2D, state: GameState) => {
     return false;
   }
 
-  const text = state.raft.isOnRaft ? "LMB to disembark" : "LMB to board";
-  const barStackHeight = getBarStackHeight(state);
+  const text = ecs.playerIsOnRaft[playerId] ? "LMB to disembark" : "LMB to board";
+  const barStackHeight = getBarStackHeight(state, playerId);
   drawActionPrompt(ctx, text, barStackHeight);
   return true;
 };
 
 const renderSurvivalBars = (ctx: CanvasRenderingContext2D, state: GameState) => {
   const { innerWidth, innerHeight } = window;
-  const stats = state.survival;
+  const playerId = getLocalPlayerId(state);
+  const ecs = state.ecs;
+  if (playerId === undefined || !isEntityAlive(ecs, playerId)) {
+    return;
+  }
   const inventoryWidth = INVENTORY_SLOT_COUNT * INVENTORY_SLOT_SIZE +
     (INVENTORY_SLOT_COUNT - 1) * INVENTORY_SLOT_GAP;
   const startX = (innerWidth - inventoryWidth) / 2;
@@ -362,18 +370,19 @@ const renderSurvivalBars = (ctx: CanvasRenderingContext2D, state: GameState) => 
     ctx.restore();
   };
 
-  const armorVisible = stats.maxArmor > 0;
+  const armorVisible = ecs.playerMaxArmor[playerId] > 0;
   if (armorVisible) {
     const armorY = y - BAR_HEIGHT - ARMOR_BAR_GAP - 2;
-    drawBar(healthX, armorY, stats.armor, stats.maxArmor, "#4b8fe2");
+    drawBar(healthX, armorY, ecs.playerArmor[playerId], ecs.playerMaxArmor[playerId], "#4b8fe2");
   }
 
-  drawBar(healthX, y, stats.health, stats.maxHealth, "#e2534b");
-  drawBar(hungerX, y, stats.hunger, stats.maxHunger, "#d9a441");
+  drawBar(healthX, y, ecs.playerHealth[playerId], ecs.playerMaxHealth[playerId], "#e2534b");
+  drawBar(hungerX, y, ecs.playerHunger[playerId], ecs.playerMaxHunger[playerId], "#d9a441");
 };
 
 const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => {
-  if (!state.crafting.isOpen) {
+  const crafting = state.crafting[state.localPlayerIndex];
+  if (!crafting?.isOpen) {
     return;
   }
 
@@ -386,6 +395,7 @@ const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => 
   const columnX = columnCenterX - CRAFT_TILE_SIZE / 2;
   const totalHeight = recipes.length * CRAFT_TILE_SIZE + (recipes.length - 1) * CRAFT_TILE_GAP;
   const startY = (innerHeight - totalHeight) / 2;
+  const playerId = getLocalPlayerId(state);
 
   ctx.save();
   ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
@@ -402,7 +412,7 @@ const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => 
   ctx.fill();
   ctx.restore();
 
-  const selectedIndex = Math.max(0, Math.min(state.crafting.selectedIndex, recipes.length - 1));
+  const selectedIndex = Math.max(0, Math.min(crafting.selectedIndex, recipes.length - 1));
   const selectedRecipe: Recipe | undefined = recipes[selectedIndex];
   const selectedY = startY + selectedIndex * (CRAFT_TILE_SIZE + CRAFT_TILE_GAP);
 
@@ -410,7 +420,7 @@ const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => 
     const x = columnX;
     const y = startY + index * (CRAFT_TILE_SIZE + CRAFT_TILE_GAP);
     const selected = index === selectedIndex;
-    const craftable = canCraft(state.ecs, state.playerId, recipe);
+    const craftable = playerId !== undefined ? canCraft(state.ecs, playerId, recipe) : false;
 
     ctx.save();
     ctx.fillStyle = "rgba(20, 32, 38, 0.9)";
@@ -524,9 +534,9 @@ const renderBuildVersion = (ctx: CanvasRenderingContext2D) => {
 };
 
 const renderPlayerCoords = (ctx: CanvasRenderingContext2D, state: GameState) => {
-  const playerId = state.playerId;
+  const playerId = getLocalPlayerId(state);
   const ecs = state.ecs;
-  if (!isEntityAlive(ecs, playerId)) {
+  if (playerId === undefined || !isEntityAlive(ecs, playerId)) {
     return;
   }
 
@@ -612,12 +622,18 @@ const renderHints = (ctx: CanvasRenderingContext2D) => {
 };
 
 const renderDamageFlash = (ctx: CanvasRenderingContext2D, state: GameState) => {
-  if (state.isDead || state.damageFlashTimer <= 0) {
+  const playerId = getLocalPlayerId(state);
+  const ecs = state.ecs;
+  if (playerId === undefined) {
     return;
   }
 
   const { innerWidth, innerHeight } = window;
-  const alpha = state.damageFlashTimer / DAMAGE_FLASH_DURATION;
+  const damageFlashTimer = ecs.playerDamageFlashTimer[playerId];
+  if (ecs.playerIsDead[playerId] || damageFlashTimer <= 0) {
+    return;
+  }
+  const alpha = damageFlashTimer / DAMAGE_FLASH_DURATION;
 
   ctx.save();
   ctx.fillStyle = `rgba(180, 30, 30, ${0.35 * alpha})`;
@@ -626,7 +642,8 @@ const renderDamageFlash = (ctx: CanvasRenderingContext2D, state: GameState) => {
 };
 
 const renderDeathOverlay = (ctx: CanvasRenderingContext2D, state: GameState) => {
-  if (!state.isDead) {
+  const playerId = getLocalPlayerId(state);
+  if (playerId === undefined || !state.ecs.playerIsDead[playerId]) {
     return;
   }
 
