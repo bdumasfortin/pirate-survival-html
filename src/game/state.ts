@@ -1,4 +1,4 @@
-import type { Entity } from "./entities";
+import { createEcsWorld, createEntity, type EcsWorld, type EntityId } from "../core/ecs";
 import { createCraftingState, type CraftingState } from "./crafting";
 import { createEnemies } from "./creatures";
 import type { Enemy } from "./enemies";
@@ -22,8 +22,8 @@ export type AttackEffect = {
 
 export type GameState = {
   time: number;
-  entities: Entity[];
-  playerId: number;
+  ecs: EcsWorld;
+  playerId: EntityId;
   world: WorldState;
   inventory: InventoryState;
   equipment: EquipmentState;
@@ -49,14 +49,15 @@ const seedDevInventory = (inventory: InventoryState) => {
 };
 
 export const createInitialState = (seed: string | number): GameState => {
-  const player: Entity = {
-    id: 1,
-    position: { x: 0, y: 0 },
-    prevPosition: { x: 0, y: 0 },
-    velocity: { x: 0, y: 0 },
-    radius: 14,
-    tag: "player"
-  };
+  const ecs = createEcsWorld();
+  const playerId = createEntity(ecs);
+  ecs.position.x[playerId] = 0;
+  ecs.position.y[playerId] = 0;
+  ecs.prevPosition.x[playerId] = 0;
+  ecs.prevPosition.y[playerId] = 0;
+  ecs.velocity.x[playerId] = 0;
+  ecs.velocity.y[playerId] = 0;
+  ecs.radius[playerId] = 14;
 
   const world = createWorld(seed);
   const enemies = createEnemies(world);
@@ -68,8 +69,8 @@ export const createInitialState = (seed: string | number): GameState => {
 
   return {
     time: 0,
-    entities: [player],
-    playerId: player.id,
+    ecs,
+    playerId,
     world,
     inventory,
     equipment: createEquipmentState(),

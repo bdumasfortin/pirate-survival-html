@@ -1,5 +1,6 @@
 import type { InputState } from "../core/input";
 import type { GameState } from "../game/state";
+import { isEntityAlive } from "../core/ecs";
 import { RAFT_INTERACTION_DISTANCE, RAFT_SHORE_BUFFER } from "../game/raft-config";
 import { findClosestIslandEdge } from "../world/island-geometry";
 
@@ -19,13 +20,16 @@ export const updateRaft = (state: GameState, input: InputState) => {
 
   input.useQueued = false;
 
-  const player = state.entities.find((entity) => entity.id === state.playerId);
-  if (!player) {
+  const playerId = state.playerId;
+  const ecs = state.ecs;
+  if (!isEntityAlive(ecs, playerId)) {
     return;
   }
 
   const islands = state.world.islands;
-  const closest = findClosestIslandEdge(player.position, islands);
+  const position = { x: ecs.position.x[playerId], y: ecs.position.y[playerId] };
+  const radius = ecs.radius[playerId];
+  const closest = findClosestIslandEdge(position, islands);
   if (!closest || closest.distance > RAFT_INTERACTION_DISTANCE) {
     return;
   }
@@ -37,10 +41,10 @@ export const updateRaft = (state: GameState, input: InputState) => {
       y: closest.island.center.y - closest.point.y
     };
     const length = Math.hypot(toLand.x, toLand.y) || 1;
-    const offset = player.radius + RAFT_SHORE_BUFFER;
+    const offset = radius + RAFT_SHORE_BUFFER;
 
-    player.position.x = closest.point.x + (toLand.x / length) * offset;
-    player.position.y = closest.point.y + (toLand.y / length) * offset;
+    ecs.position.x[playerId] = closest.point.x + (toLand.x / length) * offset;
+    ecs.position.y[playerId] = closest.point.y + (toLand.y / length) * offset;
     return;
   }
 
@@ -50,8 +54,8 @@ export const updateRaft = (state: GameState, input: InputState) => {
     y: closest.point.y - closest.island.center.y
   };
   const length = Math.hypot(toWater.x, toWater.y) || 1;
-  const offset = player.radius + RAFT_SHORE_BUFFER;
+  const offset = radius + RAFT_SHORE_BUFFER;
 
-  player.position.x = closest.point.x + (toWater.x / length) * offset;
-  player.position.y = closest.point.y + (toWater.y / length) * offset;
+  ecs.position.x[playerId] = closest.point.x + (toWater.x / length) * offset;
+  ecs.position.y[playerId] = closest.point.y + (toWater.y / length) * offset;
 };

@@ -3,6 +3,7 @@ import type { GameState } from "../game/state";
 import type { Crab, Kraken, Wolf } from "../game/creatures";
 import type { ResourceKind } from "../world/types";
 import { clamp, normalize } from "../core/math";
+import { isEntityAlive } from "../core/ecs";
 import { isPointInPolygon } from "../world/island-geometry";
 import {
   ATTACK_EFFECT_DURATION,
@@ -58,11 +59,15 @@ export const updateCrabs = (state: GameState, delta: number) => {
     enemy.hitTimer = Math.max(0, enemy.hitTimer - delta);
   }
 
-  const player = state.entities.find((entity) => entity.id === state.playerId);
-
-  if (!player) {
+  const playerId = state.playerId;
+  const ecs = state.ecs;
+  if (!isEntityAlive(ecs, playerId)) {
     return;
   }
+
+  const playerX = ecs.position.x[playerId];
+  const playerY = ecs.position.y[playerId];
+  const playerRadius = ecs.radius[playerId];
 
   for (const enemy of state.enemies) {
     if (enemy.kind === "kraken") {
@@ -80,10 +85,10 @@ export const updateCrabs = (state: GameState, delta: number) => {
       kraken.position.x += kraken.velocity.x * delta;
       kraken.position.y += kraken.velocity.y * delta;
 
-      const dx = player.position.x - kraken.position.x;
-      const dy = player.position.y - kraken.position.y;
+      const dx = playerX - kraken.position.x;
+      const dy = playerY - kraken.position.y;
       const distance = Math.hypot(dx, dy);
-      const hitRange = kraken.radius + player.radius;
+      const hitRange = kraken.radius + playerRadius;
 
       if (distance <= hitRange && kraken.attackTimer <= 0) {
         applyMonsterDamage(state, kraken.damage);
@@ -101,8 +106,8 @@ export const updateCrabs = (state: GameState, delta: number) => {
     creature.attackTimer = Math.max(0, creature.attackTimer - delta);
 
     const island = state.world.islands[creature.homeIslandIndex] ?? state.world.islands[0];
-    const dx = player.position.x - creature.position.x;
-    const dy = player.position.y - creature.position.y;
+    const dx = playerX - creature.position.x;
+    const dy = playerY - creature.position.y;
     const distance = Math.hypot(dx, dy);
 
     if (distance < creature.aggroRange) {
@@ -128,10 +133,10 @@ export const updateCrabs = (state: GameState, delta: number) => {
       creature.position.y += toCenter.y * creature.speed * delta;
     }
 
-    const postDx = player.position.x - creature.position.x;
-    const postDy = player.position.y - creature.position.y;
+    const postDx = playerX - creature.position.x;
+    const postDy = playerY - creature.position.y;
     const postDist = Math.hypot(postDx, postDy);
-    const hitRange = creature.attackRange + player.radius;
+    const hitRange = creature.attackRange + playerRadius;
 
     if (postDist <= hitRange && creature.attackTimer <= 0) {
       applyMonsterDamage(state, creature.damage);
@@ -165,25 +170,32 @@ export const updatePlayerAttack = (state: GameState, input: InputState, delta: n
     return;
   }
 
-  const player = state.entities.find((entity) => entity.id === state.playerId);
-  if (!player) {
+  const playerId = state.playerId;
+  const ecs = state.ecs;
+  if (!isEntityAlive(ecs, playerId)) {
     return;
   }
 
+  const playerX = ecs.position.x[playerId];
+  const playerY = ecs.position.y[playerId];
+  const playerVelX = ecs.velocity.x[playerId];
+  const playerVelY = ecs.velocity.y[playerId];
+  const playerRadius = ecs.radius[playerId];
+
   const mouseWorld = input.mouseWorld;
   const aimVector = mouseWorld
-    ? { x: mouseWorld.x - player.position.x, y: mouseWorld.y - player.position.y }
-    : { x: player.velocity.x, y: player.velocity.y };
+    ? { x: mouseWorld.x - playerX, y: mouseWorld.y - playerY }
+    : { x: playerVelX, y: playerVelY };
   const dir = Math.hypot(aimVector.x, aimVector.y) > 1 ? normalize(aimVector.x, aimVector.y) : { x: 1, y: 0 };
   const angle = Math.atan2(dir.y, dir.x);
-  const coneRadius = player.radius + PLAYER_ATTACK_RANGE;
+  const coneRadius = playerRadius + PLAYER_ATTACK_RANGE;
   const coneSpread = PLAYER_ATTACK_CONE_SPREAD;
   const attackReach = coneRadius;
 
   state.attackEffect = {
     origin: {
-      x: player.position.x,
-      y: player.position.y
+      x: playerX,
+      y: playerY
     },
     angle,
     radius: coneRadius,
@@ -197,8 +209,8 @@ export const updatePlayerAttack = (state: GameState, input: InputState, delta: n
 
   for (let i = 0; i < state.enemies.length; i += 1) {
     const enemy = state.enemies[i];
-    const dx = enemy.position.x - player.position.x;
-    const dy = enemy.position.y - player.position.y;
+    const dx = enemy.position.x - playerX;
+    const dy = enemy.position.y - playerY;
     const dist = Math.hypot(dx, dy);
 
     if (dist <= attackReach + enemy.radius && dist < closestDistance) {

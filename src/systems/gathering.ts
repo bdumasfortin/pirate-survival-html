@@ -1,6 +1,7 @@
 import { consumeInteract, type InputState } from "../core/input";
 import { addToInventory } from "../game/inventory";
 import type { GameState } from "../game/state";
+import { isEntityAlive } from "../core/ecs";
 import type { ResourceNode, YieldRange } from "../world/types";
 
 export const GATHER_RANGE = 10;
@@ -58,12 +59,15 @@ export const gatherNearbyResource = (state: GameState, input: InputState) => {
     return;
   }
 
-  const player = state.entities.find((entity) => entity.id === state.playerId);
-  if (!player) {
+  const playerId = state.playerId;
+  const ecs = state.ecs;
+  if (!isEntityAlive(ecs, playerId)) {
     return;
   }
 
-  const target = getNearestGatherableResource(player.position, player.radius, state.world.resources);
+  const position = { x: ecs.position.x[playerId], y: ecs.position.y[playerId] };
+  const radius = ecs.radius[playerId];
+  const target = getNearestGatherableResource(position, radius, state.world.resources);
   if (!target) {
     return;
   }

@@ -1,5 +1,6 @@
 import { consumeDrop, type InputState } from "../core/input";
 import type { GameState } from "../game/state";
+import { isEntityAlive } from "../core/ecs";
 import { GROUND_ITEM_DROP_OFFSET } from "../game/ground-items-config";
 
 export const dropSelectedItem = (state: GameState, input: InputState) => {
@@ -12,8 +13,9 @@ export const dropSelectedItem = (state: GameState, input: InputState) => {
     return;
   }
 
-  const player = state.entities.find((entity) => entity.id === state.playerId);
-  if (!player) {
+  const playerId = state.playerId;
+  const ecs = state.ecs;
+  if (!isEntityAlive(ecs, playerId)) {
     return;
   }
 
@@ -24,8 +26,8 @@ export const dropSelectedItem = (state: GameState, input: InputState) => {
     kind: slot.kind,
     quantity: 1,
     position: {
-      x: player.position.x + Math.cos(angle) * offset,
-      y: player.position.y + Math.sin(angle) * offset
+      x: ecs.position.x[playerId] + Math.cos(angle) * offset,
+      y: ecs.position.y[playerId] + Math.sin(angle) * offset
     },
     droppedAt: state.time
   });

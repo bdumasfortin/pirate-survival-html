@@ -7,6 +7,7 @@ import type { Recipe } from "../game/crafting";
 import { getNearestGatherableResource } from "../systems/gathering";
 import { DAMAGE_FLASH_DURATION } from "../game/combat-config";
 import { RAFT_INTERACTION_DISTANCE } from "../game/raft-config";
+import { isEntityAlive } from "../core/ecs";
 import { equipmentPlaceholderImages, isImageReady, itemImages } from "./assets";
 import { drawRoundedRect } from "./render-helpers";
 import {
@@ -258,12 +259,15 @@ const getBarStackHeight = (state: GameState) => {
 };
 
 const renderInteractionPrompt = (ctx: CanvasRenderingContext2D, state: GameState) => {
-  const player = state.entities.find((entity) => entity.id === state.playerId);
-  if (!player) {
+  const playerId = state.playerId;
+  const ecs = state.ecs;
+  if (!isEntityAlive(ecs, playerId)) {
     return;
   }
 
-  const target = getNearestGatherableResource(player.position, player.radius, state.world.resources);
+  const position = { x: ecs.position.x[playerId], y: ecs.position.y[playerId] };
+  const radius = ecs.radius[playerId];
+  const target = getNearestGatherableResource(position, radius, state.world.resources);
   if (!target) {
     return;
   }
@@ -278,8 +282,9 @@ const renderRaftPrompt = (ctx: CanvasRenderingContext2D, state: GameState) => {
     return false;
   }
 
-  const player = state.entities.find((entity) => entity.id === state.playerId);
-  if (!player) {
+  const playerId = state.playerId;
+  const ecs = state.ecs;
+  if (!isEntityAlive(ecs, playerId)) {
     return false;
   }
 
@@ -288,7 +293,8 @@ const renderRaftPrompt = (ctx: CanvasRenderingContext2D, state: GameState) => {
     return false;
   }
 
-  const closest = findClosestIslandEdge(player.position, state.world.islands);
+  const position = { x: ecs.position.x[playerId], y: ecs.position.y[playerId] };
+  const closest = findClosestIslandEdge(position, state.world.islands);
   if (!closest || closest.distance > RAFT_INTERACTION_DISTANCE) {
     return false;
   }
@@ -480,7 +486,6 @@ const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => 
 };
 
 const renderBuildVersion = (ctx: CanvasRenderingContext2D) => {
-  const { innerWidth } = window;
   const fontSize = 14;
 
   ctx.save();
@@ -494,8 +499,9 @@ const renderBuildVersion = (ctx: CanvasRenderingContext2D) => {
 };
 
 const renderPlayerCoords = (ctx: CanvasRenderingContext2D, state: GameState) => {
-  const player = state.entities.find((entity) => entity.id === state.playerId);
-  if (!player) {
+  const playerId = state.playerId;
+  const ecs = state.ecs;
+  if (!isEntityAlive(ecs, playerId)) {
     return;
   }
 
@@ -506,8 +512,8 @@ const renderPlayerCoords = (ctx: CanvasRenderingContext2D, state: GameState) => 
   const paddingTop = 8;
   const paddingBottom = 4;
   const lines = [
-    `X: ${Math.round(player.position.x)}`,
-    `Y: ${Math.round(player.position.y)}`
+    `X: ${Math.round(ecs.position.x[playerId])}`,
+    `Y: ${Math.round(ecs.position.y[playerId])}`
   ];
 
   ctx.save();

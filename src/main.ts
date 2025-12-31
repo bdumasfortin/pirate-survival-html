@@ -1,5 +1,6 @@
 import "./style.css";
 import { createInputState, bindKeyboard, bindInventorySelection, bindMouse, bindCraftScroll, type InputState } from "./core/input";
+import { isEntityAlive } from "./core/ecs";
 import { startLoop } from "./core/loop";
 import { CAMERA_ZOOM } from "./game/config";
 import { createInitialState, type GameState } from "./game/state";
@@ -52,26 +53,24 @@ const resize = () => {
 window.addEventListener("resize", resize);
 resize();
 
-const getPlayerEntity = (state: GameState) => state.entities.find((entity) => entity.id === state.playerId);
-
-const updateMouseWorldPosition = (input: InputState, player: { position: { x: number; y: number } }) => {
+const updateMouseWorldPosition = (input: InputState, playerX: number, playerY: number) => {
   if (!input.mouseScreen) {
     return;
   }
 
   input.mouseWorld = {
-    x: (input.mouseScreen.x - window.innerWidth / 2) / CAMERA_ZOOM + player.position.x,
-    y: (input.mouseScreen.y - window.innerHeight / 2) / CAMERA_ZOOM + player.position.y
+    x: (input.mouseScreen.x - window.innerWidth / 2) / CAMERA_ZOOM + playerX,
+    y: (input.mouseScreen.y - window.innerHeight / 2) / CAMERA_ZOOM + playerY
   };
 };
 
-const updateAimAngle = (state: GameState, input: InputState, player: { position: { x: number; y: number } }) => {
+const updateAimAngle = (state: GameState, input: InputState, playerX: number, playerY: number) => {
   if (!input.mouseWorld) {
     return;
   }
 
-  const dx = input.mouseWorld.x - player.position.x;
-  const dy = input.mouseWorld.y - player.position.y;
+  const dx = input.mouseWorld.x - playerX;
+  const dy = input.mouseWorld.y - playerY;
   if (Math.hypot(dx, dy) > 0.01) {
     state.aimAngle = Math.atan2(dy, dx);
   }
@@ -142,10 +141,12 @@ const startGame = async (seed: string) => {
     onUpdate: (delta) => {
       state.time += delta;
 
-      const player = getPlayerEntity(state);
-      if (player) {
-        updateMouseWorldPosition(input, player);
-        updateAimAngle(state, input, player);
+      const playerId = state.playerId;
+      if (isEntityAlive(state.ecs, playerId)) {
+        const playerX = state.ecs.position.x[playerId];
+        const playerY = state.ecs.position.y[playerId];
+        updateMouseWorldPosition(input, playerX, playerY);
+        updateAimAngle(state, input, playerX, playerY);
       }
 
       if (!state.isDead) {

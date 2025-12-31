@@ -3,6 +3,7 @@ import type { IslandType, ResourceNodeType } from "../world/types";
 import { CAMERA_ZOOM } from "./ui-config";
 import { GROUND_ITEM_RENDER_SIZE } from "../game/ground-items-config";
 import { CRAB_HIT_FLASH_DURATION } from "../game/combat-config";
+import { ComponentMask, EntityTag, forEachEntity, isEntityAlive } from "../core/ecs";
 import { drawIsland, insetPoints } from "./render-helpers";
 import { isImageReady, itemImages, worldImages } from "./assets";
 
@@ -222,23 +223,31 @@ const renderAttackEffect = (ctx: CanvasRenderingContext2D, state: GameState) => 
 };
 
 const renderEntities = (ctx: CanvasRenderingContext2D, state: GameState) => {
-  state.entities.forEach((entity) => {
-    if (entity.tag === "player") {
+  const ecs = state.ecs;
+  const renderMask = ComponentMask.Position | ComponentMask.Radius | ComponentMask.Tag;
+
+  forEachEntity(ecs, renderMask, (id) => {
+    const tag = ecs.tag[id];
+    const x = ecs.position.x[id];
+    const y = ecs.position.y[id];
+    const radius = ecs.radius[id];
+
+    if (tag === EntityTag.Player) {
       if (state.raft.isOnRaft && isImageReady(raftImage)) {
-        const raftSize = entity.radius * 3;
+        const raftSize = radius * 3;
 
         ctx.save();
-        ctx.translate(entity.position.x, entity.position.y);
+        ctx.translate(x, y);
         ctx.rotate(state.moveAngle + Math.PI / 2);
         ctx.drawImage(raftImage, -raftSize / 2, -raftSize / 2, raftSize, raftSize);
         ctx.restore();
       }
 
       if (isImageReady(pirateImage)) {
-        const size = entity.radius * 2.4;
+        const size = radius * 2.4;
 
         ctx.save();
-        ctx.translate(entity.position.x, entity.position.y);
+        ctx.translate(x, y);
         ctx.rotate(state.aimAngle - Math.PI / 2);
         ctx.drawImage(pirateImage, -size / 2, -size / 2, size, size);
         ctx.restore();
@@ -247,8 +256,8 @@ const renderEntities = (ctx: CanvasRenderingContext2D, state: GameState) => {
     }
 
     ctx.beginPath();
-    ctx.arc(entity.position.x, entity.position.y, entity.radius, 0, Math.PI * 2);
-    ctx.fillStyle = entity.tag === "player" ? PLAYER_COLOR : DEFAULT_ENTITY_COLOR;
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = tag === EntityTag.Player ? PLAYER_COLOR : DEFAULT_ENTITY_COLOR;
     ctx.fill();
   });
 };
@@ -257,9 +266,11 @@ export const renderWorld = (ctx: CanvasRenderingContext2D, state: GameState) => 
   renderBackground(ctx);
 
   const { innerWidth, innerHeight } = window;
-  const player = state.entities.find((entity) => entity.id === state.playerId);
-  const cameraX = player?.position.x ?? 0;
-  const cameraY = player?.position.y ?? 0;
+  const playerId = state.playerId;
+  const ecs = state.ecs;
+  const hasPlayer = isEntityAlive(ecs, playerId);
+  const cameraX = hasPlayer ? ecs.position.x[playerId] : 0;
+  const cameraY = hasPlayer ? ecs.position.y[playerId] : 0;
 
   ctx.save();
   ctx.translate(innerWidth / 2, innerHeight / 2);

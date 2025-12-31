@@ -1,14 +1,18 @@
 import type { GameState } from "../game/state";
 import { addToInventory } from "../game/inventory";
 import { GROUND_ITEM_PICKUP_COOLDOWN, GROUND_ITEM_PICKUP_RANGE } from "../game/ground-items-config";
+import { isEntityAlive } from "../core/ecs";
 
 export const pickupGroundItems = (state: GameState) => {
-  const player = state.entities.find((entity) => entity.id === state.playerId);
-  if (!player) {
+  const playerId = state.playerId;
+  const ecs = state.ecs;
+  if (!isEntityAlive(ecs, playerId)) {
     return;
   }
 
-  const pickupRange = GROUND_ITEM_PICKUP_RANGE + player.radius;
+  const pickupRange = GROUND_ITEM_PICKUP_RANGE + ecs.radius[playerId];
+  const playerX = ecs.position.x[playerId];
+  const playerY = ecs.position.y[playerId];
 
   for (let i = state.groundItems.length - 1; i >= 0; i -= 1) {
     const item = state.groundItems[i];
@@ -16,8 +20,8 @@ export const pickupGroundItems = (state: GameState) => {
       continue;
     }
 
-    const dx = item.position.x - player.position.x;
-    const dy = item.position.y - player.position.y;
+    const dx = item.position.x - playerX;
+    const dy = item.position.y - playerY;
     const dist = Math.hypot(dx, dy);
 
     if (dist > pickupRange) {
