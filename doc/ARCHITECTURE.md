@@ -8,10 +8,12 @@
 ## Directory layout
 - `src/core/` low-level utilities (input bindings, math helpers, loop timing).
 - `src/game/` game state, entities, inventory, survival stats, crafting data, tuning configs.
+- `src/net/` client networking (transport, room protocol, snapshot encoding).
 - `src/systems/` update logic (movement, collisions, gathering, survival, crafting, combat).
 - `src/render/` draw routines, camera, HUD, asset registry, UI constants.
 - `src/world/` world generation, islands, resource nodes, and world configs.
 - `src/assets/` static assets (sprites, audio, json data).
+- `server/` relay-only WebSocket room server (Node + ws).
 
 ## Current implementation (prototype)
 - Canvas renderer with camera follow + zoom.
@@ -28,12 +30,16 @@
 - Raft: LMB board/disembark near shore when raft is selected.
 - UI: bottom hotbar with item icons, action prompts, hints, survival bars.
 - SVG sprites for player, enemies, resources, and items.
+- Multiplayer: relay server + room UI, deterministic rollback sync, state-hash checks, resync snapshots.
 
 ## Module responsibilities
 - `src/core/loop.ts` manages requestAnimationFrame timing.
 - `src/core/input.ts` keyboard + mouse input queues.
+- `src/core/input-sync.ts` per-player input buffers for rollback.
+- `src/core/state-hash.ts` deterministic state hashing for sync checks.
 - `src/core/math.ts` shared math helpers (clamp/normalize).
 - `src/game/state.ts` top-level game state and initializers.
+- `src/game/rollback.ts` rollback snapshots and state restore helpers.
 - `src/game/inventory.ts` inventory data and stack handling.
 - `src/game/crafting.ts` recipe data and craft helpers.
 - `src/game/combat-config.ts` combat tuning values.
@@ -58,15 +64,20 @@
 - `src/render/world.ts` world/background rendering (islands, entities, effects).
 - `src/render/ui.ts` HUD rendering (inventory, prompts, crafting, bars).
 - `src/render/renderer.ts` render orchestrator.
+- `src/net/room-protocol.ts` room server message contracts.
+- `src/net/input-wire.ts` binary input packet encoding.
+- `src/net/snapshot.ts` snapshot serialization + base64 chunk helpers.
 - `src/world/types.ts` world domain types.
 - `src/world/world-config.ts` island/resource config data.
 - `src/world/world.ts` island creation + resource seeding.
+- `server/src/index.ts` relay server entry (rooms, rate limits, resync routing).
 
 ## Data flow
 1) Input updates in `core/input`.
-2) Loop tick updates systems in `main.ts` order.
+2) Loop tick applies local/remote inputs and optionally resimulates from rollback.
 3) Systems mutate `GameState`.
-4) Renderer reads `GameState` and draws.
+4) State hashes are exchanged; desyncs trigger resync snapshot flow.
+5) Renderer reads `GameState` and draws.
 
 ## Update order (current)
 1) Movement

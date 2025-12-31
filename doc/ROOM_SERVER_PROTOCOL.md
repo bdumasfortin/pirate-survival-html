@@ -13,8 +13,9 @@ This defines the wire messages and room model for the relay-only server.
 ## Transport rules
 - Control messages are JSON objects with a `type` field.
 - Input frames are binary `InputPacket` buffers encoded via `encodeInputPacket`.
-- Server overwrites or rejects `playerIndex` mismatches to prevent spoofing.
 - Clients periodically send `state-hash` for determinism checks; server relays to peers.
+- Relay drops malformed JSON, oversize payloads, and binary packets that are not exactly 26 bytes.
+- Rate limits apply to join/start/resync/state-hash/binary messages to prevent spam.
 
 ## Client -> Server messages (JSON)
 - `create-room` { playerCount?, seed?, inputDelayFrames? } (playerCount ignored)
@@ -44,3 +45,9 @@ This defines the wire messages and room model for the relay-only server.
 - Server forwards `resync-request` to the host only.
 - Host sends `resync-state` metadata first, server relays to requester.
 - Snapshot bytes are base64 chunks via `resync-chunk`.
+
+## Limits
+- Max JSON payload: 64 KB.
+- Max binary payload: 1024 bytes (input packets must be 26 bytes).
+- Max snapshot bytes: 2 MB.
+- Max resync chunk: 32 KB (base64 in JSON).
