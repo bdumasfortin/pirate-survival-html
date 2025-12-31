@@ -1,5 +1,6 @@
 import "./style.css";
 import { createInputState, bindKeyboard, bindInventorySelection, bindMouse, bindCraftScroll, type InputState } from "./core/input";
+import { createInputBuffer, loadInputFrame, storeInputFrame } from "./core/input-buffer";
 import { isEntityAlive } from "./core/ecs";
 import { startLoop } from "./core/loop";
 import { CAMERA_ZOOM } from "./game/config";
@@ -8,6 +9,7 @@ import { updateMovement } from "./systems/movement";
 import { constrainPlayerToIslands } from "./systems/collisions";
 import { updateCrafting } from "./systems/crafting";
 import { updateCrabs, updatePlayerAttack } from "./systems/crabs";
+import { updateInventorySelection } from "./systems/inventory-selection";
 import { gatherNearbyResource, updateResourceRespawns } from "./systems/gathering";
 import { updateRaft } from "./systems/raft";
 import { updateSurvival } from "./systems/survival";
@@ -106,6 +108,7 @@ const getSeedValue = () => {
 };
 
 let hasStarted = false;
+const INPUT_BUFFER_FRAMES = 240;
 
 const startGame = async (seed: string) => {
   if (hasStarted) {
@@ -120,12 +123,15 @@ const startGame = async (seed: string) => {
 
   const state = createInitialState(seed);
   setHudSeed(seed);
-  const input = createInputState();
+  const liveInput = createInputState();
+  const frameInput = createInputState();
+  const inputBuffer = createInputBuffer(INPUT_BUFFER_FRAMES);
+  let frame = 0;
 
-  bindKeyboard(input);
-  bindMouse(input);
-  bindCraftScroll(input, () => state.crafting.isOpen);
-  bindInventorySelection(state.ecs, state.playerId, () => !state.crafting.isOpen && !state.isDead);
+  bindKeyboard(liveInput);
+  bindMouse(liveInput);
+  bindCraftScroll(liveInput, () => state.crafting.isOpen);
+  bindInventorySelection(liveInput, () => !state.crafting.isOpen && !state.isDead);
 
   if (document.fonts && document.fonts.load) {
     try {
@@ -140,6 +146,11 @@ const startGame = async (seed: string) => {
   startLoop({
     onUpdate: (delta) => {
       state.time += delta;
+      storeInputFrame(inputBuffer, frame, liveInput);
+      loadInputFrame(inputBuffer, frame, frameInput);
+      frame += 1;
+
+      const input = frameInput;
 
       const playerId = state.playerId;
       if (isEntityAlive(state.ecs, playerId)) {
@@ -148,6 +159,8 @@ const startGame = async (seed: string) => {
         updateMouseWorldPosition(input, playerX, playerY);
         updateAimAngle(state, input, playerX, playerY);
       }
+
+      updateInventorySelection(state, input);
 
       if (!state.isDead) {
         updateMovement(state, input, delta);
