@@ -24,6 +24,7 @@ export type RoomClientMessage =
   | { type: "join-room"; code: string }
   | { type: "leave-room" }
   | { type: "start-room" }
+  | { type: "state-hash"; frame: number; hash: number }
   | { type: "ping"; ts: number }
   | { type: "resync-request"; fromFrame: number; reason: ResyncReason };
 
@@ -58,6 +59,7 @@ export type RoomServerMessage =
   }
   | { type: "room-updated"; players: RoomPlayerInfo[] }
   | { type: "room-closed"; reason: string }
+  | { type: "state-hash"; playerId: string; playerIndex: number; frame: number; hash: number }
   | {
     type: "start";
     seed: string;

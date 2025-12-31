@@ -31,9 +31,9 @@ Keep this checklist updated as we complete steps.
 - [x] Handle late join (pause running clients, send resync request).
 
 ## 6) Resync + determinism hooks
-- [ ] Add periodic state hash exchange (client -> server -> peers).
-- [ ] On mismatch, trigger resync request for a snapshot from host.
-- [ ] Ensure rollback buffers can accept a full state restore.
+- [x] Add periodic state hash exchange (client -> server -> peers).
+- [x] On mismatch, trigger resync request for a snapshot from host.
+- [x] Ensure rollback buffers can accept a full state restore.
 
 ## 7) Snapshot serialization
 - [ ] Implement `serializeGameState` + `deserializeGameState` (binary format).

@@ -242,6 +242,21 @@ button:disabled {
   letter-spacing: 0.4px;
 }
 
+.net-indicator {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 6;
+  background: rgba(12, 22, 26, 0.88);
+  border: 1px solid rgba(246, 231, 193, 0.35);
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-size: 16px;
+  letter-spacing: 0.3px;
+  color: rgba(246, 231, 193, 0.9);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+}
+
 .hidden {
   display: none !important;
 }

@@ -99,3 +99,9 @@ export const restoreRollbackFrame = (buffer: RollbackBuffer, state: GameState, f
   restoreGameStateSnapshot(state, snapshot);
   return true;
 };
+
+export const resetRollbackBuffer = (buffer: RollbackBuffer, frame: number, state: GameState) => {
+  buffer.frames.fill(-1);
+  buffer.snapshots.fill(null);
+  storeRollbackSnapshot(buffer, frame, state);
+};

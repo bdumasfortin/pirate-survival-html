@@ -319,6 +319,32 @@ const handleResyncRequest = (client: Client, fromFrame: number, reason: ResyncRe
   touchRoom(room);
 };
 
+const handleStateHash = (client: Client, frame: number, hash: number) => {
+  const room = client.roomCode ? rooms.get(client.roomCode) : null;
+  if (!room) {
+    sendError(client.ws, "not-in-room", "Not in a room.");
+    return;
+  }
+  const player = room.players.get(client.id);
+  if (!player) {
+    sendError(client.ws, "not-in-room", "Not in a room.");
+    return;
+  }
+  if (!Number.isFinite(frame) || !Number.isFinite(hash)) {
+    sendError(client.ws, "bad-request", "Invalid state hash payload.");
+    return;
+  }
+  const message: RoomServerMessage = {
+    type: "state-hash",
+    playerId: player.id,
+    playerIndex: player.index,
+    frame: Math.max(0, Math.floor(frame)),
+    hash: hash >>> 0
+  };
+  broadcastRoom(room, message, client.id);
+  touchRoom(room);
+};
+
 const handleBinaryMessage = (client: Client, data: ArrayBuffer) => {
   const room = client.roomCode ? rooms.get(client.roomCode) : null;
   if (!room) {
@@ -351,6 +377,9 @@ const handleClientMessage = (client: Client, message: RoomClientMessage) => {
       return;
     case "start-room":
       handleStartRoom(client);
+      return;
+    case "state-hash":
+      handleStateHash(client, message.frame, message.hash);
       return;
     case "ping":
       client.lastPingAt = Date.now();

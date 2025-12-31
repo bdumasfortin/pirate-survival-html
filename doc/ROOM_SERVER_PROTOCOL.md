@@ -14,12 +14,14 @@ This defines the wire messages and room model for the relay-only server.
 - Control messages are JSON objects with a `type` field.
 - Input frames are binary `InputPacket` buffers encoded via `encodeInputPacket`.
 - Server overwrites or rejects `playerIndex` mismatches to prevent spoofing.
+- Clients periodically send `state-hash` for determinism checks; server relays to peers.
 
 ## Client -> Server messages (JSON)
 - `create-room` { playerCount?, seed?, inputDelayFrames? } (playerCount ignored)
 - `join-room` { code }
 - `leave-room` {}
 - `start-room` {}
+- `state-hash` { frame, hash }
 - `ping` { ts }
 - `resync-request` { fromFrame, reason: "late-join" | "desync" }
 
@@ -28,6 +30,7 @@ This defines the wire messages and room model for the relay-only server.
 - `room-joined` { code, roomId, playerIndex, playerCount, seed, inputDelayFrames, players[] }
 - `room-updated` { players[] }
 - `room-closed` { reason }
+- `state-hash` { playerId, playerIndex, frame, hash }
 - `start` { seed, startFrame, inputDelayFrames, players[] }
 - `resync-request` { fromFrame, reason, requesterId }
 - `resync-state` { frame, seed, players[], snapshotId, totalBytes, chunkSize }
