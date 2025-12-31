@@ -38,6 +38,8 @@ type Room = {
   seed: string;
   inputDelayFrames: number;
   playerCount: number;
+  started: boolean;
+  startFrame: number;
   hostId: string;
   createdAt: number;
   lastActivity: number;
@@ -48,6 +50,7 @@ const PORT = Number(process.env.PORT ?? "8787");
 const ROOM_IDLE_TTL_MS = 10 * 60 * 1000;
 const ROOM_CLEANUP_INTERVAL_MS = 30 * 1000;
 const FIXED_ROOM_PLAYER_COUNT = DEFAULT_ROOM_PLAYER_COUNT;
+const ROOM_START_FRAME = 0;
 
 const rooms = new Map<string, Room>();
 const clients = new Map<WebSocket, Client>();
@@ -193,6 +196,8 @@ const handleCreateRoom = (client: Client, message: Extract<RoomClientMessage, { 
     seed,
     inputDelayFrames,
     playerCount,
+    started: false,
+    startFrame: ROOM_START_FRAME,
     hostId: client.id,
     createdAt: now,
     lastActivity: now,
@@ -240,6 +245,7 @@ const handleJoinRoom = (client: Client, message: Extract<RoomClientMessage, { ty
 
   const index = getNextPlayerIndex(room);
   addPlayerToRoom(room, client, index, false);
+  const players = buildPlayersList(room);
   sendJson(client.ws, {
     type: "room-joined",
     code: room.code,
@@ -248,10 +254,25 @@ const handleJoinRoom = (client: Client, message: Extract<RoomClientMessage, { ty
     playerCount: room.playerCount,
     seed: room.seed,
     inputDelayFrames: room.inputDelayFrames,
-    players: buildPlayersList(room)
+    players
   });
 
-  broadcastRoom(room, { type: "room-updated", players: buildPlayersList(room) }, client.id);
+  broadcastRoom(room, { type: "room-updated", players }, client.id);
+  if (room.started) {
+    sendJson(client.ws, {
+      type: "start",
+      seed: room.seed,
+      startFrame: room.startFrame,
+      inputDelayFrames: room.inputDelayFrames,
+      players
+    });
+    broadcastRoom(room, {
+      type: "resync-request",
+      fromFrame: room.startFrame,
+      reason: "late-join",
+      requesterId: client.id
+    });
+  }
   logRoom(room, `player joined index=${index}`);
 };
 
@@ -265,11 +286,18 @@ const handleStartRoom = (client: Client) => {
     sendError(client.ws, "not-host", "Only the host can start the room.");
     return;
   }
+  if (room.started) {
+    sendError(client.ws, "bad-request", "Room already started.");
+    return;
+  }
+
+  room.started = true;
+  room.startFrame = ROOM_START_FRAME;
 
   const message: RoomServerMessage = {
     type: "start",
     seed: room.seed,
-    startFrame: 0,
+    startFrame: room.startFrame,
     inputDelayFrames: room.inputDelayFrames,
     players: buildPlayersList(room)
   };

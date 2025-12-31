@@ -26,9 +26,9 @@ Keep this checklist updated as we complete steps.
 - [x] Allow host to start once required players are connected (or auto-start on full).
 
 ## 5) Session bootstrap over server
-- [ ] Server assigns player indices and broadcasts `start` with seed/startFrame.
-- [ ] Clients create host/client sessions based on server messages.
-- [ ] Handle late join (pause running clients, send resync request).
+- [x] Server assigns player indices and broadcasts `start` with seed/startFrame.
+- [x] Clients create host/client sessions based on server messages.
+- [x] Handle late join (pause running clients, send resync request).
 
 ## 6) Resync + determinism hooks
 - [ ] Add periodic state hash exchange (client -> server -> peers).

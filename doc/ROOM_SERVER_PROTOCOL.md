@@ -7,6 +7,7 @@ This defines the wire messages and room model for the relay-only server.
 - Code matching is case-insensitive, server stores uppercase.
 - Player count: fixed to 2 (server ignores `create-room.playerCount`).
 - Host: room creator, index 0. Host selects seed and triggers start (no auto-start).
+- Late join: server sends `start` to the new client and broadcasts `resync-request` (reason: `late-join`).
 - Server role: assigns player indices, validates room membership, relays inputs and session control.
 
 ## Transport rules

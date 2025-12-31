@@ -9,7 +9,7 @@ import { simulateFrame } from "./game/sim";
 import { runDeterminismCheck } from "./dev/determinism";
 import { render } from "./render/renderer";
 import { setHudSeed } from "./render/ui";
-import { createClientSession, createHostSession, finalizeSessionStart, setSessionFrame, type SessionState } from "./net/session";
+import { createClientSession, createHostSession, finalizeSessionStart, pauseSession, setSessionFrame, type SessionState } from "./net/session";
 import { decodeInputPacket, encodeInputPacket, type InputPacket } from "./net/input-wire";
 import { createLoopbackTransportPair, type Transport } from "./net/transport";
 import { createWebSocketTransport } from "./net/ws-transport";
@@ -119,6 +119,7 @@ const WS_ROOM_CODE = URL_PARAMS.get("room");
 const WS_ROLE = (URL_PARAMS.get("role") ?? (WS_ROOM_CODE ? "client" : "host")).toLowerCase();
 let activeRoomState: RoomConnectionState | null = null;
 let activeRoomSocket: WebSocket | null = null;
+let activeSession: SessionState | null = null;
 
 type RoomConnectionState = {
   role: "host" | "client";
@@ -213,6 +214,7 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
   if (!options.session) {
     finalizeSessionStart(session, 0, inputDelayFrames);
   }
+  activeSession = session;
 
   const sessionSeed = session.seed ?? seed;
   const state = createInitialState(sessionSeed, session.expectedPlayerCount, session.localPlayerIndex);
@@ -554,7 +556,15 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
       console.warn(`[room] error ${message.code}: ${message.message}`);
       return;
     case "pong":
-    case "resync-request":
+      return;
+    case "resync-request": {
+      if (activeSession) {
+        pauseSession(activeSession, message.reason);
+        roomState.ui?.setStatus("Resync requested. Waiting for host...");
+        console.info(`[room] resync requested reason=${message.reason} requester=${message.requesterId}`);
+      }
+      return;
+    }
     case "resync-state":
       return;
     default:
