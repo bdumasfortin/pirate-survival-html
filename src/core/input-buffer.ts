@@ -13,6 +13,16 @@ export const InputBits = {
   HasMouse: 1 << 9
 } as const;
 
+export type InputFrame = {
+  buttons: number;
+  craftIndex: number;
+  craftScroll: number;
+  inventoryIndex: number;
+  inventoryScroll: number;
+  mouseX: number;
+  mouseY: number;
+};
+
 export type InputBuffer = {
   capacity: number;
   frames: Int32Array;
@@ -63,10 +73,7 @@ export const createInputBuffer = (capacity: number): InputBuffer => {
   };
 };
 
-export const storeInputFrame = (buffer: InputBuffer, frame: number, input: InputState) => {
-  const index = frame % buffer.capacity;
-  buffer.frames[index] = frame;
-
+const buildInputFrame = (input: InputState): InputFrame => {
   let buttons = 0;
   if (input.up) {
     buttons |= InputBits.Up;
@@ -98,34 +105,41 @@ export const storeInputFrame = (buffer: InputBuffer, frame: number, input: Input
 
   if (input.mouseScreen) {
     buttons |= InputBits.HasMouse;
-    buffer.mouseX[index] = Math.round(input.mouseScreen.x);
-    buffer.mouseY[index] = Math.round(input.mouseScreen.y);
-  } else {
-    buffer.mouseX[index] = 0;
-    buffer.mouseY[index] = 0;
   }
 
-  buffer.buttons[index] = buttons;
-
   const craftIndex = input.craftIndexQueued;
-  buffer.craftIndex[index] = craftIndex === null ? -1 : craftIndex;
-  buffer.craftScroll[index] = input.craftScrollQueued;
-
   const inventoryIndex = input.inventoryIndexQueued;
-  buffer.inventoryIndex[index] = inventoryIndex === null ? -1 : inventoryIndex;
-  buffer.inventoryScroll[index] = input.inventoryScrollQueued;
+  return {
+    buttons,
+    craftIndex: craftIndex === null ? -1 : craftIndex,
+    craftScroll: input.craftScrollQueued,
+    inventoryIndex: inventoryIndex === null ? -1 : inventoryIndex,
+    inventoryScroll: input.inventoryScrollQueued,
+    mouseX: input.mouseScreen ? Math.round(input.mouseScreen.x) : 0,
+    mouseY: input.mouseScreen ? Math.round(input.mouseScreen.y) : 0
+  };
+};
+
+export const storeInputFrameData = (buffer: InputBuffer, frame: number, data: InputFrame) => {
+  const index = frame % buffer.capacity;
+  buffer.frames[index] = frame;
+  buffer.buttons[index] = data.buttons;
+  buffer.craftIndex[index] = data.craftIndex;
+  buffer.craftScroll[index] = data.craftScroll;
+  buffer.inventoryIndex[index] = data.inventoryIndex;
+  buffer.inventoryScroll[index] = data.inventoryScroll;
+  buffer.mouseX[index] = data.mouseX;
+  buffer.mouseY[index] = data.mouseY;
+};
+
+export const storeInputFrame = (buffer: InputBuffer, frame: number, input: InputState) => {
+  storeInputFrameData(buffer, frame, buildInputFrame(input));
 
   clearQueuedInputs(input);
 };
 
-export const loadInputFrame = (buffer: InputBuffer, frame: number, out: InputState) => {
-  const index = frame % buffer.capacity;
-  if (buffer.frames[index] !== frame) {
-    clearInputState(out);
-    return false;
-  }
-
-  const buttons = buffer.buttons[index];
+export const applyInputFrame = (frame: InputFrame, out: InputState) => {
+  const buttons = frame.buttons;
   out.up = (buttons & InputBits.Up) !== 0;
   out.down = (buttons & InputBits.Down) !== 0;
   out.left = (buttons & InputBits.Left) !== 0;
@@ -136,23 +150,48 @@ export const loadInputFrame = (buffer: InputBuffer, frame: number, out: InputSta
   out.toggleCraftQueued = (buttons & InputBits.ToggleCraft) !== 0;
   out.closeCraftQueued = (buttons & InputBits.CloseCraft) !== 0;
 
-  const craftIndex = buffer.craftIndex[index];
-  out.craftIndexQueued = craftIndex >= 0 ? craftIndex : null;
-  out.craftScrollQueued = buffer.craftScroll[index];
+  out.craftIndexQueued = frame.craftIndex >= 0 ? frame.craftIndex : null;
+  out.craftScrollQueued = frame.craftScroll;
 
-  const inventoryIndex = buffer.inventoryIndex[index];
-  out.inventoryIndexQueued = inventoryIndex >= 0 ? inventoryIndex : null;
-  out.inventoryScrollQueued = buffer.inventoryScroll[index];
+  out.inventoryIndexQueued = frame.inventoryIndex >= 0 ? frame.inventoryIndex : null;
+  out.inventoryScrollQueued = frame.inventoryScroll;
 
   if ((buttons & InputBits.HasMouse) !== 0) {
     if (!out.mouseScreen) {
       out.mouseScreen = { x: 0, y: 0 };
     }
-    out.mouseScreen.x = buffer.mouseX[index];
-    out.mouseScreen.y = buffer.mouseY[index];
+    out.mouseScreen.x = frame.mouseX;
+    out.mouseScreen.y = frame.mouseY;
   } else {
     out.mouseScreen = null;
   }
   out.mouseWorld = null;
+};
+
+export const readInputFrame = (buffer: InputBuffer, frame: number): InputFrame | null => {
+  const index = frame % buffer.capacity;
+  if (buffer.frames[index] !== frame) {
+    return null;
+  }
+
+  return {
+    buttons: buffer.buttons[index],
+    craftIndex: buffer.craftIndex[index],
+    craftScroll: buffer.craftScroll[index],
+    inventoryIndex: buffer.inventoryIndex[index],
+    inventoryScroll: buffer.inventoryScroll[index],
+    mouseX: buffer.mouseX[index],
+    mouseY: buffer.mouseY[index]
+  };
+};
+
+export const loadInputFrame = (buffer: InputBuffer, frame: number, out: InputState) => {
+  const data = readInputFrame(buffer, frame);
+  if (!data) {
+    clearInputState(out);
+    return false;
+  }
+
+  applyInputFrame(data, out);
   return true;
 };

@@ -1,21 +1,12 @@
 import "./style.css";
-import { createInputState, bindKeyboard, bindInventorySelection, bindMouse, bindCraftScroll, type InputState } from "./core/input";
-import { createInputBuffer, loadInputFrame, storeInputFrame } from "./core/input-buffer";
-import { isEntityAlive } from "./core/ecs";
+import { createInputState, bindKeyboard, bindInventorySelection, bindMouse, bindCraftScroll } from "./core/input";
+import { applyRemoteInputFrame, createInputSyncState, loadPlayerInputFrame, storeLocalInputFrame } from "./core/input-sync";
+import type { InputFrame } from "./core/input-buffer";
 import { startLoop } from "./core/loop";
-import { CAMERA_ZOOM } from "./game/config";
-import { createInitialState, type GameState } from "./game/state";
-import { updateMovement } from "./systems/movement";
-import { constrainPlayerToIslands } from "./systems/collisions";
-import { updateCrafting } from "./systems/crafting";
-import { updateCrabs, updatePlayerAttack } from "./systems/crabs";
-import { updateInventorySelection } from "./systems/inventory-selection";
-import { gatherNearbyResource, updateResourceRespawns } from "./systems/gathering";
-import { updateRaft } from "./systems/raft";
-import { updateSurvival } from "./systems/survival";
-import { dropSelectedItem } from "./systems/drop-selected-item";
-import { pickupGroundItems } from "./systems/ground-items";
-import { updateUseCooldown, useSelectedItem } from "./systems/use-selected-item";
+import { createInitialState } from "./game/state";
+import { createRollbackBuffer, restoreRollbackFrame, storeRollbackSnapshot } from "./game/rollback";
+import { simulateFrame } from "./game/sim";
+import { runDeterminismCheck } from "./dev/determinism";
 import { render } from "./render/renderer";
 import { setHudSeed } from "./render/ui";
 
@@ -55,35 +46,6 @@ const resize = () => {
 window.addEventListener("resize", resize);
 resize();
 
-const updateMouseWorldPosition = (input: InputState, playerX: number, playerY: number) => {
-  if (!input.mouseScreen) {
-    return;
-  }
-
-  input.mouseWorld = {
-    x: (input.mouseScreen.x - window.innerWidth / 2) / CAMERA_ZOOM + playerX,
-    y: (input.mouseScreen.y - window.innerHeight / 2) / CAMERA_ZOOM + playerY
-  };
-};
-
-const updateAimAngle = (state: GameState, input: InputState, playerX: number, playerY: number) => {
-  if (!input.mouseWorld) {
-    return;
-  }
-
-  const dx = input.mouseWorld.x - playerX;
-  const dy = input.mouseWorld.y - playerY;
-  if (Math.hypot(dx, dy) > 0.01) {
-    state.aimAngle = Math.atan2(dy, dx);
-  }
-};
-
-const clearQueuedUse = (input: InputState) => {
-  if (input.useQueued) {
-    input.useQueued = false;
-  }
-};
-
 const setOverlayVisible = (element: HTMLElement | null, visible: boolean) => {
   if (!element) {
     return;
@@ -108,7 +70,11 @@ const getSeedValue = () => {
 };
 
 let hasStarted = false;
+const SHOULD_RUN_DETERMINISM = import.meta.env.DEV && new URLSearchParams(window.location.search).has("determinism");
 const INPUT_BUFFER_FRAMES = 240;
+const ROLLBACK_BUFFER_FRAMES = 240;
+const PLAYER_COUNT = 1;
+const LOCAL_PLAYER_INDEX = 0;
 
 const startGame = async (seed: string) => {
   if (hasStarted) {
@@ -125,8 +91,48 @@ const startGame = async (seed: string) => {
   setHudSeed(seed);
   const liveInput = createInputState();
   const frameInput = createInputState();
-  const inputBuffer = createInputBuffer(INPUT_BUFFER_FRAMES);
+  const inputSync = createInputSyncState(PLAYER_COUNT, LOCAL_PLAYER_INDEX, INPUT_BUFFER_FRAMES);
+  const rollbackBuffer = createRollbackBuffer(ROLLBACK_BUFFER_FRAMES);
   let frame = 0;
+  let pendingRollbackFrame: number | null = null;
+  const remoteInputQueue: Array<{ playerIndex: number; frame: number; input: InputFrame }> = [];
+
+  const enqueueRemoteInput = (playerIndex: number, remoteFrame: number, inputFrame: InputFrame) => {
+    remoteInputQueue.push({ playerIndex, frame: remoteFrame, input: inputFrame });
+  };
+
+  if (import.meta.env.DEV) {
+    const devWindow = window as typeof window & { enqueueRemoteInput?: typeof enqueueRemoteInput };
+    devWindow.enqueueRemoteInput = enqueueRemoteInput;
+  }
+
+  const flushRemoteInputs = () => {
+    if (remoteInputQueue.length === 0) {
+      return;
+    }
+
+    for (const entry of remoteInputQueue) {
+      const rollbackFrame = applyRemoteInputFrame(inputSync, entry.playerIndex, frame, entry.frame, entry.input);
+      if (rollbackFrame !== null) {
+        pendingRollbackFrame = pendingRollbackFrame === null ? rollbackFrame : Math.min(pendingRollbackFrame, rollbackFrame);
+      }
+    }
+    remoteInputQueue.length = 0;
+  };
+
+  const resimulateFrom = (fromFrame: number, toFrame: number, delta: number) => {
+    if (!restoreRollbackFrame(rollbackBuffer, state, fromFrame)) {
+      return false;
+    }
+
+    for (let simFrame = fromFrame; simFrame < toFrame; simFrame += 1) {
+      loadPlayerInputFrame(inputSync, LOCAL_PLAYER_INDEX, simFrame, frameInput);
+      storeRollbackSnapshot(rollbackBuffer, simFrame, state);
+      simulateFrame(state, frameInput, delta);
+    }
+
+    return true;
+  };
 
   bindKeyboard(liveInput);
   bindMouse(liveInput);
@@ -145,49 +151,19 @@ const startGame = async (seed: string) => {
 
   startLoop({
     onUpdate: (delta) => {
-      state.time += delta;
-      storeInputFrame(inputBuffer, frame, liveInput);
-      loadInputFrame(inputBuffer, frame, frameInput);
+      storeLocalInputFrame(inputSync, frame, liveInput);
+      flushRemoteInputs();
+
+      if (pendingRollbackFrame !== null && pendingRollbackFrame < frame) {
+        const rollbackFrame = pendingRollbackFrame;
+        pendingRollbackFrame = null;
+        resimulateFrom(rollbackFrame, frame, delta);
+      }
+
+      loadPlayerInputFrame(inputSync, LOCAL_PLAYER_INDEX, frame, frameInput);
+      storeRollbackSnapshot(rollbackBuffer, frame, state);
+      simulateFrame(state, frameInput, delta);
       frame += 1;
-
-      const input = frameInput;
-
-      const playerId = state.playerId;
-      if (isEntityAlive(state.ecs, playerId)) {
-        const playerX = state.ecs.position.x[playerId];
-        const playerY = state.ecs.position.y[playerId];
-        updateMouseWorldPosition(input, playerX, playerY);
-        updateAimAngle(state, input, playerX, playerY);
-      }
-
-      updateInventorySelection(state, input);
-
-      if (!state.isDead) {
-        updateMovement(state, input, delta);
-        constrainPlayerToIslands(state);
-        updateCrafting(state, input);
-        if (!state.crafting.isOpen) {
-          updateRaft(state, input);
-        }
-      }
-
-      updateResourceRespawns(state, delta);
-
-      if (!state.isDead) {
-        gatherNearbyResource(state, input);
-        updateUseCooldown(state, delta);
-        if (!state.crafting.isOpen) {
-          updatePlayerAttack(state, input, delta);
-          useSelectedItem(state, input);
-        }
-        dropSelectedItem(state, input);
-        pickupGroundItems(state);
-      }
-
-      updateCrabs(state, delta);
-      updateSurvival(state, delta);
-
-      clearQueuedUse(input);
     },
     onRender: () => {
       render(ctx, state);
@@ -196,6 +172,11 @@ const startGame = async (seed: string) => {
 };
 
 const initMenu = () => {
+  if (SHOULD_RUN_DETERMINISM) {
+    runDeterminismCheck();
+    return;
+  }
+
   if (!menuOverlay || !seedInput || !randomSeedButton || !startButton || !loadingOverlay) {
     const seed = generateRandomSeed();
     void startGame(seed);
