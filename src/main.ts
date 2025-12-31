@@ -9,6 +9,7 @@ import { simulateFrame } from "./game/sim";
 import { runDeterminismCheck } from "./dev/determinism";
 import { render } from "./render/renderer";
 import { setHudSeed } from "./render/ui";
+import { createHostSession, finalizeSessionStart, setSessionFrame } from "./net/session";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement | null;
 
@@ -74,7 +75,6 @@ const SHOULD_RUN_DETERMINISM = import.meta.env.DEV && new URLSearchParams(window
 const INPUT_BUFFER_FRAMES = 240;
 const ROLLBACK_BUFFER_FRAMES = 240;
 const PLAYER_COUNT = 1;
-const LOCAL_PLAYER_INDEX = 0;
 
 const startGame = async (seed: string) => {
   if (hasStarted) {
@@ -87,13 +87,16 @@ const startGame = async (seed: string) => {
 
   await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
 
-  const state = createInitialState(seed);
-  setHudSeed(seed);
+  const session = createHostSession(seed, PLAYER_COUNT);
+  finalizeSessionStart(session, 0, 0);
+
+  const state = createInitialState(session.seed ?? seed);
+  setHudSeed(session.seed ?? seed);
   const liveInput = createInputState();
   const frameInput = createInputState();
-  const inputSync = createInputSyncState(PLAYER_COUNT, LOCAL_PLAYER_INDEX, INPUT_BUFFER_FRAMES);
+  const inputSync = createInputSyncState(session.expectedPlayerCount, session.localPlayerIndex, INPUT_BUFFER_FRAMES);
   const rollbackBuffer = createRollbackBuffer(ROLLBACK_BUFFER_FRAMES);
-  let frame = 0;
+  let frame = session.startFrame;
   let pendingRollbackFrame: number | null = null;
   const remoteInputQueue: Array<{ playerIndex: number; frame: number; input: InputFrame }> = [];
 
@@ -126,7 +129,7 @@ const startGame = async (seed: string) => {
     }
 
     for (let simFrame = fromFrame; simFrame < toFrame; simFrame += 1) {
-      loadPlayerInputFrame(inputSync, LOCAL_PLAYER_INDEX, simFrame, frameInput);
+      loadPlayerInputFrame(inputSync, session.localPlayerIndex, simFrame, frameInput);
       storeRollbackSnapshot(rollbackBuffer, simFrame, state);
       simulateFrame(state, frameInput, delta);
     }
@@ -151,6 +154,10 @@ const startGame = async (seed: string) => {
 
   startLoop({
     onUpdate: (delta) => {
+      if (session.status !== "running") {
+        return;
+      }
+
       storeLocalInputFrame(inputSync, frame, liveInput);
       flushRemoteInputs();
 
@@ -160,10 +167,11 @@ const startGame = async (seed: string) => {
         resimulateFrom(rollbackFrame, frame, delta);
       }
 
-      loadPlayerInputFrame(inputSync, LOCAL_PLAYER_INDEX, frame, frameInput);
+      loadPlayerInputFrame(inputSync, session.localPlayerIndex, frame, frameInput);
       storeRollbackSnapshot(rollbackBuffer, frame, state);
       simulateFrame(state, frameInput, delta);
       frame += 1;
+      setSessionFrame(session, frame);
     },
     onRender: () => {
       render(ctx, state);

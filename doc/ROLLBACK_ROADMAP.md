@@ -31,9 +31,9 @@ Keep this checklist updated as we complete steps.
 - [x] Identify/replace any remaining nondeterminism (timers, Date, Math.random).
 
 ## 7) Multiplayer session bootstrap
-- [ ] Define session state (player list, host/peer IDs, current frame).
-- [ ] Implement session start handshake (exchange seed + start frame).
-- [ ] Add pause/resync path for late join or desync recovery.
+- [x] Define session state (player list, host/peer IDs, current frame).
+- [x] Implement session start handshake (exchange seed + start frame).
+- [x] Add pause/resync path for late join or desync recovery.
 
 ## 8) Network transport + serialization
 - [ ] Define compact wire format for input frames.
