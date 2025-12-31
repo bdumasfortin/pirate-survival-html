@@ -266,12 +266,15 @@ const handleJoinRoom = (client: Client, message: Extract<RoomClientMessage, { ty
       inputDelayFrames: room.inputDelayFrames,
       players
     });
-    broadcastRoom(room, {
-      type: "resync-request",
-      fromFrame: room.startFrame,
-      reason: "late-join",
-      requesterId: client.id
-    });
+    const host = room.players.get(room.hostId);
+    if (host) {
+      sendJson(host.ws, {
+        type: "resync-request",
+        fromFrame: room.startFrame,
+        reason: "late-join",
+        requesterId: client.id
+      });
+    }
   }
   logRoom(room, `player joined index=${index}`);
 };
@@ -316,6 +319,57 @@ const handleResyncRequest = (client: Client, fromFrame: number, reason: ResyncRe
   if (host) {
     sendJson(host.ws, { type: "resync-request", fromFrame, reason, requesterId: client.id });
   }
+  touchRoom(room);
+};
+
+const handleResyncState = (client: Client, message: Extract<RoomClientMessage, { type: "resync-state" }>) => {
+  const room = client.roomCode ? rooms.get(client.roomCode) : null;
+  if (!room) {
+    sendError(client.ws, "not-in-room", "Not in a room.");
+    return;
+  }
+  if (room.hostId !== client.id) {
+    sendError(client.ws, "not-host", "Only the host can send resync snapshots.");
+    return;
+  }
+  const requester = room.players.get(message.requesterId);
+  if (!requester) {
+    return;
+  }
+  const payload: RoomServerMessage = {
+    type: "resync-state",
+    frame: Math.max(0, Math.floor(message.frame)),
+    seed: message.seed,
+    players: message.players,
+    snapshotId: message.snapshotId,
+    totalBytes: Math.max(0, Math.floor(message.totalBytes)),
+    chunkSize: Math.max(1, Math.floor(message.chunkSize))
+  };
+  sendJson(requester.ws, payload);
+  touchRoom(room);
+};
+
+const handleResyncChunk = (client: Client, message: Extract<RoomClientMessage, { type: "resync-chunk" }>) => {
+  const room = client.roomCode ? rooms.get(client.roomCode) : null;
+  if (!room) {
+    sendError(client.ws, "not-in-room", "Not in a room.");
+    return;
+  }
+  if (room.hostId !== client.id) {
+    sendError(client.ws, "not-host", "Only the host can send resync snapshots.");
+    return;
+  }
+  const requester = room.players.get(message.requesterId);
+  if (!requester) {
+    return;
+  }
+  const payload: RoomServerMessage = {
+    type: "resync-chunk",
+    snapshotId: message.snapshotId,
+    offset: Math.max(0, Math.floor(message.offset)),
+    data: message.data
+  };
+  sendJson(requester.ws, payload);
   touchRoom(room);
 };
 
@@ -377,6 +431,12 @@ const handleClientMessage = (client: Client, message: RoomClientMessage) => {
       return;
     case "start-room":
       handleStartRoom(client);
+      return;
+    case "resync-state":
+      handleResyncState(client, message);
+      return;
+    case "resync-chunk":
+      handleResyncChunk(client, message);
       return;
     case "state-hash":
       handleStateHash(client, message.frame, message.hash);

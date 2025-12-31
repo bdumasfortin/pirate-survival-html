@@ -60,3 +60,16 @@ export const applyRemoteInputFrame = (
   storeInputFrameData(buffer, frame, inputFrame);
   return frame < currentFrame ? frame : null;
 };
+
+export const resetInputSyncState = (sync: InputSyncState) => {
+  for (const buffer of sync.buffers) {
+    buffer.frames.fill(-1);
+    buffer.buttons.fill(0);
+    buffer.craftIndex.fill(0);
+    buffer.craftScroll.fill(0);
+    buffer.inventoryIndex.fill(0);
+    buffer.inventoryScroll.fill(0);
+    buffer.mouseX.fill(0);
+    buffer.mouseY.fill(0);
+  }
+};

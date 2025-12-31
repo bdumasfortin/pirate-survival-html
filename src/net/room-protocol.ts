@@ -24,6 +24,8 @@ export type RoomClientMessage =
   | { type: "join-room"; code: string }
   | { type: "leave-room" }
   | { type: "start-room" }
+  | { type: "resync-state"; requesterId: string; frame: number; seed: string; players: RoomPlayerInfo[]; snapshotId: string; totalBytes: number; chunkSize: number }
+  | { type: "resync-chunk"; requesterId: string; snapshotId: string; offset: number; data: string }
   | { type: "state-hash"; frame: number; hash: number }
   | { type: "ping"; ts: number }
   | { type: "resync-request"; fromFrame: number; reason: ResyncReason };
@@ -67,6 +69,7 @@ export type RoomServerMessage =
     inputDelayFrames: number;
     players: RoomPlayerInfo[];
   }
+  | { type: "resync-chunk"; snapshotId: string; offset: number; data: string }
   | { type: "resync-request"; fromFrame: number; reason: ResyncReason; requesterId: string }
   | {
     type: "resync-state";

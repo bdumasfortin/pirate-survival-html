@@ -24,6 +24,8 @@ This defines the wire messages and room model for the relay-only server.
 - `state-hash` { frame, hash }
 - `ping` { ts }
 - `resync-request` { fromFrame, reason: "late-join" | "desync" }
+- `resync-state` { requesterId, frame, seed, players[], snapshotId, totalBytes, chunkSize }
+- `resync-chunk` { requesterId, snapshotId, offset, data }
 
 ## Server -> Client messages (JSON)
 - `room-created` { code, roomId, playerIndex, playerCount, seed, inputDelayFrames, players[] }
@@ -34,9 +36,11 @@ This defines the wire messages and room model for the relay-only server.
 - `start` { seed, startFrame, inputDelayFrames, players[] }
 - `resync-request` { fromFrame, reason, requesterId }
 - `resync-state` { frame, seed, players[], snapshotId, totalBytes, chunkSize }
+- `resync-chunk` { snapshotId, offset, data }
 - `error` { code, message }
 - `pong` { ts }
 
-## Resync snapshot delivery (planned)
-- Host sends `resync-state` metadata first.
-- Snapshot bytes are sent in chunks (details in step 7).
+## Resync snapshot delivery
+- Server forwards `resync-request` to the host only.
+- Host sends `resync-state` metadata first, server relays to requester.
+- Snapshot bytes are base64 chunks via `resync-chunk`.

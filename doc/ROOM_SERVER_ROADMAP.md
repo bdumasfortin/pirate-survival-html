@@ -36,9 +36,9 @@ Keep this checklist updated as we complete steps.
 - [x] Ensure rollback buffers can accept a full state restore.
 
 ## 7) Snapshot serialization
-- [ ] Implement `serializeGameState` + `deserializeGameState` (binary format).
-- [ ] Chunk large snapshots and reassemble on client.
-- [ ] Validate snapshot applies deterministically across peers.
+- [x] Implement `serializeGameState` + `deserializeGameState` (binary format).
+- [x] Chunk large snapshots and reassemble on client.
+- [x] Validate snapshot applies deterministically across peers.
 
 ## 8) Hardening + abuse limits
 - [ ] Validate message sizes, drop malformed frames, clamp frame drift.
