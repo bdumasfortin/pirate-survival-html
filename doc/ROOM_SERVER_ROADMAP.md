@@ -15,10 +15,10 @@ Keep this checklist updated as we complete steps.
 - [x] Add basic logging and per-room metrics (players, ping).
 
 ## 3) WebSocket transport (client)
-- [ ] Add `WebSocketTransport` implementing `Transport` (send/onMessage/close).
-- [ ] Parse `net=ws` + `room=CODE` params in `src/main.ts`.
-- [ ] Wire incoming messages to session join/start and `applyRemoteInputFrame`.
-- [ ] Send outgoing `InputPacket` via server instead of loopback.
+- [x] Add `WebSocketTransport` implementing `Transport` (send/onMessage/close).
+- [x] Parse `net=ws` + `room=CODE` params in `src/main.ts`.
+- [x] Wire incoming messages to session join/start and `applyRemoteInputFrame`.
+- [x] Send outgoing `InputPacket` via server instead of loopback.
 
 ## 4) Room UX (create/join)
 - [ ] Add UI flow: Create room -> show code; Join room -> enter code.

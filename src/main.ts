@@ -9,9 +9,21 @@ import { simulateFrame } from "./game/sim";
 import { runDeterminismCheck } from "./dev/determinism";
 import { render } from "./render/renderer";
 import { setHudSeed } from "./render/ui";
-import { createHostSession, finalizeSessionStart, setSessionFrame } from "./net/session";
+import { createClientSession, createHostSession, finalizeSessionStart, setSessionFrame, type SessionState } from "./net/session";
 import { decodeInputPacket, encodeInputPacket, type InputPacket } from "./net/input-wire";
 import { createLoopbackTransportPair, type Transport } from "./net/transport";
+import { createWebSocketTransport } from "./net/ws-transport";
+import {
+  DEFAULT_INPUT_DELAY_FRAMES,
+  DEFAULT_ROOM_PLAYER_COUNT,
+  ROOM_MAX_PLAYERS,
+  ROOM_MIN_PLAYERS,
+  isValidRoomCode,
+  normalizeRoomCode,
+  type RoomClientMessage,
+  type RoomPlayerInfo,
+  type RoomServerMessage
+} from "./net/room-protocol";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement | null;
 
@@ -77,14 +89,94 @@ let hasStarted = false;
 const SHOULD_RUN_DETERMINISM = import.meta.env.DEV && URL_PARAMS.has("determinism");
 const NETWORK_MODE = URL_PARAMS.get("net");
 const INPUT_DELAY_FRAMES = Math.max(0, Number.parseInt(URL_PARAMS.get("inputDelay") ?? "0", 10) || 0);
+const REQUESTED_INPUT_DELAY_FRAMES = URL_PARAMS.has("inputDelay")
+  ? INPUT_DELAY_FRAMES
+  : DEFAULT_INPUT_DELAY_FRAMES;
 const LOOPBACK_LATENCY_MS = Math.max(0, Number.parseInt(URL_PARAMS.get("latencyMs") ?? "0", 10) || 0);
 const LOOPBACK_JITTER_MS = Math.max(0, Number.parseInt(URL_PARAMS.get("jitterMs") ?? "0", 10) || 0);
 const LOOPBACK_DROP_RATE = Math.min(1, Math.max(0, Number.parseFloat(URL_PARAMS.get("dropRate") ?? "0") || 0));
 const INPUT_BUFFER_FRAMES = 240;
 const ROLLBACK_BUFFER_FRAMES = 240;
 const PLAYER_COUNT = 1;
+const WS_SERVER_URL = URL_PARAMS.get("ws") ??
+  (window.location.protocol === "https:"
+    ? `wss://${window.location.hostname}:8787`
+    : `ws://${window.location.hostname}:8787`);
+const WS_ROOM_CODE = URL_PARAMS.get("room");
+const WS_ROLE = (URL_PARAMS.get("role") ?? (WS_ROOM_CODE ? "client" : "host")).toLowerCase();
+const WS_PLAYER_COUNT = (() => {
+  const parsed = Number.parseInt(URL_PARAMS.get("players") ?? "", 10);
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_ROOM_PLAYER_COUNT;
+  }
+  return Math.max(ROOM_MIN_PLAYERS, Math.min(ROOM_MAX_PLAYERS, parsed));
+})();
+const WS_AUTO_START = URL_PARAMS.get("autostart") === "1";
 
-const startGame = async (seed: string) => {
+type RoomConnectionState = {
+  role: "host" | "client";
+  roomCode: string | null;
+  roomId: string | null;
+  localPlayerIndex: number | null;
+  localPlayerId: string | null;
+  playerCount: number;
+  inputDelayFrames: number;
+  seed: string | null;
+  players: RoomPlayerInfo[];
+  transport: Transport | null;
+  hasSentStart: boolean;
+};
+
+const parseRoomServerMessage = (payload: string): RoomServerMessage | null => {
+  try {
+    const data = JSON.parse(payload) as RoomServerMessage;
+    if (!data || typeof data !== "object" || !("type" in data)) {
+      return null;
+    }
+    return data;
+  } catch {
+    return null;
+  }
+};
+
+const sendRoomMessage = (socket: WebSocket, message: RoomClientMessage) => {
+  if (socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify(message));
+  }
+};
+
+const buildSessionFromStart = (
+  startMessage: Extract<RoomServerMessage, { type: "start" }>,
+  roomState: RoomConnectionState
+): SessionState => {
+  const session = createClientSession();
+  session.isHost = roomState.role === "host";
+  session.localPlayerIndex = roomState.localPlayerIndex ?? 0;
+  session.expectedPlayerCount = roomState.playerCount > 0
+    ? roomState.playerCount
+    : startMessage.players.length;
+  session.seed = startMessage.seed;
+  session.startFrame = startMessage.startFrame;
+  session.currentFrame = startMessage.startFrame;
+  session.players = startMessage.players.map((player) => ({
+    id: player.id,
+    index: player.index,
+    isLocal: player.index === session.localPlayerIndex
+  }));
+  session.localId = roomState.localPlayerId ?? session.localId;
+  session.status = "running";
+  session.pauseReason = null;
+  return session;
+};
+
+type StartGameOptions = {
+  session?: SessionState;
+  inputDelayFrames?: number;
+  transport?: Transport | null;
+  debugRemoteTransport?: Transport | null;
+};
+
+const startGame = async (seed: string, options: StartGameOptions = {}) => {
   if (hasStarted) {
     return;
   }
@@ -95,11 +187,15 @@ const startGame = async (seed: string) => {
 
   await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
 
-  const session = createHostSession(seed, PLAYER_COUNT);
-  finalizeSessionStart(session, 0, INPUT_DELAY_FRAMES);
+  const inputDelayFrames = options.inputDelayFrames ?? INPUT_DELAY_FRAMES;
+  const session = options.session ?? createHostSession(seed, PLAYER_COUNT);
+  if (!options.session) {
+    finalizeSessionStart(session, 0, inputDelayFrames);
+  }
 
-  const state = createInitialState(session.seed ?? seed, session.expectedPlayerCount, session.localPlayerIndex);
-  setHudSeed(session.seed ?? seed);
+  const sessionSeed = session.seed ?? seed;
+  const state = createInitialState(sessionSeed, session.expectedPlayerCount, session.localPlayerIndex);
+  setHudSeed(sessionSeed);
   const liveInput = createInputState();
   const frameInputs = Array.from({ length: session.expectedPlayerCount }, () => createInputState());
   const inputSync = createInputSyncState(session.expectedPlayerCount, session.localPlayerIndex, INPUT_BUFFER_FRAMES);
@@ -107,7 +203,7 @@ const startGame = async (seed: string) => {
   let frame = session.startFrame;
   let pendingRollbackFrame: number | null = null;
   const remoteInputQueue: Array<{ playerIndex: number; frame: number; input: InputFrame }> = [];
-  let transport: Transport | null = null;
+  let transport: Transport | null = options.transport ?? null;
 
   const enqueueRemoteInput = (playerIndex: number, remoteFrame: number, inputFrame: InputFrame) => {
     remoteInputQueue.push({ playerIndex, frame: remoteFrame, input: inputFrame });
@@ -118,19 +214,13 @@ const startGame = async (seed: string) => {
     devWindow.enqueueRemoteInput = enqueueRemoteInput;
   }
 
-  if (NETWORK_MODE === "loopback") {
+  if (!transport && NETWORK_MODE === "loopback") {
     const [localTransport, remoteTransport] = createLoopbackTransportPair({
       latencyMs: LOOPBACK_LATENCY_MS,
       jitterMs: LOOPBACK_JITTER_MS,
       dropRate: LOOPBACK_DROP_RATE
     });
     transport = localTransport;
-    transport.onMessage((data) => {
-      const packet = decodeInputPacket(data);
-      if (packet) {
-        enqueueRemoteInput(packet.playerIndex, packet.frame, packet.input);
-      }
-    });
 
     if (import.meta.env.DEV) {
       const devWindow = window as typeof window & { sendLoopbackPacket?: (packet: InputPacket) => void };
@@ -138,6 +228,20 @@ const startGame = async (seed: string) => {
         remoteTransport.send(encodeInputPacket(packet));
       };
     }
+  } else if (import.meta.env.DEV && options.debugRemoteTransport) {
+    const devWindow = window as typeof window & { sendLoopbackPacket?: (packet: InputPacket) => void };
+    devWindow.sendLoopbackPacket = (packet: InputPacket) => {
+      options.debugRemoteTransport?.send(encodeInputPacket(packet));
+    };
+  }
+
+  if (transport) {
+    transport.onMessage((data) => {
+      const packet = decodeInputPacket(data);
+      if (packet) {
+        enqueueRemoteInput(packet.playerIndex, packet.frame, packet.input);
+      }
+    });
   }
 
   const flushRemoteInputs = () => {
@@ -201,7 +305,7 @@ const startGame = async (seed: string) => {
         return;
       }
 
-      const inputFrameIndex = frame + INPUT_DELAY_FRAMES;
+      const inputFrameIndex = frame + inputDelayFrames;
       storeLocalInputFrame(inputSync, inputFrameIndex, liveInput);
 
       if (transport) {
@@ -234,14 +338,182 @@ const startGame = async (seed: string) => {
   });
 };
 
+const startNetworkHost = (seed: string) => {
+  setOverlayVisible(menuOverlay, false);
+  setOverlayVisible(loadingOverlay, true);
+
+  const roomState: RoomConnectionState = {
+    role: "host",
+    roomCode: null,
+    roomId: null,
+    localPlayerIndex: null,
+    localPlayerId: null,
+    playerCount: WS_PLAYER_COUNT,
+    inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
+    seed,
+    players: [],
+    transport: null,
+    hasSentStart: false
+  };
+
+  const { socket, transport } = createWebSocketTransport(WS_SERVER_URL, (payload) => {
+    const message = parseRoomServerMessage(payload);
+    if (!message) {
+      return;
+    }
+    handleRoomServerMessage(roomState, socket, message);
+  });
+
+  roomState.transport = transport;
+
+  socket.addEventListener("open", () => {
+    sendRoomMessage(socket, {
+      type: "create-room",
+      playerCount: WS_PLAYER_COUNT,
+      seed,
+      inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES
+    });
+  });
+
+  if (import.meta.env.DEV) {
+    const devWindow = window as typeof window & { startRoom?: () => void };
+    devWindow.startRoom = () => {
+      if (!roomState.hasSentStart) {
+        sendRoomMessage(socket, { type: "start-room" });
+        roomState.hasSentStart = true;
+      }
+    };
+  }
+};
+
+const startNetworkClient = (roomCode: string) => {
+  setOverlayVisible(menuOverlay, false);
+  setOverlayVisible(loadingOverlay, true);
+
+  const normalizedCode = normalizeRoomCode(roomCode);
+  if (!isValidRoomCode(normalizedCode)) {
+    console.warn(`[net] invalid room code "${roomCode}"`);
+    return;
+  }
+
+  const roomState: RoomConnectionState = {
+    role: "client",
+    roomCode: normalizedCode,
+    roomId: null,
+    localPlayerIndex: null,
+    localPlayerId: null,
+    playerCount: 0,
+    inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
+    seed: null,
+    players: [],
+    transport: null,
+    hasSentStart: false
+  };
+
+  const { socket, transport } = createWebSocketTransport(WS_SERVER_URL, (payload) => {
+    const message = parseRoomServerMessage(payload);
+    if (!message) {
+      return;
+    }
+    handleRoomServerMessage(roomState, socket, message);
+  });
+
+  roomState.transport = transport;
+
+  socket.addEventListener("open", () => {
+    sendRoomMessage(socket, { type: "join-room", code: normalizedCode });
+  });
+};
+
+const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSocket, message: RoomServerMessage) => {
+  switch (message.type) {
+    case "room-created": {
+      roomState.roomCode = message.code;
+      roomState.roomId = message.roomId;
+      roomState.playerCount = message.playerCount;
+      roomState.inputDelayFrames = message.inputDelayFrames;
+      roomState.seed = message.seed;
+      roomState.players = message.players;
+      roomState.localPlayerIndex = message.playerIndex;
+      roomState.localPlayerId = message.players.find((player) => player.index === message.playerIndex)?.id ?? null;
+      console.info(`[room] created code=${message.code} players=${message.playerCount}`);
+      if (WS_AUTO_START && roomState.players.length >= roomState.playerCount && !roomState.hasSentStart) {
+        sendRoomMessage(socket, { type: "start-room" });
+        roomState.hasSentStart = true;
+      }
+      return;
+    }
+    case "room-joined": {
+      roomState.roomCode = message.code;
+      roomState.roomId = message.roomId;
+      roomState.playerCount = message.playerCount;
+      roomState.inputDelayFrames = message.inputDelayFrames;
+      roomState.seed = message.seed;
+      roomState.players = message.players;
+      roomState.localPlayerIndex = message.playerIndex;
+      roomState.localPlayerId = message.players.find((player) => player.index === message.playerIndex)?.id ?? null;
+      console.info(`[room] joined code=${message.code} players=${message.playerCount}`);
+      return;
+    }
+    case "room-updated":
+      roomState.players = message.players;
+      if (roomState.role === "host" &&
+        WS_AUTO_START &&
+        roomState.players.length >= roomState.playerCount &&
+        !roomState.hasSentStart) {
+        sendRoomMessage(socket, { type: "start-room" });
+        roomState.hasSentStart = true;
+      }
+      return;
+    case "start": {
+      if (hasStarted) {
+        return;
+      }
+      const session = buildSessionFromStart(message, roomState);
+      const inputDelayFrames = message.inputDelayFrames ?? roomState.inputDelayFrames ?? REQUESTED_INPUT_DELAY_FRAMES;
+      roomState.hasSentStart = true;
+      void startGame(message.seed, {
+        session,
+        inputDelayFrames,
+        transport: roomState.transport
+      });
+      return;
+    }
+    case "room-closed":
+      console.warn(`[room] closed: ${message.reason}`);
+      return;
+    case "error":
+      console.warn(`[room] error ${message.code}: ${message.message}`);
+      return;
+    case "pong":
+    case "resync-request":
+    case "resync-state":
+      return;
+    default:
+      return;
+  }
+};
+
 const initMenu = () => {
   if (SHOULD_RUN_DETERMINISM) {
     runDeterminismCheck();
     return;
   }
 
+  if (NETWORK_MODE === "ws" && WS_ROLE === "client") {
+    const code = WS_ROOM_CODE ?? "";
+    setOverlayVisible(menuOverlay, false);
+    setOverlayVisible(loadingOverlay, true);
+    startNetworkClient(code);
+    return;
+  }
+
   if (!menuOverlay || !seedInput || !randomSeedButton || !startButton || !loadingOverlay) {
     const seed = generateRandomSeed();
+    if (NETWORK_MODE === "ws" && WS_ROLE === "host") {
+      void startNetworkHost(seed);
+      return;
+    }
     void startGame(seed);
     return;
   }
@@ -259,6 +531,10 @@ const initMenu = () => {
     seedInput.disabled = true;
     randomSeedButton.disabled = true;
     startButton.disabled = true;
+    if (NETWORK_MODE === "ws" && WS_ROLE === "host") {
+      startNetworkHost(seed);
+      return;
+    }
     void startGame(seed);
   };
 
