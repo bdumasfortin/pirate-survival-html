@@ -21,7 +21,9 @@ From the repo root:
 You can set a custom port with `PORT=9000 npm run dev`.
 
 ### 2) Host a room (client)
-Open the game with:
+Open the game and use the Multiplayer tab in the start menu to create a room.
+
+You can also open directly with:
 `http://localhost:5173/?net=ws&role=host&players=2`
 
 Optional params:
@@ -31,7 +33,9 @@ Optional params:
 After the room is created, the server logs the room code and the client logs it in the console.
 
 ### 3) Join a room (client)
-Open a second window with:
+Open a second window and use the Multiplayer tab to join a room.
+
+Or open directly with:
 `http://localhost:5173/?net=ws&role=client&room=ABCDE`
 
 Replace `ABCDE` with the room code from the host. If `autostart=1` is not set, run `window.startRoom()` in the host console to start the match.

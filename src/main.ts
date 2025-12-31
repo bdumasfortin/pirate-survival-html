@@ -15,9 +15,6 @@ import { createLoopbackTransportPair, type Transport } from "./net/transport";
 import { createWebSocketTransport } from "./net/ws-transport";
 import {
   DEFAULT_INPUT_DELAY_FRAMES,
-  DEFAULT_ROOM_PLAYER_COUNT,
-  ROOM_MAX_PLAYERS,
-  ROOM_MIN_PLAYERS,
   isValidRoomCode,
   normalizeRoomCode,
   type RoomClientMessage,
@@ -44,8 +41,24 @@ canvas.addEventListener("contextmenu", (event) => {
 const menuOverlay = document.getElementById("seed-menu") as HTMLElement | null;
 const loadingOverlay = document.getElementById("loading-overlay") as HTMLElement | null;
 const seedInput = document.getElementById("seed-input") as HTMLInputElement | null;
+const seedInputMulti = document.getElementById("seed-input-mp") as HTMLInputElement | null;
 const randomSeedButton = document.getElementById("seed-random") as HTMLButtonElement | null;
+const randomSeedButtonMulti = document.getElementById("seed-random-mp") as HTMLButtonElement | null;
 const startButton = document.getElementById("start-game") as HTMLButtonElement | null;
+const modeSoloButton = document.getElementById("mode-solo") as HTMLButtonElement | null;
+const modeMultiButton = document.getElementById("mode-multi") as HTMLButtonElement | null;
+const multiCreateButton = document.getElementById("multi-create") as HTMLButtonElement | null;
+const multiJoinButton = document.getElementById("multi-join") as HTMLButtonElement | null;
+const soloPanel = document.getElementById("solo-panel") as HTMLElement | null;
+const multiPanel = document.getElementById("multi-panel") as HTMLElement | null;
+const serverUrlInput = document.getElementById("server-url") as HTMLInputElement | null;
+const roomCodeInput = document.getElementById("room-code") as HTMLInputElement | null;
+const createRoomButton = document.getElementById("create-room") as HTMLButtonElement | null;
+const joinRoomButton = document.getElementById("join-room") as HTMLButtonElement | null;
+const startRoomButton = document.getElementById("start-room") as HTMLButtonElement | null;
+const roomStatus = document.getElementById("room-status") as HTMLElement | null;
+const roomCodeDisplay = document.getElementById("room-code-display") as HTMLElement | null;
+const roomPlayerCount = document.getElementById("room-player-count") as HTMLElement | null;
 
 const resize = () => {
   const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -79,8 +92,8 @@ const generateRandomSeed = () => {
   return Math.floor(Math.random() * 1_000_000_000).toString(36);
 };
 
-const getSeedValue = () => {
-  const value = seedInput?.value.trim() ?? "";
+const getSeedValue = (input: HTMLInputElement | null) => {
+  const value = input?.value.trim() ?? "";
   return value.length > 0 ? value : generateRandomSeed();
 };
 
@@ -104,14 +117,8 @@ const WS_SERVER_URL = URL_PARAMS.get("ws") ??
     : `ws://${window.location.hostname}:8787`);
 const WS_ROOM_CODE = URL_PARAMS.get("room");
 const WS_ROLE = (URL_PARAMS.get("role") ?? (WS_ROOM_CODE ? "client" : "host")).toLowerCase();
-const WS_PLAYER_COUNT = (() => {
-  const parsed = Number.parseInt(URL_PARAMS.get("players") ?? "", 10);
-  if (!Number.isFinite(parsed)) {
-    return DEFAULT_ROOM_PLAYER_COUNT;
-  }
-  return Math.max(ROOM_MIN_PLAYERS, Math.min(ROOM_MAX_PLAYERS, parsed));
-})();
-const WS_AUTO_START = URL_PARAMS.get("autostart") === "1";
+let activeRoomState: RoomConnectionState | null = null;
+let activeRoomSocket: WebSocket | null = null;
 
 type RoomConnectionState = {
   role: "host" | "client";
@@ -125,6 +132,14 @@ type RoomConnectionState = {
   players: RoomPlayerInfo[];
   transport: Transport | null;
   hasSentStart: boolean;
+  ui: RoomUiState | null;
+};
+
+type RoomUiState = {
+  setStatus: (text: string, isError?: boolean) => void;
+  setRoomInfo: (code: string | null, players: RoomPlayerInfo[], playerCount: number) => void;
+  setStartEnabled: (enabled: boolean) => void;
+  setActionsEnabled: (enabled: boolean) => void;
 };
 
 const parseRoomServerMessage = (payload: string): RoomServerMessage | null => {
@@ -174,6 +189,12 @@ type StartGameOptions = {
   inputDelayFrames?: number;
   transport?: Transport | null;
   debugRemoteTransport?: Transport | null;
+};
+
+type NetworkStartOptions = {
+  serverUrl?: string;
+  inputDelayFrames?: number;
+  ui?: RoomUiState | null;
 };
 
 const startGame = async (seed: string, options: StartGameOptions = {}) => {
@@ -338,9 +359,14 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
   });
 };
 
-const startNetworkHost = (seed: string) => {
-  setOverlayVisible(menuOverlay, false);
-  setOverlayVisible(loadingOverlay, true);
+const startNetworkHost = (seed: string, options: NetworkStartOptions = {}) => {
+  const playerCount = 2;
+  const inputDelayFrames = options.inputDelayFrames ?? REQUESTED_INPUT_DELAY_FRAMES;
+  const serverUrl = options.serverUrl ?? WS_SERVER_URL;
+  const ui = options.ui ?? null;
+
+  ui?.setStatus("Connecting to room server...");
+  ui?.setActionsEnabled(false);
 
   const roomState: RoomConnectionState = {
     role: "host",
@@ -348,15 +374,20 @@ const startNetworkHost = (seed: string) => {
     roomId: null,
     localPlayerIndex: null,
     localPlayerId: null,
-    playerCount: WS_PLAYER_COUNT,
-    inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
+    playerCount,
+    inputDelayFrames,
     seed,
     players: [],
     transport: null,
-    hasSentStart: false
+    hasSentStart: false,
+    ui
   };
 
-  const { socket, transport } = createWebSocketTransport(WS_SERVER_URL, (payload) => {
+  if (activeRoomSocket && activeRoomSocket.readyState === WebSocket.OPEN) {
+    activeRoomSocket.close();
+  }
+
+  const { socket, transport } = createWebSocketTransport(serverUrl, (payload) => {
     const message = parseRoomServerMessage(payload);
     if (!message) {
       return;
@@ -365,14 +396,26 @@ const startNetworkHost = (seed: string) => {
   });
 
   roomState.transport = transport;
+  activeRoomState = roomState;
+  activeRoomSocket = socket;
 
   socket.addEventListener("open", () => {
     sendRoomMessage(socket, {
       type: "create-room",
-      playerCount: WS_PLAYER_COUNT,
+      playerCount,
       seed,
-      inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES
+      inputDelayFrames
     });
+  });
+
+  socket.addEventListener("close", () => {
+    roomState.ui?.setStatus("Disconnected from server.", true);
+    roomState.ui?.setActionsEnabled(true);
+    roomState.ui?.setStartEnabled(false);
+    if (activeRoomSocket === socket) {
+      activeRoomSocket = null;
+      activeRoomState = null;
+    }
   });
 
   if (import.meta.env.DEV) {
@@ -386,13 +429,19 @@ const startNetworkHost = (seed: string) => {
   }
 };
 
-const startNetworkClient = (roomCode: string) => {
-  setOverlayVisible(menuOverlay, false);
-  setOverlayVisible(loadingOverlay, true);
+const startNetworkClient = (roomCode: string, options: NetworkStartOptions = {}) => {
+  const serverUrl = options.serverUrl ?? WS_SERVER_URL;
+  const inputDelayFrames = options.inputDelayFrames ?? REQUESTED_INPUT_DELAY_FRAMES;
+  const ui = options.ui ?? null;
+
+  ui?.setStatus("Connecting to room server...");
+  ui?.setActionsEnabled(false);
 
   const normalizedCode = normalizeRoomCode(roomCode);
   if (!isValidRoomCode(normalizedCode)) {
     console.warn(`[net] invalid room code "${roomCode}"`);
+    ui?.setStatus("Invalid room code.", true);
+    ui?.setActionsEnabled(true);
     return;
   }
 
@@ -403,14 +452,19 @@ const startNetworkClient = (roomCode: string) => {
     localPlayerIndex: null,
     localPlayerId: null,
     playerCount: 0,
-    inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
+    inputDelayFrames,
     seed: null,
     players: [],
     transport: null,
-    hasSentStart: false
+    hasSentStart: false,
+    ui
   };
 
-  const { socket, transport } = createWebSocketTransport(WS_SERVER_URL, (payload) => {
+  if (activeRoomSocket && activeRoomSocket.readyState === WebSocket.OPEN) {
+    activeRoomSocket.close();
+  }
+
+  const { socket, transport } = createWebSocketTransport(serverUrl, (payload) => {
     const message = parseRoomServerMessage(payload);
     if (!message) {
       return;
@@ -419,9 +473,21 @@ const startNetworkClient = (roomCode: string) => {
   });
 
   roomState.transport = transport;
+  activeRoomState = roomState;
+  activeRoomSocket = socket;
 
   socket.addEventListener("open", () => {
     sendRoomMessage(socket, { type: "join-room", code: normalizedCode });
+  });
+
+  socket.addEventListener("close", () => {
+    roomState.ui?.setStatus("Disconnected from server.", true);
+    roomState.ui?.setActionsEnabled(true);
+    roomState.ui?.setStartEnabled(false);
+    if (activeRoomSocket === socket) {
+      activeRoomSocket = null;
+      activeRoomState = null;
+    }
   });
 };
 
@@ -436,13 +502,12 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
       roomState.players = message.players;
       roomState.localPlayerIndex = message.playerIndex;
       roomState.localPlayerId = message.players.find((player) => player.index === message.playerIndex)?.id ?? null;
-      console.info(`[room] created code=${message.code} players=${message.playerCount}`);
-      if (WS_AUTO_START && roomState.players.length >= roomState.playerCount && !roomState.hasSentStart) {
-        sendRoomMessage(socket, { type: "start-room" });
-        roomState.hasSentStart = true;
-      }
-      return;
-    }
+      roomState.ui?.setStatus(`Room created. Share code ${message.code}.`);
+  roomState.ui?.setRoomInfo(message.code, message.players, message.playerCount);
+  roomState.ui?.setStartEnabled(message.players.length >= message.playerCount);
+  console.info(`[room] created code=${message.code} players=${message.playerCount}`);
+  return;
+}
     case "room-joined": {
       roomState.roomCode = message.code;
       roomState.roomId = message.roomId;
@@ -452,23 +517,22 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
       roomState.players = message.players;
       roomState.localPlayerIndex = message.playerIndex;
       roomState.localPlayerId = message.players.find((player) => player.index === message.playerIndex)?.id ?? null;
+      roomState.ui?.setStatus(`Joined room ${message.code}. Waiting for host...`);
+      roomState.ui?.setRoomInfo(message.code, message.players, message.playerCount);
+      roomState.ui?.setStartEnabled(false);
       console.info(`[room] joined code=${message.code} players=${message.playerCount}`);
       return;
     }
     case "room-updated":
-      roomState.players = message.players;
-      if (roomState.role === "host" &&
-        WS_AUTO_START &&
-        roomState.players.length >= roomState.playerCount &&
-        !roomState.hasSentStart) {
-        sendRoomMessage(socket, { type: "start-room" });
-        roomState.hasSentStart = true;
-      }
-      return;
+  roomState.players = message.players;
+  roomState.ui?.setRoomInfo(roomState.roomCode, message.players, roomState.playerCount);
+  roomState.ui?.setStartEnabled(roomState.role === "host" && message.players.length >= roomState.playerCount);
+  return;
     case "start": {
       if (hasStarted) {
         return;
       }
+      roomState.ui?.setStatus("Starting match...");
       const session = buildSessionFromStart(message, roomState);
       const inputDelayFrames = message.inputDelayFrames ?? roomState.inputDelayFrames ?? REQUESTED_INPUT_DELAY_FRAMES;
       roomState.hasSentStart = true;
@@ -480,9 +544,13 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
       return;
     }
     case "room-closed":
+      roomState.ui?.setStatus(`Room closed: ${message.reason}`, true);
+      roomState.ui?.setActionsEnabled(true);
       console.warn(`[room] closed: ${message.reason}`);
       return;
     case "error":
+      roomState.ui?.setStatus(`Error: ${message.message}`, true);
+      roomState.ui?.setActionsEnabled(true);
       console.warn(`[room] error ${message.code}: ${message.message}`);
       return;
     case "pong":
@@ -500,15 +568,8 @@ const initMenu = () => {
     return;
   }
 
-  if (NETWORK_MODE === "ws" && WS_ROLE === "client") {
-    const code = WS_ROOM_CODE ?? "";
-    setOverlayVisible(menuOverlay, false);
-    setOverlayVisible(loadingOverlay, true);
-    startNetworkClient(code);
-    return;
-  }
-
-  if (!menuOverlay || !seedInput || !randomSeedButton || !startButton || !loadingOverlay) {
+  const hasMenu = menuOverlay && loadingOverlay && seedInput && randomSeedButton && startButton;
+  if (!hasMenu) {
     const seed = generateRandomSeed();
     if (NETWORK_MODE === "ws" && WS_ROLE === "host") {
       void startNetworkHost(seed);
@@ -518,6 +579,96 @@ const initMenu = () => {
     return;
   }
 
+  const roomUi: RoomUiState | null = roomStatus && roomCodeDisplay && roomPlayerCount && createRoomButton && joinRoomButton && startRoomButton
+    ? {
+      setStatus: (text, isError = false) => {
+        roomStatus.textContent = `Status: ${text}`;
+        roomStatus.classList.toggle("error", isError);
+      },
+      setRoomInfo: (code, players, playerCount) => {
+        roomCodeDisplay.textContent = code ?? "--";
+        const total = playerCount > 0 ? playerCount : players.length;
+        roomPlayerCount.textContent = `${players.length}/${total}`;
+      },
+      setStartEnabled: (enabled) => {
+        startRoomButton.disabled = !enabled;
+      },
+      setActionsEnabled: (enabled) => {
+        createRoomButton.disabled = !enabled;
+        joinRoomButton.disabled = !enabled;
+        if (multiCreateButton) {
+          multiCreateButton.disabled = !enabled;
+        }
+        if (multiJoinButton) {
+          multiJoinButton.disabled = !enabled;
+        }
+        if (modeSoloButton) {
+          modeSoloButton.disabled = !enabled;
+        }
+        if (modeMultiButton) {
+          modeMultiButton.disabled = !enabled;
+        }
+        if (serverUrlInput) {
+          serverUrlInput.disabled = !enabled;
+        }
+        if (roomCodeInput) {
+          roomCodeInput.disabled = !enabled;
+        }
+        if (seedInputMulti) {
+          seedInputMulti.disabled = !enabled;
+        }
+        if (randomSeedButtonMulti) {
+          randomSeedButtonMulti.disabled = !enabled;
+        }
+      }
+    }
+    : null;
+
+  let multiplayerMode: "create" | "join" = "create";
+  const createOnlyElements = multiPanel?.querySelectorAll<HTMLElement>(".create-only") ?? [];
+  const joinOnlyElements = multiPanel?.querySelectorAll<HTMLElement>(".join-only") ?? [];
+
+  const setMultiplayerMode = (mode: "create" | "join") => {
+    multiplayerMode = mode;
+    createOnlyElements.forEach((element) => {
+      element.classList.toggle("hidden", mode === "join");
+    });
+    joinOnlyElements.forEach((element) => {
+      element.classList.toggle("hidden", mode === "create");
+    });
+    multiCreateButton?.classList.toggle("active", mode === "create");
+    multiJoinButton?.classList.toggle("active", mode === "join");
+  };
+
+  const setMode = (mode: "solo" | "multi") => {
+    if (soloPanel) {
+      soloPanel.classList.toggle("hidden", mode !== "solo");
+    }
+    if (multiPanel) {
+      multiPanel.classList.toggle("hidden", mode !== "multi");
+    }
+    modeSoloButton?.classList.toggle("active", mode === "solo");
+    modeMultiButton?.classList.toggle("active", mode === "multi");
+    if (mode === "multi") {
+      setMultiplayerMode(multiplayerMode);
+    }
+  };
+
+  modeSoloButton?.addEventListener("click", () => setMode("solo"));
+  modeMultiButton?.addEventListener("click", () => setMode("multi"));
+  multiCreateButton?.addEventListener("click", () => setMultiplayerMode("create"));
+  multiJoinButton?.addEventListener("click", () => setMultiplayerMode("join"));
+  setMode("solo");
+  setMultiplayerMode("create");
+
+  if (serverUrlInput) {
+    serverUrlInput.value = WS_SERVER_URL;
+  }
+  if (roomCodeInput && WS_ROOM_CODE) {
+    roomCodeInput.value = WS_ROOM_CODE;
+  }
+  roomUi?.setRoomInfo(null, [], 0);
+
   randomSeedButton.addEventListener("click", () => {
     const seed = generateRandomSeed();
     seedInput.value = seed;
@@ -525,14 +676,23 @@ const initMenu = () => {
     seedInput.select();
   });
 
+  randomSeedButtonMulti?.addEventListener("click", () => {
+    const seed = generateRandomSeed();
+    if (seedInputMulti) {
+      seedInputMulti.value = seed;
+      seedInputMulti.focus();
+      seedInputMulti.select();
+    }
+  });
+
   const handleStart = () => {
-    const seed = getSeedValue();
+    const seed = getSeedValue(seedInput);
     seedInput.value = seed;
     seedInput.disabled = true;
     randomSeedButton.disabled = true;
     startButton.disabled = true;
     if (NETWORK_MODE === "ws" && WS_ROLE === "host") {
-      startNetworkHost(seed);
+      startNetworkHost(seed, { ui: roomUi });
       return;
     }
     void startGame(seed);
@@ -544,6 +704,69 @@ const initMenu = () => {
       handleStart();
     }
   });
+
+  createRoomButton?.addEventListener("click", () => {
+    const seed = getSeedValue(seedInputMulti ?? seedInput);
+    const serverUrl = serverUrlInput?.value.trim() || WS_SERVER_URL;
+    setMode("multi");
+    setMultiplayerMode("create");
+    startNetworkHost(seed, {
+      serverUrl,
+      inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
+      ui: roomUi
+    });
+  });
+
+  joinRoomButton?.addEventListener("click", () => {
+    const serverUrl = serverUrlInput?.value.trim() || WS_SERVER_URL;
+    const code = roomCodeInput?.value.trim() ?? "";
+    setMode("multi");
+    setMultiplayerMode("join");
+    startNetworkClient(code, {
+      serverUrl,
+      inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
+      ui: roomUi
+    });
+  });
+
+  startRoomButton?.addEventListener("click", () => {
+    if (!activeRoomState || activeRoomState.role !== "host") {
+      return;
+    }
+    if (!activeRoomSocket || activeRoomSocket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    if (activeRoomState.players.length < activeRoomState.playerCount) {
+      roomUi?.setStatus("Waiting for more players...");
+      return;
+    }
+    sendRoomMessage(activeRoomSocket, { type: "start-room" });
+    activeRoomState.hasSentStart = true;
+    roomUi?.setStatus("Starting match...");
+  });
+
+  if (NETWORK_MODE === "ws") {
+    setMode("multi");
+    if (WS_ROLE === "client" && WS_ROOM_CODE) {
+      setMultiplayerMode("join");
+      startNetworkClient(WS_ROOM_CODE, {
+        serverUrl: WS_SERVER_URL,
+        inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
+        ui: roomUi
+      });
+      return;
+    }
+    if (WS_ROLE === "host") {
+      const seed = getSeedValue(seedInputMulti ?? seedInput);
+      setMultiplayerMode("create");
+      startNetworkHost(seed, {
+        serverUrl: WS_SERVER_URL,
+        inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
+        ui: roomUi
+      });
+      return;
+    }
+  }
 };
 
 initMenu();

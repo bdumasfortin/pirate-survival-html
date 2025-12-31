@@ -21,9 +21,9 @@ Keep this checklist updated as we complete steps.
 - [x] Send outgoing `InputPacket` via server instead of loopback.
 
 ## 4) Room UX (create/join)
-- [ ] Add UI flow: Create room -> show code; Join room -> enter code.
-- [ ] Display connection status + player count; show error messages on failure.
-- [ ] Allow host to start once required players are connected (or auto-start on full).
+- [x] Add UI flow: Create room -> show code; Join room -> enter code.
+- [x] Display connection status + player count; show error messages on failure.
+- [x] Allow host to start once required players are connected (or auto-start on full).
 
 ## 5) Session bootstrap over server
 - [ ] Server assigns player indices and broadcasts `start` with seed/startFrame.

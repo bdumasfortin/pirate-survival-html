@@ -40,6 +40,8 @@ canvas {
   justify-content: center;
   background: rgba(6, 12, 16, 0.78);
   z-index: 10;
+  padding: 32px 16px;
+  overflow-y: auto;
 }
 
 .overlay.hidden {
@@ -57,6 +59,15 @@ canvas {
 
 .menu-card {
   width: min(420px, 90vw);
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.menu-card::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .menu-card h1 {
@@ -66,10 +77,66 @@ canvas {
   letter-spacing: 0.5px;
 }
 
+.mode-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.mode-btn {
+  flex: 1;
+  background: rgba(12, 22, 26, 0.75);
+  border-color: rgba(246, 231, 193, 0.25);
+  font-size: 17px;
+  padding: 8px 12px;
+}
+
+.mode-btn.active {
+  background: rgba(240, 213, 139, 0.22);
+  border-color: rgba(240, 213, 139, 0.65);
+}
+
+.menu-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.menu-panel.hidden {
+  display: none;
+}
+
 .menu-card label {
   display: block;
   margin-bottom: 8px;
   font-size: 18px;
+}
+
+.menu-row {
+  display: flex;
+  gap: 12px;
+}
+
+.menu-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.menu-field input,
+#server-url {
+  background: rgba(8, 14, 18, 0.7);
+  border: 1px solid rgba(246, 231, 193, 0.2);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: inherit;
+  font-size: 18px;
+  font-family: inherit;
+}
+
+.menu-field input::placeholder,
+#server-url::placeholder {
+  color: rgba(246, 231, 193, 0.4);
 }
 
 .seed-row {
@@ -112,6 +179,54 @@ button.primary {
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3);
 }
 
+.menu-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.menu-actions button {
+  flex: 1;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+}
+
+.checkbox-row input {
+  width: 16px;
+  height: 16px;
+}
+
+.status-box {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(246, 231, 193, 0.2);
+  background: rgba(8, 14, 18, 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 16px;
+}
+
+.status-text {
+  color: rgba(246, 231, 193, 0.85);
+}
+
+.status-text.error {
+  color: #f6a6a0;
+}
+
+.status-info {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 15px;
+  color: rgba(246, 231, 193, 0.7);
+}
+
 button:hover {
   transform: translateY(-1px);
 }
@@ -125,4 +240,8 @@ button:disabled {
 .loading-card {
   font-size: 22px;
   letter-spacing: 0.4px;
+}
+
+.hidden {
+  display: none !important;
 }
