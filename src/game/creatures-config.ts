@@ -1,4 +1,4 @@
-export type CrabStats = {
+export type CreatureStats = {
   radius: number;
   health: number;
   maxHealth: number;
@@ -38,7 +38,7 @@ export const CRAB_SPAWN_ATTEMPTS = 40;
 export const CRAB_SPAWN_RADIUS_SCALE = 0.95;
 export const CRAB_BOSS_RADIUS_SCALE = 0.85;
 
-export const CRAB_DEFAULT_STATS: CrabStats = {
+export const CRAB_DEFAULT_STATS: CreatureStats = {
   radius: 16,
   health: 30,
   maxHealth: 30,
@@ -51,7 +51,7 @@ export const CRAB_DEFAULT_STATS: CrabStats = {
   wanderTimerMax: 3.5
 };
 
-export const CRAB_BOSS_STATS: CrabStats = {
+export const CRAB_BOSS_STATS: CreatureStats = {
   radius: 130,
   health: 260,
   maxHealth: 260,
@@ -64,7 +64,7 @@ export const CRAB_BOSS_STATS: CrabStats = {
   wanderTimerMax: 3.8
 };
 
-export const WOLF_DEFAULT_STATS: CrabStats = {
+export const WOLF_DEFAULT_STATS: CreatureStats = {
   radius: 22,
   health: 70,
   maxHealth: 70,
@@ -77,7 +77,7 @@ export const WOLF_DEFAULT_STATS: CrabStats = {
   wanderTimerMax: 2.8
 };
 
-export const WOLF_BOSS_STATS: CrabStats = {
+export const WOLF_BOSS_STATS: CreatureStats = {
   radius: 58,
   health: 220,
   maxHealth: 220,

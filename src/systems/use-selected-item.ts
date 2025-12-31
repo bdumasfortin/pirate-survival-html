@@ -3,7 +3,15 @@ import type { GameState } from "../game/state";
 import { getEquipmentSlotForItem, getEquipmentSlotKind, setEquipmentSlotKind } from "../game/equipment";
 import { clamp } from "../core/math";
 import { getInventorySelectedIndex, getInventorySlotKind, getInventorySlotQuantity, setInventorySlotQuantity } from "../game/inventory";
+import type { ResourceKind } from "../world/types";
 import { BERRY_RESTORE_RATIO, CRAB_MEAT_RESTORE_RATIO, ITEM_USE_COOLDOWN, WOLF_MEAT_RESTORE_RATIO } from "../game/use-config";
+
+const isConsumable = (kind: string) => kind === "berries" || kind === "crabmeat" || kind === "wolfmeat";
+const CONSUMABLE_RESTORE: Partial<Record<ResourceKind, number>> = {
+  berries: BERRY_RESTORE_RATIO,
+  crabmeat: CRAB_MEAT_RESTORE_RATIO,
+  wolfmeat: WOLF_MEAT_RESTORE_RATIO
+};
 
 export const updateUseCooldown = (state: GameState, delta: number) => {
   if (state.useCooldown > 0) {
@@ -36,7 +44,7 @@ export const useSelectedItem = (state: GameState, input: InputState) => {
     return;
   }
 
-  if (slotKind !== "berries" && slotKind !== "crabmeat" && slotKind !== "wolfmeat") {
+  if (!isConsumable(slotKind)) {
     return;
   }
 
@@ -45,11 +53,7 @@ export const useSelectedItem = (state: GameState, input: InputState) => {
   }
 
   const stats = state.survival;
-  const restoreRatio = slotKind === "wolfmeat"
-    ? WOLF_MEAT_RESTORE_RATIO
-    : slotKind === "crabmeat"
-      ? CRAB_MEAT_RESTORE_RATIO
-      : BERRY_RESTORE_RATIO;
+  const restoreRatio = CONSUMABLE_RESTORE[slotKind] ?? 0;
   const restore = stats.maxHunger * restoreRatio;
   stats.hunger = clamp(stats.hunger + restore, 0, stats.maxHunger);
 

@@ -27,7 +27,7 @@ import {
   WOLF_BOSS_STATS,
   WOLF_DEFAULT_STATS,
   WOLF_SPAWN_RADIUS_SCALE,
-  type CrabStats
+  type CreatureStats
 } from "./creatures-config";
 
 const isPointInAnyIsland = (point: Vec2, islands: Island[]) => islands.some((island) => isPointInPolygon(point, island.points));
@@ -76,7 +76,7 @@ const ENEMY_MASK = ComponentMask.Position |
   ComponentMask.Tag |
   ComponentMask.Enemy;
 
-const spawnCrab = (ecs: EcsWorld, rng: RngState, position: Vec2, homeIslandIndex: number, stats: CrabStats, isBoss = false) => {
+const spawnCrab = (ecs: EcsWorld, rng: RngState, position: Vec2, homeIslandIndex: number, stats: CreatureStats, isBoss = false) => {
   const id = createEntity(ecs, ENEMY_MASK, EntityTag.Enemy);
   ecs.position.x[id] = position.x;
   ecs.position.y[id] = position.y;
@@ -99,7 +99,7 @@ const spawnCrab = (ecs: EcsWorld, rng: RngState, position: Vec2, homeIslandIndex
   ecs.enemyHitTimer[id] = 0;
 };
 
-const spawnWolf = (ecs: EcsWorld, rng: RngState, position: Vec2, homeIslandIndex: number, stats: CrabStats, isBoss = false) => {
+const spawnWolf = (ecs: EcsWorld, rng: RngState, position: Vec2, homeIslandIndex: number, stats: CreatureStats, isBoss = false) => {
   const id = createEntity(ecs, ENEMY_MASK, EntityTag.Enemy);
   ecs.position.x[id] = position.x;
   ecs.position.y[id] = position.y;
