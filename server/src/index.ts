@@ -59,6 +59,9 @@ const MAX_FRAME_INDEX = 10_000_000;
 const MAX_SNAPSHOT_BYTES = 2 * 1024 * 1024;
 const MAX_RESYNC_CHUNK_BYTES = 32 * 1024;
 const MAX_RESYNC_CHUNK_BASE64 = Math.ceil(MAX_RESYNC_CHUNK_BYTES / 3) * 4 + 16;
+const RELAY_LATENCY_MS = Math.max(0, Number(process.env.RELAY_LATENCY_MS ?? "0") || 0);
+const RELAY_JITTER_MS = Math.max(0, Number(process.env.RELAY_JITTER_MS ?? "0") || 0);
+const RELAY_DROP_RATE = Math.min(1, Math.max(0, Number(process.env.RELAY_DROP_RATE ?? "0") || 0));
 
 const RATE_WINDOW_SHORT_MS = 1000;
 const RATE_WINDOW_MEDIUM_MS = 10 * 1000;
@@ -106,6 +109,37 @@ const sendJson = (ws: WebSocket, message: RoomServerMessage) => {
   if (ws.readyState === ws.OPEN) {
     ws.send(JSON.stringify(message));
   }
+};
+
+const relayDelayMs = () => {
+  if (RELAY_LATENCY_MS <= 0 && RELAY_JITTER_MS <= 0) {
+    return 0;
+  }
+  const jitter = RELAY_JITTER_MS > 0 ? (Math.random() * 2 - 1) * RELAY_JITTER_MS : 0;
+  return Math.max(0, RELAY_LATENCY_MS + jitter);
+};
+
+const sendRelay = (ws: WebSocket, payload: string | Buffer) => {
+  if (ws.readyState !== ws.OPEN) {
+    return;
+  }
+  if (RELAY_DROP_RATE > 0 && Math.random() < RELAY_DROP_RATE) {
+    return;
+  }
+  const delay = relayDelayMs();
+  if (delay <= 0) {
+    ws.send(payload);
+    return;
+  }
+  setTimeout(() => {
+    if (ws.readyState === ws.OPEN) {
+      ws.send(payload);
+    }
+  }, delay);
+};
+
+const sendRelayJson = (ws: WebSocket, message: RoomServerMessage) => {
+  sendRelay(ws, JSON.stringify(message));
 };
 
 const sendError = (ws: WebSocket, code: RoomServerErrorCode, message: string) => {
@@ -354,7 +388,7 @@ const handleResyncRequest = (client: Client, fromFrame: number, reason: ResyncRe
 
   const host = room.players.get(room.hostId);
   if (host) {
-    sendJson(host.ws, { type: "resync-request", fromFrame, reason, requesterId: client.id });
+    sendRelayJson(host.ws, { type: "resync-request", fromFrame, reason, requesterId: client.id });
   }
   touchRoom(room);
 };
@@ -391,7 +425,7 @@ const handleResyncState = (client: Client, message: Extract<RoomClientMessage, {
     totalBytes: Math.max(0, Math.floor(message.totalBytes)),
     chunkSize: Math.max(1, Math.floor(message.chunkSize))
   };
-  sendJson(requester.ws, payload);
+  sendRelayJson(requester.ws, payload);
   touchRoom(room);
 };
 
@@ -421,7 +455,7 @@ const handleResyncChunk = (client: Client, message: Extract<RoomClientMessage, {
     offset: Math.max(0, Math.floor(message.offset)),
     data: message.data
   };
-  sendJson(requester.ws, payload);
+  sendRelayJson(requester.ws, payload);
   touchRoom(room);
 };
 
@@ -450,7 +484,12 @@ const handleStateHash = (client: Client, frame: number, hash: number) => {
     frame: Math.max(0, Math.floor(frame)),
     hash: hash >>> 0
   };
-  broadcastRoom(room, message, client.id);
+  for (const entry of room.players.values()) {
+    if (entry.id === client.id) {
+      continue;
+    }
+    sendRelayJson(entry.ws, message);
+  }
   touchRoom(room);
 };
 
@@ -464,9 +503,7 @@ const handleBinaryMessage = (client: Client, data: ArrayBuffer) => {
     if (player.id === client.id) {
       continue;
     }
-    if (player.ws.readyState === player.ws.OPEN) {
-      player.ws.send(data);
-    }
+    sendRelay(player.ws, Buffer.from(data));
   }
   touchRoom(room);
 };

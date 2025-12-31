@@ -46,6 +46,6 @@ Keep this checklist updated as we complete steps.
 - [x] Idle room expiry + disconnected player cleanup.
 
 ## 9) Local + remote testing
-- [ ] Local 2-client test with `net=ws` using two browser windows.
-- [ ] Simulate latency/drop in server (optional debug flags).
-- [ ] Verify determinism hashes stay stable under network jitter.
+- [x] Local 2-client test with `net=ws` using two browser windows.
+- [x] Simulate latency/drop in server (optional debug flags).
+- [x] Verify determinism hashes stay stable under network jitter.

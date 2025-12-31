@@ -24,11 +24,11 @@ You can set a custom port with `PORT=9000 npm run dev`.
 Open the game and use the Multiplayer tab in the start menu to create a room.
 
 You can also open directly with:
-`http://localhost:5173/?net=ws&role=host&players=2`
+`http://localhost:5173/?net=ws&role=host`
 
 Optional params:
 - `ws=ws://localhost:8787` to point at a custom relay URL.
-- `autostart=1` to auto-start when the room is full.
+- `inputDelay=4` to override the input delay (frames).
 
 After the room is created, the server logs the room code and the client logs it in the console.
 
@@ -38,7 +38,13 @@ Open a second window and use the Multiplayer tab to join a room.
 Or open directly with:
 `http://localhost:5173/?net=ws&role=client&room=ABCDE`
 
-Replace `ABCDE` with the room code from the host. If `autostart=1` is not set, run `window.startRoom()` in the host console to start the match.
+Replace `ABCDE` with the room code from the host. Run `window.startRoom()` in the host console to start the match.
+
+### 4) Network simulation (optional)
+To test jitter/latency in the relay, set env vars before `npm run dev` in `server/`:
+`RELAY_LATENCY_MS=60 RELAY_JITTER_MS=20 RELAY_DROP_RATE=0.02 npm run dev`
+
+Defaults are zero (no artificial latency/drop).
 
 ## Deploy (GitHub Pages)
 - Project page URL: `https://bdumasfortin.github.io/pirate-survival-html/`
