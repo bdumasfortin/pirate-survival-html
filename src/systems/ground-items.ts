@@ -1,7 +1,9 @@
 import type { GameState } from "../game/state";
+import { destroyEntity, forEachEntity, isEntityAlive } from "../core/ecs";
 import { addToInventory } from "../game/inventory";
 import { GROUND_ITEM_PICKUP_COOLDOWN, GROUND_ITEM_PICKUP_RANGE } from "../game/ground-items-config";
-import { isEntityAlive } from "../core/ecs";
+import { GROUND_ITEM_MASK } from "../game/ground-items";
+import { resourceKindFromIndex } from "../world/resource-kinds";
 
 export const pickupGroundItems = (state: GameState) => {
   const playerId = state.playerId;
@@ -13,29 +15,28 @@ export const pickupGroundItems = (state: GameState) => {
   const pickupRange = GROUND_ITEM_PICKUP_RANGE + ecs.radius[playerId];
   const playerX = ecs.position.x[playerId];
   const playerY = ecs.position.y[playerId];
-
-  for (let i = state.groundItems.length - 1; i >= 0; i -= 1) {
-    const item = state.groundItems[i];
-    if (state.time - item.droppedAt < GROUND_ITEM_PICKUP_COOLDOWN) {
-      continue;
+  forEachEntity(ecs, GROUND_ITEM_MASK, (id) => {
+    if (state.time - ecs.groundItemDroppedAt[id] < GROUND_ITEM_PICKUP_COOLDOWN) {
+      return;
     }
 
-    const dx = item.position.x - playerX;
-    const dy = item.position.y - playerY;
+    const dx = ecs.position.x[id] - playerX;
+    const dy = ecs.position.y[id] - playerY;
     const dist = Math.hypot(dx, dy);
 
     if (dist > pickupRange) {
-      continue;
+      return;
     }
 
-    const added = addToInventory(state.inventory, item.kind, item.quantity);
+    const kind = resourceKindFromIndex(ecs.groundItemKind[id]);
+    const added = addToInventory(ecs, playerId, kind, ecs.groundItemQuantity[id]);
     if (added <= 0) {
-      continue;
+      return;
     }
 
-    item.quantity -= added;
-    if (item.quantity <= 0) {
-      state.groundItems.splice(i, 1);
+    ecs.groundItemQuantity[id] -= added;
+    if (ecs.groundItemQuantity[id] <= 0) {
+      destroyEntity(ecs, id);
     }
-  }
+  });
 };

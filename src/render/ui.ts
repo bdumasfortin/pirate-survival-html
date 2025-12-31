@@ -1,5 +1,5 @@
 import type { GameState } from "../game/state";
-import { EQUIPMENT_SLOT_ORDER, type EquipmentSlotType } from "../game/equipment";
+import { EQUIPMENT_SLOT_ORDER, getEquipmentSlotKind, type EquipmentSlotType } from "../game/equipment";
 import type { ResourceKind, ResourceNodeType } from "../world/types";
 import { findClosestIslandEdge } from "../world/island-geometry";
 import { canCraft, recipes } from "../game/crafting";
@@ -7,7 +7,7 @@ import type { Recipe } from "../game/crafting";
 import { getNearestGatherableResource } from "../systems/gathering";
 import { DAMAGE_FLASH_DURATION } from "../game/combat-config";
 import { RAFT_INTERACTION_DISTANCE } from "../game/raft-config";
-import { isEntityAlive } from "../core/ecs";
+import { INVENTORY_SLOT_COUNT, isEntityAlive } from "../core/ecs";
 import { resourceNodeTypeFromIndex } from "../world/resource-kinds";
 import { equipmentPlaceholderImages, isImageReady, itemImages } from "./assets";
 import { drawRoundedRect } from "./render-helpers";
@@ -36,6 +36,11 @@ import {
   INVENTORY_SLOT_SIZE,
   UI_FONT
 } from "./ui-config";
+import {
+  getInventorySelectedIndex,
+  getInventorySlotKind,
+  getInventorySlotQuantity
+} from "../game/inventory";
 
 const resourceColors: Record<ResourceKind, string> = {
   wood: "#a06a3b",
@@ -78,10 +83,17 @@ const getPlaceholderIcon = (slot: EquipmentSlotType) => {
 
 const renderInventory = (ctx: CanvasRenderingContext2D, state: GameState) => {
   const { innerWidth, innerHeight } = window;
-  const totalWidth = state.inventory.slots.length * INVENTORY_SLOT_SIZE +
-    (state.inventory.slots.length - 1) * INVENTORY_SLOT_GAP;
+  const playerId = state.playerId;
+  const ecs = state.ecs;
+  if (!isEntityAlive(ecs, playerId)) {
+    return;
+  }
+
+  const totalWidth = INVENTORY_SLOT_COUNT * INVENTORY_SLOT_SIZE +
+    (INVENTORY_SLOT_COUNT - 1) * INVENTORY_SLOT_GAP;
   const startX = (innerWidth - totalWidth) / 2;
   const startY = innerHeight - INVENTORY_BAR_PADDING - INVENTORY_SLOT_SIZE;
+  const selectedIndex = getInventorySelectedIndex(ecs, playerId);
 
   ctx.save();
   ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
@@ -98,14 +110,14 @@ const renderInventory = (ctx: CanvasRenderingContext2D, state: GameState) => {
   ctx.fill();
   ctx.restore();
 
-  state.inventory.slots.forEach((slot, index) => {
+  for (let index = 0; index < INVENTORY_SLOT_COUNT; index += 1) {
     const x = startX + index * (INVENTORY_SLOT_SIZE + INVENTORY_SLOT_GAP);
     const y = startY;
 
     ctx.save();
     ctx.fillStyle = "rgba(20, 32, 38, 0.85)";
-    ctx.strokeStyle = index === state.inventory.selectedIndex ? "#f0d58b" : "#5f6b6d";
-    ctx.lineWidth = index === state.inventory.selectedIndex ? 2.5 : 1.5;
+    ctx.strokeStyle = index === selectedIndex ? "#f0d58b" : "#5f6b6d";
+    ctx.lineWidth = index === selectedIndex ? 2.5 : 1.5;
     ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
     ctx.shadowBlur = 6;
     drawRoundedRect(ctx, x, y, INVENTORY_SLOT_SIZE, INVENTORY_SLOT_SIZE, INVENTORY_CORNER_RADIUS);
@@ -113,10 +125,12 @@ const renderInventory = (ctx: CanvasRenderingContext2D, state: GameState) => {
     ctx.stroke();
     ctx.restore();
 
-    if (slot.kind && slot.quantity > 0) {
-      const color = resourceColors[slot.kind];
+    const slotKind = getInventorySlotKind(ecs, playerId, index);
+    const slotQuantity = getInventorySlotQuantity(ecs, playerId, index);
+    if (slotKind && slotQuantity > 0) {
+      const color = resourceColors[slotKind];
       const iconSize = INVENTORY_SLOT_SIZE * 0.6;
-      const icon = getItemIcon(slot.kind);
+      const icon = getItemIcon(slotKind);
 
       if (icon) {
         ctx.drawImage(
@@ -143,9 +157,9 @@ const renderInventory = (ctx: CanvasRenderingContext2D, state: GameState) => {
       ctx.fillStyle = "#f0d58b";
       ctx.textAlign = "right";
       ctx.textBaseline = "bottom";
-      ctx.fillText(String(slot.quantity), x + INVENTORY_SLOT_SIZE - 6, y + INVENTORY_SLOT_SIZE - 4);
+      ctx.fillText(String(slotQuantity), x + INVENTORY_SLOT_SIZE - 6, y + INVENTORY_SLOT_SIZE - 4);
     }
-  });
+  }
 };
 
 const renderEquipment = (ctx: CanvasRenderingContext2D, state: GameState) => {
@@ -154,6 +168,12 @@ const renderEquipment = (ctx: CanvasRenderingContext2D, state: GameState) => {
   const totalHeight = EQUIPMENT_GRID_ROWS * EQUIPMENT_SLOT_SIZE + (EQUIPMENT_GRID_ROWS - 1) * EQUIPMENT_SLOT_GAP;
   const startX = HUD_MARGIN;
   const startY = innerHeight - HUD_MARGIN - totalHeight;
+  const playerId = state.playerId;
+  const ecs = state.ecs;
+
+  if (!isEntityAlive(ecs, playerId)) {
+    return;
+  }
 
   ctx.save();
   ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
@@ -175,7 +195,7 @@ const renderEquipment = (ctx: CanvasRenderingContext2D, state: GameState) => {
     const row = Math.floor(index / EQUIPMENT_GRID_COLUMNS);
     const x = startX + column * (EQUIPMENT_SLOT_SIZE + EQUIPMENT_SLOT_GAP);
     const y = startY + row * (EQUIPMENT_SLOT_SIZE + EQUIPMENT_SLOT_GAP);
-    const equipped = state.equipment.slots[slotType];
+    const equipped = getEquipmentSlotKind(ecs, playerId, slotType);
 
     ctx.save();
     ctx.fillStyle = "rgba(20, 32, 38, 0.85)";
@@ -290,8 +310,10 @@ const renderRaftPrompt = (ctx: CanvasRenderingContext2D, state: GameState) => {
     return false;
   }
 
-  const slot = state.inventory.slots[state.inventory.selectedIndex];
-  if (!slot || slot.kind !== "raft" || slot.quantity <= 0) {
+  const selectedIndex = getInventorySelectedIndex(ecs, playerId);
+  const slotKind = getInventorySlotKind(ecs, playerId, selectedIndex);
+  const slotQuantity = getInventorySlotQuantity(ecs, playerId, selectedIndex);
+  if (slotKind !== "raft" || slotQuantity <= 0) {
     return false;
   }
 
@@ -310,8 +332,8 @@ const renderRaftPrompt = (ctx: CanvasRenderingContext2D, state: GameState) => {
 const renderSurvivalBars = (ctx: CanvasRenderingContext2D, state: GameState) => {
   const { innerWidth, innerHeight } = window;
   const stats = state.survival;
-  const inventoryWidth = state.inventory.slots.length * INVENTORY_SLOT_SIZE +
-    (state.inventory.slots.length - 1) * INVENTORY_SLOT_GAP;
+  const inventoryWidth = INVENTORY_SLOT_COUNT * INVENTORY_SLOT_SIZE +
+    (INVENTORY_SLOT_COUNT - 1) * INVENTORY_SLOT_GAP;
   const startX = (innerWidth - inventoryWidth) / 2;
   const inventoryTop = innerHeight - INVENTORY_BAR_PADDING - INVENTORY_SLOT_SIZE - INVENTORY_BAR_MARGIN;
   const y = Math.max(HUD_MARGIN, inventoryTop - BAR_HEIGHT - 18);
@@ -388,7 +410,7 @@ const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => 
     const x = columnX;
     const y = startY + index * (CRAFT_TILE_SIZE + CRAFT_TILE_GAP);
     const selected = index === selectedIndex;
-    const craftable = canCraft(state.inventory, recipe);
+    const craftable = canCraft(state.ecs, state.playerId, recipe);
 
     ctx.save();
     ctx.fillStyle = "rgba(20, 32, 38, 0.9)";
@@ -488,6 +510,7 @@ const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => 
 };
 
 const renderBuildVersion = (ctx: CanvasRenderingContext2D) => {
+  const { innerWidth } = window;
   const fontSize = 14;
 
   ctx.save();
@@ -507,7 +530,6 @@ const renderPlayerCoords = (ctx: CanvasRenderingContext2D, state: GameState) => 
     return;
   }
 
-  const { innerWidth } = window;
   const fontSize = 14;
   const lineHeight = fontSize + 4;
   const paddingX = 12;

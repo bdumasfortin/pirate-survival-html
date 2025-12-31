@@ -21,7 +21,7 @@ export const updateSurvival = (state: GameState, delta: number) => {
   const stats = state.survival;
   const prevHealth = stats.health;
 
-  const equippedCount = getEquippedItemCount(state.equipment);
+  const equippedCount = getEquippedItemCount(state.ecs, state.playerId);
   const maxArmor = equippedCount * ARMOR_PER_PIECE;
   stats.maxArmor = maxArmor;
   stats.armor = clamp(stats.armor, 0, stats.maxArmor);

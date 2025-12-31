@@ -1,4 +1,5 @@
 import type { Vec2 } from "../core/types";
+import { normalizeSeed } from "../core/seed";
 import type { EcsWorld } from "../core/ecs";
 import { ComponentMask, createEntity, EntityTag } from "../core/ecs";
 import { resourceKindToIndex, resourceNodeTypeToIndex } from "./resource-kinds";
@@ -24,28 +25,6 @@ const createRng = (seed: number): Rng => {
     x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
     return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
   };
-};
-
-const normalizeSeed = (seed: string | number) => {
-  if (typeof seed === "number" && Number.isFinite(seed)) {
-    return seed >>> 0;
-  }
-
-  const value = String(seed).trim();
-  if (value.length === 0) {
-    return 0;
-  }
-
-  if (/^-?\d+$/.test(value)) {
-    return Number.parseInt(value, 10) >>> 0;
-  }
-
-  let hash = 2166136261;
-  for (let i = 0; i < value.length; i += 1) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
 };
 
 const randomBetween = (rng: Rng, min: number, max: number) => min + rng() * (max - min);

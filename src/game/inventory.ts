@@ -1,109 +1,161 @@
+import type { EcsWorld, EntityId } from "../core/ecs";
+import { INVENTORY_SLOT_COUNT } from "../core/ecs";
 import type { ResourceKind } from "../world/types";
-
-export type InventorySlot = {
-  kind: ResourceKind | null;
-  quantity: number;
-};
-
-export type InventoryState = {
-  slots: InventorySlot[];
-  selectedIndex: number;
-};
+import { resourceKindFromIndex, resourceKindToIndex } from "../world/resource-kinds";
 
 export const STACK_LIMIT = 20;
 
-export const createInventory = (): InventoryState => ({
-  slots: Array.from({ length: 9 }, () => ({ kind: null, quantity: 0 })),
-  selectedIndex: 0
-});
+const getSlotOffset = (entityId: EntityId, slotIndex: number) => entityId * INVENTORY_SLOT_COUNT + slotIndex;
 
-export const addToInventory = (inventory: InventoryState, kind: ResourceKind, amount: number) => {
+export const getInventorySelectedIndex = (ecs: EcsWorld, entityId: EntityId) => ecs.inventorySelected[entityId];
+
+export const setInventorySelectedIndex = (ecs: EcsWorld, entityId: EntityId, index: number) => {
+  ecs.inventorySelected[entityId] = index;
+};
+
+export const getInventorySlotKindIndex = (ecs: EcsWorld, entityId: EntityId, slotIndex: number) =>
+  ecs.inventoryKind[getSlotOffset(entityId, slotIndex)];
+
+export const getInventorySlotQuantity = (ecs: EcsWorld, entityId: EntityId, slotIndex: number) =>
+  ecs.inventoryQuantity[getSlotOffset(entityId, slotIndex)];
+
+export const getInventorySlotKind = (ecs: EcsWorld, entityId: EntityId, slotIndex: number): ResourceKind | null => {
+  const kindIndex = getInventorySlotKindIndex(ecs, entityId, slotIndex);
+  return kindIndex === 0 ? null : resourceKindFromIndex(kindIndex);
+};
+
+export const clearInventorySlot = (ecs: EcsWorld, entityId: EntityId, slotIndex: number) => {
+  const offset = getSlotOffset(entityId, slotIndex);
+  ecs.inventoryKind[offset] = 0;
+  ecs.inventoryQuantity[offset] = 0;
+};
+
+export const setInventorySlotQuantity = (ecs: EcsWorld, entityId: EntityId, slotIndex: number, quantity: number) => {
+  const offset = getSlotOffset(entityId, slotIndex);
+  if (quantity <= 0) {
+    ecs.inventoryKind[offset] = 0;
+    ecs.inventoryQuantity[offset] = 0;
+    return;
+  }
+
+  ecs.inventoryQuantity[offset] = quantity;
+};
+
+export const addToInventory = (ecs: EcsWorld, entityId: EntityId, kind: ResourceKind, amount: number) => {
   if (amount <= 0) {
     return 0;
   }
 
   let remaining = amount;
-  const slots = inventory.slots;
+  const kindIndex = resourceKindToIndex(kind);
+  const base = entityId * INVENTORY_SLOT_COUNT;
 
-  const fillSlot = (slot: InventorySlot, allowEmpty: boolean) => {
+  const fillSlot = (slotIndex: number, allowEmpty: boolean) => {
     if (remaining <= 0) {
       return;
     }
 
-    if (slot.kind === null) {
+    const offset = base + slotIndex;
+    const slotKind = ecs.inventoryKind[offset];
+    if (slotKind === 0) {
       if (!allowEmpty) {
         return;
       }
-      slot.kind = kind;
+      ecs.inventoryKind[offset] = kindIndex;
     }
 
-    if (slot.kind !== kind) {
+    if (ecs.inventoryKind[offset] !== kindIndex) {
       return;
     }
 
-    const space = STACK_LIMIT - slot.quantity;
+    const space = STACK_LIMIT - ecs.inventoryQuantity[offset];
     if (space <= 0) {
       return;
     }
 
     const toAdd = Math.min(space, remaining);
-    slot.quantity += toAdd;
+    ecs.inventoryQuantity[offset] += toAdd;
     remaining -= toAdd;
   };
 
-  for (const slot of slots) {
-    if (slot.kind === kind && slot.quantity < STACK_LIMIT) {
-      fillSlot(slot, false);
+  for (let slotIndex = 0; slotIndex < INVENTORY_SLOT_COUNT; slotIndex += 1) {
+    const offset = base + slotIndex;
+    if (ecs.inventoryKind[offset] === kindIndex && ecs.inventoryQuantity[offset] < STACK_LIMIT) {
+      fillSlot(slotIndex, false);
     }
   }
 
-  for (const slot of slots) {
-    if (slot.kind === null) {
-      fillSlot(slot, true);
+  for (let slotIndex = 0; slotIndex < INVENTORY_SLOT_COUNT; slotIndex += 1) {
+    const offset = base + slotIndex;
+    if (ecs.inventoryKind[offset] === 0) {
+      fillSlot(slotIndex, true);
     }
   }
 
   return amount - remaining;
 };
 
-export const getTotalOfKind = (inventory: InventoryState, kind: ResourceKind) =>
-  inventory.slots.reduce((total, slot) => {
-    if (slot.kind === kind) {
-      return total + slot.quantity;
-    }
-    return total;
-  }, 0);
+export const getTotalOfKind = (ecs: EcsWorld, entityId: EntityId, kind: ResourceKind) => {
+  const kindIndex = resourceKindToIndex(kind);
+  const base = entityId * INVENTORY_SLOT_COUNT;
+  let total = 0;
 
-export const getAvailableSpace = (inventory: InventoryState, kind: ResourceKind) =>
-  inventory.slots.reduce((space, slot) => {
-    if (slot.kind === kind) {
-      return space + (STACK_LIMIT - slot.quantity);
+  for (let slotIndex = 0; slotIndex < INVENTORY_SLOT_COUNT; slotIndex += 1) {
+    const offset = base + slotIndex;
+    if (ecs.inventoryKind[offset] === kindIndex) {
+      total += ecs.inventoryQuantity[offset];
     }
-    if (slot.kind === null) {
-      return space + STACK_LIMIT;
-    }
-    return space;
-  }, 0);
+  }
 
-export const removeFromInventory = (inventory: InventoryState, kind: ResourceKind, amount: number) => {
+  return total;
+};
+
+export const getAvailableSpace = (ecs: EcsWorld, entityId: EntityId, kind: ResourceKind) => {
+  const kindIndex = resourceKindToIndex(kind);
+  const base = entityId * INVENTORY_SLOT_COUNT;
+  let space = 0;
+
+  for (let slotIndex = 0; slotIndex < INVENTORY_SLOT_COUNT; slotIndex += 1) {
+    const offset = base + slotIndex;
+    const slotKind = ecs.inventoryKind[offset];
+    if (slotKind === kindIndex) {
+      space += STACK_LIMIT - ecs.inventoryQuantity[offset];
+      continue;
+    }
+    if (slotKind === 0) {
+      space += STACK_LIMIT;
+    }
+  }
+
+  return space;
+};
+
+export const removeFromInventory = (ecs: EcsWorld, entityId: EntityId, kind: ResourceKind, amount: number) => {
   if (amount <= 0) {
     return 0;
   }
 
+  const kindIndex = resourceKindToIndex(kind);
+  const base = entityId * INVENTORY_SLOT_COUNT;
   let remaining = amount;
 
-  for (const slot of inventory.slots) {
-    if (slot.kind !== kind || remaining <= 0) {
+  for (let slotIndex = 0; slotIndex < INVENTORY_SLOT_COUNT; slotIndex += 1) {
+    if (remaining <= 0) {
+      break;
+    }
+
+    const offset = base + slotIndex;
+    if (ecs.inventoryKind[offset] !== kindIndex) {
       continue;
     }
 
-    const take = Math.min(slot.quantity, remaining);
-    slot.quantity -= take;
+    const take = Math.min(ecs.inventoryQuantity[offset], remaining);
+    ecs.inventoryQuantity[offset] -= take;
     remaining -= take;
 
-    if (slot.quantity <= 0) {
-      slot.quantity = 0;
-      slot.kind = null;
+    if (ecs.inventoryQuantity[offset] <= 0) {
+      ecs.inventoryQuantity[offset] = 0;
+      ecs.inventoryKind[offset] = 0;
     }
   }
 

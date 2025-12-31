@@ -46,5 +46,5 @@ export const updateCrafting = (state: GameState, input: InputState) => {
     return;
   }
 
-  craftRecipe(state.inventory, recipe);
+  craftRecipe(state.ecs, state.playerId, recipe);
 };

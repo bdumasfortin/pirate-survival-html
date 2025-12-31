@@ -2,6 +2,7 @@ import type { InputState } from "../core/input";
 import type { GameState } from "../game/state";
 import type { ResourceKind } from "../world/types";
 import { clamp, normalize } from "../core/math";
+import { nextFloat, nextRange } from "../core/rng";
 import { ComponentMask, destroyEntity, forEachEntity, isEntityAlive } from "../core/ecs";
 import { ENEMY_KIND_TO_INDEX } from "../game/enemy-kinds";
 import { isPointInPolygon } from "../world/island-geometry";
@@ -17,18 +18,16 @@ import {
 import { GROUND_ITEM_DROP_OFFSET } from "../game/ground-items-config";
 import { KRAKEN_STATS } from "../game/creatures-config";
 import { getEquippedItemCount } from "../game/equipment";
+import { spawnGroundItem } from "../game/ground-items";
+import { getInventorySelectedIndex, getInventorySlotKind, getInventorySlotQuantity } from "../game/inventory";
 import { ARMOR_PER_PIECE, ARMOR_REGEN_DELAY } from "../game/survival-config";
 
 const WANDER_SPEED_SCALE = 0.4;
-
-let playerAttackTimer = 0;
 const ENEMY_MASK = ComponentMask.Enemy | ComponentMask.Position | ComponentMask.Velocity | ComponentMask.Radius;
-
-const randomBetween = (min: number, max: number) => min + Math.random() * (max - min);
 
 const applyMonsterDamage = (state: GameState, damage: number) => {
   const stats = state.survival;
-  const maxArmor = getEquippedItemCount(state.equipment) * ARMOR_PER_PIECE;
+  const maxArmor = getEquippedItemCount(state.ecs, state.playerId) * ARMOR_PER_PIECE;
   stats.maxArmor = maxArmor;
   stats.armor = clamp(stats.armor, 0, stats.maxArmor);
 
@@ -58,6 +57,7 @@ const applyMonsterDamage = (state: GameState, damage: number) => {
 export const updateCrabs = (state: GameState, delta: number) => {
   const playerId = state.playerId;
   const ecs = state.ecs;
+  const rng = state.rng;
   if (!isEntityAlive(ecs, playerId)) {
     return;
   }
@@ -74,8 +74,8 @@ export const updateCrabs = (state: GameState, delta: number) => {
       ecs.enemyWanderTimer[id] -= delta;
 
       if (ecs.enemyWanderTimer[id] <= 0) {
-        ecs.enemyWanderAngle[id] = Math.random() * Math.PI * 2;
-        ecs.enemyWanderTimer[id] = randomBetween(KRAKEN_STATS.wanderTimerMin, KRAKEN_STATS.wanderTimerMax);
+        ecs.enemyWanderAngle[id] = nextFloat(rng) * Math.PI * 2;
+        ecs.enemyWanderTimer[id] = nextRange(rng, KRAKEN_STATS.wanderTimerMin, KRAKEN_STATS.wanderTimerMax);
       }
 
       ecs.velocity.x[id] = Math.cos(ecs.enemyWanderAngle[id]) * ecs.enemySpeed[id] * WANDER_SPEED_SCALE;
@@ -115,8 +115,8 @@ export const updateCrabs = (state: GameState, delta: number) => {
     } else {
       ecs.enemyWanderTimer[id] -= delta;
       if (ecs.enemyWanderTimer[id] <= 0) {
-        ecs.enemyWanderAngle[id] = Math.random() * Math.PI * 2;
-        ecs.enemyWanderTimer[id] = 1.5 + Math.random() * 2.5;
+        ecs.enemyWanderAngle[id] = nextFloat(rng) * Math.PI * 2;
+        ecs.enemyWanderTimer[id] = 1.5 + nextFloat(rng) * 2.5;
       }
       ecs.velocity.x[id] = Math.cos(ecs.enemyWanderAngle[id]) * ecs.enemySpeed[id] * WANDER_SPEED_SCALE;
       ecs.velocity.y[id] = Math.sin(ecs.enemyWanderAngle[id]) * ecs.enemySpeed[id] * WANDER_SPEED_SCALE;
@@ -144,7 +144,7 @@ export const updateCrabs = (state: GameState, delta: number) => {
 };
 
 export const updatePlayerAttack = (state: GameState, input: InputState, delta: number) => {
-  playerAttackTimer = Math.max(0, playerAttackTimer - delta);
+  state.playerAttackTimer = Math.max(0, state.playerAttackTimer - delta);
 
   if (state.attackEffect) {
     state.attackEffect.timer = Math.max(0, state.attackEffect.timer - delta);
@@ -157,19 +157,22 @@ export const updatePlayerAttack = (state: GameState, input: InputState, delta: n
     return;
   }
 
-  const slot = state.inventory.slots[state.inventory.selectedIndex];
-  if (!slot || slot.kind !== "sword" || slot.quantity <= 0) {
+  const selectedIndex = getInventorySelectedIndex(state.ecs, state.playerId);
+  const slotKind = getInventorySlotKind(state.ecs, state.playerId, selectedIndex);
+  const slotQuantity = getInventorySlotQuantity(state.ecs, state.playerId, selectedIndex);
+  if (slotKind !== "sword" || slotQuantity <= 0) {
     return;
   }
 
   input.useQueued = false;
 
-  if (playerAttackTimer > 0) {
+  if (state.playerAttackTimer > 0) {
     return;
   }
 
   const playerId = state.playerId;
   const ecs = state.ecs;
+  const rng = state.rng;
   if (!isEntityAlive(ecs, playerId)) {
     return;
   }
@@ -223,18 +226,18 @@ export const updatePlayerAttack = (state: GameState, input: InputState, delta: n
 
     if (ecs.enemyHealth[targetId] <= 0) {
       const dropItem = (kind: ResourceKind, offsetScale = 1) => {
-        const angle = Math.random() * Math.PI * 2;
+        const angle = nextFloat(rng) * Math.PI * 2;
         const offset = GROUND_ITEM_DROP_OFFSET * offsetScale;
-        state.groundItems.push({
-          id: state.nextGroundItemId++,
+        spawnGroundItem(
+          ecs,
           kind,
-          quantity: 1,
-          position: {
+          1,
+          {
             x: ecs.position.x[targetId] + Math.cos(angle) * offset,
             y: ecs.position.y[targetId] + Math.sin(angle) * offset
           },
-          droppedAt: state.time
-        });
+          state.time
+        );
       };
 
       switch (ecs.enemyKind[targetId]) {
@@ -261,5 +264,5 @@ export const updatePlayerAttack = (state: GameState, input: InputState, delta: n
     }
   }
 
-  playerAttackTimer = PLAYER_ATTACK_COOLDOWN;
+  state.playerAttackTimer = PLAYER_ATTACK_COOLDOWN;
 };

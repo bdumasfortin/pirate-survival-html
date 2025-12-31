@@ -5,8 +5,12 @@ export type EntityId = number;
 export enum EntityTag {
   Player = 1,
   Enemy = 2,
-  Resource = 3
+  Resource = 3,
+  GroundItem = 4
 }
+
+export const INVENTORY_SLOT_COUNT = 9;
+export const EQUIPMENT_SLOT_COUNT = 6;
 
 export const ComponentMask = {
   Position: 1 << 0,
@@ -15,7 +19,10 @@ export const ComponentMask = {
   Radius: 1 << 3,
   Tag: 1 << 4,
   Enemy: 1 << 5,
-  Resource: 1 << 6
+  Resource: 1 << 6,
+  Inventory: 1 << 7,
+  Equipment: 1 << 8,
+  GroundItem: 1 << 9
 } as const;
 
 export type Vec2Store = {
@@ -55,6 +62,54 @@ export type EcsWorld = {
   resourceRemaining: Int16Array;
   resourceRespawnTime: Float32Array;
   resourceRespawnTimer: Float32Array;
+  inventoryKind: Int16Array;
+  inventoryQuantity: Int16Array;
+  inventorySelected: Uint8Array;
+  equipmentKind: Int16Array;
+  groundItemKind: Uint8Array;
+  groundItemQuantity: Int16Array;
+  groundItemDroppedAt: Float32Array;
+};
+
+export type EcsSnapshot = {
+  capacity: number;
+  nextId: number;
+  alive: Uint8Array;
+  mask: Uint32Array;
+  tag: Uint8Array;
+  position: Vec2Store;
+  prevPosition: Vec2Store;
+  velocity: Vec2Store;
+  radius: Float32Array;
+  enemyKind: Uint8Array;
+  enemyIsBoss: Uint8Array;
+  enemyHealth: Float32Array;
+  enemyMaxHealth: Float32Array;
+  enemyHitTimer: Float32Array;
+  enemyDamage: Float32Array;
+  enemySpeed: Float32Array;
+  enemyAggroRange: Float32Array;
+  enemyAttackRange: Float32Array;
+  enemyAttackCooldown: Float32Array;
+  enemyAttackTimer: Float32Array;
+  enemyWanderAngle: Float32Array;
+  enemyWanderTimer: Float32Array;
+  enemyHomeIsland: Int16Array;
+  resourceNodeType: Uint8Array;
+  resourceKind: Uint8Array;
+  resourceRotation: Float32Array;
+  resourceYieldMin: Int16Array;
+  resourceYieldMax: Int16Array;
+  resourceRemaining: Int16Array;
+  resourceRespawnTime: Float32Array;
+  resourceRespawnTimer: Float32Array;
+  inventoryKind: Int16Array;
+  inventoryQuantity: Int16Array;
+  inventorySelected: Uint8Array;
+  equipmentKind: Int16Array;
+  groundItemKind: Uint8Array;
+  groundItemQuantity: Int16Array;
+  groundItemDroppedAt: Float32Array;
 };
 
 export const DEFAULT_ENTITY_MASK = ComponentMask.Position |
@@ -106,6 +161,13 @@ const resizeWorld = (world: EcsWorld, capacity: number) => {
   world.resourceRemaining = resizeInt16(world.resourceRemaining, capacity);
   world.resourceRespawnTime = resizeFloat32(world.resourceRespawnTime, capacity);
   world.resourceRespawnTimer = resizeFloat32(world.resourceRespawnTimer, capacity);
+  world.inventoryKind = resizeInt16(world.inventoryKind, capacity * INVENTORY_SLOT_COUNT);
+  world.inventoryQuantity = resizeInt16(world.inventoryQuantity, capacity * INVENTORY_SLOT_COUNT);
+  world.inventorySelected = resizeUint8(world.inventorySelected, capacity);
+  world.equipmentKind = resizeInt16(world.equipmentKind, capacity * EQUIPMENT_SLOT_COUNT);
+  world.groundItemKind = resizeUint8(world.groundItemKind, capacity);
+  world.groundItemQuantity = resizeInt16(world.groundItemQuantity, capacity);
+  world.groundItemDroppedAt = resizeFloat32(world.groundItemDroppedAt, capacity);
   world.capacity = capacity;
 };
 
@@ -164,7 +226,14 @@ export const createEcsWorld = (capacity = 64): EcsWorld => ({
   resourceYieldMax: new Int16Array(capacity),
   resourceRemaining: new Int16Array(capacity),
   resourceRespawnTime: new Float32Array(capacity),
-  resourceRespawnTimer: new Float32Array(capacity)
+  resourceRespawnTimer: new Float32Array(capacity),
+  inventoryKind: new Int16Array(capacity * INVENTORY_SLOT_COUNT),
+  inventoryQuantity: new Int16Array(capacity * INVENTORY_SLOT_COUNT),
+  inventorySelected: new Uint8Array(capacity),
+  equipmentKind: new Int16Array(capacity * EQUIPMENT_SLOT_COUNT),
+  groundItemKind: new Uint8Array(capacity),
+  groundItemQuantity: new Int16Array(capacity),
+  groundItemDroppedAt: new Float32Array(capacity)
 });
 
 export const ensureCapacity = (world: EcsWorld, id: number) => {
@@ -229,4 +298,95 @@ export const forEachEntity = (world: EcsWorld, mask: number, fn: (id: EntityId) 
 
     fn(id);
   }
+};
+
+const cloneUint8 = (source: Uint8Array) => new Uint8Array(source);
+const cloneUint32 = (source: Uint32Array) => new Uint32Array(source);
+const cloneFloat32 = (source: Float32Array) => new Float32Array(source);
+const cloneInt16 = (source: Int16Array) => new Int16Array(source);
+const cloneVec2Store = (store: Vec2Store): Vec2Store => ({
+  x: cloneFloat32(store.x),
+  y: cloneFloat32(store.y)
+});
+
+export const createEcsSnapshot = (world: EcsWorld): EcsSnapshot => ({
+  capacity: world.capacity,
+  nextId: world.nextId,
+  alive: cloneUint8(world.alive),
+  mask: cloneUint32(world.mask),
+  tag: cloneUint8(world.tag),
+  position: cloneVec2Store(world.position),
+  prevPosition: cloneVec2Store(world.prevPosition),
+  velocity: cloneVec2Store(world.velocity),
+  radius: cloneFloat32(world.radius),
+  enemyKind: cloneUint8(world.enemyKind),
+  enemyIsBoss: cloneUint8(world.enemyIsBoss),
+  enemyHealth: cloneFloat32(world.enemyHealth),
+  enemyMaxHealth: cloneFloat32(world.enemyMaxHealth),
+  enemyHitTimer: cloneFloat32(world.enemyHitTimer),
+  enemyDamage: cloneFloat32(world.enemyDamage),
+  enemySpeed: cloneFloat32(world.enemySpeed),
+  enemyAggroRange: cloneFloat32(world.enemyAggroRange),
+  enemyAttackRange: cloneFloat32(world.enemyAttackRange),
+  enemyAttackCooldown: cloneFloat32(world.enemyAttackCooldown),
+  enemyAttackTimer: cloneFloat32(world.enemyAttackTimer),
+  enemyWanderAngle: cloneFloat32(world.enemyWanderAngle),
+  enemyWanderTimer: cloneFloat32(world.enemyWanderTimer),
+  enemyHomeIsland: cloneInt16(world.enemyHomeIsland),
+  resourceNodeType: cloneUint8(world.resourceNodeType),
+  resourceKind: cloneUint8(world.resourceKind),
+  resourceRotation: cloneFloat32(world.resourceRotation),
+  resourceYieldMin: cloneInt16(world.resourceYieldMin),
+  resourceYieldMax: cloneInt16(world.resourceYieldMax),
+  resourceRemaining: cloneInt16(world.resourceRemaining),
+  resourceRespawnTime: cloneFloat32(world.resourceRespawnTime),
+  resourceRespawnTimer: cloneFloat32(world.resourceRespawnTimer),
+  inventoryKind: cloneInt16(world.inventoryKind),
+  inventoryQuantity: cloneInt16(world.inventoryQuantity),
+  inventorySelected: cloneUint8(world.inventorySelected),
+  equipmentKind: cloneInt16(world.equipmentKind),
+  groundItemKind: cloneUint8(world.groundItemKind),
+  groundItemQuantity: cloneInt16(world.groundItemQuantity),
+  groundItemDroppedAt: cloneFloat32(world.groundItemDroppedAt)
+});
+
+export const restoreEcsSnapshot = (world: EcsWorld, snapshot: EcsSnapshot) => {
+  world.capacity = snapshot.capacity;
+  world.nextId = snapshot.nextId;
+  world.alive = cloneUint8(snapshot.alive);
+  world.mask = cloneUint32(snapshot.mask);
+  world.tag = cloneUint8(snapshot.tag);
+  world.position = cloneVec2Store(snapshot.position);
+  world.prevPosition = cloneVec2Store(snapshot.prevPosition);
+  world.velocity = cloneVec2Store(snapshot.velocity);
+  world.radius = cloneFloat32(snapshot.radius);
+  world.enemyKind = cloneUint8(snapshot.enemyKind);
+  world.enemyIsBoss = cloneUint8(snapshot.enemyIsBoss);
+  world.enemyHealth = cloneFloat32(snapshot.enemyHealth);
+  world.enemyMaxHealth = cloneFloat32(snapshot.enemyMaxHealth);
+  world.enemyHitTimer = cloneFloat32(snapshot.enemyHitTimer);
+  world.enemyDamage = cloneFloat32(snapshot.enemyDamage);
+  world.enemySpeed = cloneFloat32(snapshot.enemySpeed);
+  world.enemyAggroRange = cloneFloat32(snapshot.enemyAggroRange);
+  world.enemyAttackRange = cloneFloat32(snapshot.enemyAttackRange);
+  world.enemyAttackCooldown = cloneFloat32(snapshot.enemyAttackCooldown);
+  world.enemyAttackTimer = cloneFloat32(snapshot.enemyAttackTimer);
+  world.enemyWanderAngle = cloneFloat32(snapshot.enemyWanderAngle);
+  world.enemyWanderTimer = cloneFloat32(snapshot.enemyWanderTimer);
+  world.enemyHomeIsland = cloneInt16(snapshot.enemyHomeIsland);
+  world.resourceNodeType = cloneUint8(snapshot.resourceNodeType);
+  world.resourceKind = cloneUint8(snapshot.resourceKind);
+  world.resourceRotation = cloneFloat32(snapshot.resourceRotation);
+  world.resourceYieldMin = cloneInt16(snapshot.resourceYieldMin);
+  world.resourceYieldMax = cloneInt16(snapshot.resourceYieldMax);
+  world.resourceRemaining = cloneInt16(snapshot.resourceRemaining);
+  world.resourceRespawnTime = cloneFloat32(snapshot.resourceRespawnTime);
+  world.resourceRespawnTimer = cloneFloat32(snapshot.resourceRespawnTimer);
+  world.inventoryKind = cloneInt16(snapshot.inventoryKind);
+  world.inventoryQuantity = cloneInt16(snapshot.inventoryQuantity);
+  world.inventorySelected = cloneUint8(snapshot.inventorySelected);
+  world.equipmentKind = cloneInt16(snapshot.equipmentKind);
+  world.groundItemKind = cloneUint8(snapshot.groundItemKind);
+  world.groundItemQuantity = cloneInt16(snapshot.groundItemQuantity);
+  world.groundItemDroppedAt = cloneFloat32(snapshot.groundItemDroppedAt);
 };

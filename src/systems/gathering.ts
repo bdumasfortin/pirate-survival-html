@@ -1,5 +1,6 @@
 import { consumeInteract, type InputState } from "../core/input";
 import { ComponentMask, destroyEntity, forEachEntity, isEntityAlive, type EcsWorld, type EntityId } from "../core/ecs";
+import { nextInt, type RngState } from "../core/rng";
 import { addToInventory } from "../game/inventory";
 import type { GameState } from "../game/state";
 import { resourceKindFromIndex } from "../world/resource-kinds";
@@ -7,12 +8,7 @@ import { resourceKindFromIndex } from "../world/resource-kinds";
 export const GATHER_RANGE = 10;
 const RESOURCE_MASK = ComponentMask.Resource | ComponentMask.Position | ComponentMask.Radius;
 
-const rollYield = (min: number, max: number) => {
-  if (max <= min) {
-    return min;
-  }
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-};
+const rollYield = (rng: RngState, min: number, max: number) => nextInt(rng, min, max);
 
 export const getNearestGatherableResource = (
   ecs: EcsWorld,
@@ -43,6 +39,7 @@ export const getNearestGatherableResource = (
 
 export const updateResourceRespawns = (state: GameState, delta: number) => {
   const ecs = state.ecs;
+  const rng = state.rng;
   forEachEntity(ecs, RESOURCE_MASK, (id) => {
     if (ecs.resourceRemaining[id] > 0 || ecs.resourceRespawnTime[id] <= 0) {
       return;
@@ -50,7 +47,7 @@ export const updateResourceRespawns = (state: GameState, delta: number) => {
 
     ecs.resourceRespawnTimer[id] -= delta;
     if (ecs.resourceRespawnTimer[id] <= 0) {
-      ecs.resourceRemaining[id] = rollYield(ecs.resourceYieldMin[id], ecs.resourceYieldMax[id]);
+      ecs.resourceRemaining[id] = rollYield(rng, ecs.resourceYieldMin[id], ecs.resourceYieldMax[id]);
       ecs.resourceRespawnTimer[id] = 0;
     }
   });
@@ -75,7 +72,7 @@ export const gatherNearbyResource = (state: GameState, input: InputState) => {
   }
 
   const kind = resourceKindFromIndex(ecs.resourceKind[targetId]);
-  const added = addToInventory(state.inventory, kind, 1);
+  const added = addToInventory(ecs, playerId, kind, 1);
   if (added <= 0) {
     return;
   }

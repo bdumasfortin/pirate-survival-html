@@ -1,6 +1,7 @@
 import type { InputState } from "../core/input";
 import type { GameState } from "../game/state";
 import { isEntityAlive } from "../core/ecs";
+import { getInventorySelectedIndex, getInventorySlotKind, getInventorySlotQuantity } from "../game/inventory";
 import { RAFT_INTERACTION_DISTANCE, RAFT_SHORE_BUFFER } from "../game/raft-config";
 import { findClosestIslandEdge } from "../world/island-geometry";
 
@@ -13,8 +14,10 @@ export const updateRaft = (state: GameState, input: InputState) => {
     return;
   }
 
-  const slot = state.inventory.slots[state.inventory.selectedIndex];
-  if (!slot || slot.kind !== "raft" || slot.quantity <= 0) {
+  const selectedIndex = getInventorySelectedIndex(state.ecs, state.playerId);
+  const slotKind = getInventorySlotKind(state.ecs, state.playerId, selectedIndex);
+  const slotQuantity = getInventorySlotQuantity(state.ecs, state.playerId, selectedIndex);
+  if (slotKind !== "raft" || slotQuantity <= 0) {
     return;
   }
 

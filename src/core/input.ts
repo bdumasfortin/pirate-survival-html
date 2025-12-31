@@ -1,4 +1,5 @@
-import type { InventoryState } from "../game/inventory";
+import type { EcsWorld, EntityId } from "./ecs";
+import { INVENTORY_SLOT_COUNT } from "./ecs";
 import type { Vec2 } from "./types";
 
 export type InputState = {
@@ -233,9 +234,9 @@ const clampIndex = (index: number, length: number) => {
   return (index + length) % length;
 };
 
-export const bindInventorySelection = (inventory: InventoryState, canSelect: () => boolean = () => true) => {
+export const bindInventorySelection = (ecs: EcsWorld, entityId: EntityId, canSelect: () => boolean = () => true) => {
   const setIndex = (index: number) => {
-    inventory.selectedIndex = clampIndex(index, inventory.slots.length);
+    ecs.inventorySelected[entityId] = clampIndex(index, INVENTORY_SLOT_COUNT);
   };
 
   const handleKey = (event: KeyboardEvent) => {
@@ -271,7 +272,7 @@ export const bindInventorySelection = (inventory: InventoryState, canSelect: () 
 
     event.preventDefault();
     const direction = event.deltaY > 0 ? 1 : -1;
-    setIndex(inventory.selectedIndex + direction);
+    setIndex(ecs.inventorySelected[entityId] + direction);
   };
 
   window.addEventListener("keydown", handleKey);

@@ -5,9 +5,10 @@ import { GROUND_ITEM_RENDER_SIZE } from "../game/ground-items-config";
 import { CRAB_HIT_FLASH_DURATION } from "../game/combat-config";
 import { ComponentMask, forEachEntity, isEntityAlive } from "../core/ecs";
 import { enemyKindFromIndex } from "../game/enemy-kinds";
+import { GROUND_ITEM_MASK } from "../game/ground-items";
 import { drawIsland, insetPoints } from "./render-helpers";
 import { isImageReady, itemImages, worldImages } from "./assets";
-import { resourceNodeTypeFromIndex } from "../world/resource-kinds";
+import { resourceKindFromIndex, resourceNodeTypeFromIndex } from "../world/resource-kinds";
 
 const SEA_GRADIENT_TOP = "#2c7a7b";
 const SEA_GRADIENT_BOTTOM = "#0b2430";
@@ -77,24 +78,26 @@ const renderIslands = (ctx: CanvasRenderingContext2D, state: GameState) => {
 const renderGroundItems = (ctx: CanvasRenderingContext2D, state: GameState) => {
   const size = GROUND_ITEM_RENDER_SIZE;
   const time = state.time;
-  state.groundItems.forEach((item) => {
-    const icon = getItemIcon(item.kind);
+  const ecs = state.ecs;
+  forEachEntity(ecs, GROUND_ITEM_MASK, (id) => {
+    const kind = resourceKindFromIndex(ecs.groundItemKind[id]);
+    const icon = getItemIcon(kind);
     if (icon) {
-      ctx.drawImage(icon, item.position.x - size / 2, item.position.y - size / 2, size, size);
+      ctx.drawImage(icon, ecs.position.x[id] - size / 2, ecs.position.y[id] - size / 2, size, size);
     } else {
       ctx.beginPath();
-      ctx.arc(item.position.x, item.position.y, size * 0.4, 0, Math.PI * 2);
+      ctx.arc(ecs.position.x[id], ecs.position.y[id], size * 0.4, 0, Math.PI * 2);
       ctx.fillStyle = "#f0d58b";
       ctx.fill();
     }
 
     ctx.save();
     for (let i = 0; i < GROUND_ITEM_SPARKLE_COUNT; i += 1) {
-      const angle = time * GROUND_ITEM_SPARKLE_SPEED + item.id * 0.7 + (i / GROUND_ITEM_SPARKLE_COUNT) * Math.PI * 2;
+      const angle = time * GROUND_ITEM_SPARKLE_SPEED + id * 0.7 + (i / GROUND_ITEM_SPARKLE_COUNT) * Math.PI * 2;
       const pulse = 0.5 + 0.5 * Math.sin(time * 3 + i * 1.7);
       const orbit = GROUND_ITEM_SPARKLE_ORBIT + pulse * 2;
-      const x = item.position.x + Math.cos(angle) * orbit;
-      const y = item.position.y + Math.sin(angle) * orbit;
+      const x = ecs.position.x[id] + Math.cos(angle) * orbit;
+      const y = ecs.position.y[id] + Math.sin(angle) * orbit;
 
       ctx.globalAlpha = 0.3 + pulse * 0.5;
       ctx.beginPath();

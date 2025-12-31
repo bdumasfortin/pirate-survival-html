@@ -1,5 +1,6 @@
 import type { Vec2 } from "../core/types";
 import type { EcsWorld } from "../core/ecs";
+import { nextFloat, nextRange, type RngState } from "../core/rng";
 import { ComponentMask, createEntity, EntityTag } from "../core/ecs";
 import { enemyKindToIndex } from "./enemy-kinds";
 import type { Island, WorldState } from "../world/types";
@@ -29,15 +30,13 @@ import {
   type CrabStats
 } from "./creatures-config";
 
-const randomBetween = (min: number, max: number) => min + Math.random() * (max - min);
-
 const isPointInAnyIsland = (point: Vec2, islands: Island[]) => islands.some((island) => isPointInPolygon(point, island.points));
 
-const randomPointInIsland = (island: Island, radiusScale: number) => {
+const randomPointInIsland = (rng: RngState, island: Island, radiusScale: number) => {
   let position = island.center;
   for (let attempt = 0; attempt < CRAB_SPAWN_ATTEMPTS; attempt += 1) {
-    const angle = Math.random() * Math.PI * 2;
-    const ring = randomBetween(CRAB_SPAWN_RING_MIN, CRAB_SPAWN_RING_MAX);
+    const angle = nextFloat(rng) * Math.PI * 2;
+    const ring = nextRange(rng, CRAB_SPAWN_RING_MIN, CRAB_SPAWN_RING_MAX);
     const radius = ring * radiusScale;
     position = {
       x: island.center.x + Math.cos(angle) * CRAB_SPAWN_BASE_RADIUS * radius,
@@ -52,12 +51,12 @@ const randomPointInIsland = (island: Island, radiusScale: number) => {
   return position;
 };
 
-const randomPointInSea = (origin: Vec2, islands: Island[]) => {
+const randomPointInSea = (rng: RngState, origin: Vec2, islands: Island[]) => {
   let position = origin;
 
   for (let attempt = 0; attempt < KRAKEN_SPAWN_ATTEMPTS; attempt += 1) {
-    const angle = Math.random() * Math.PI * 2;
-    const radius = randomBetween(KRAKEN_SPAWN_MIN_DISTANCE, KRAKEN_SPAWN_MAX_DISTANCE);
+    const angle = nextFloat(rng) * Math.PI * 2;
+    const radius = nextRange(rng, KRAKEN_SPAWN_MIN_DISTANCE, KRAKEN_SPAWN_MAX_DISTANCE);
     position = {
       x: origin.x + Math.cos(angle) * radius,
       y: origin.y + Math.sin(angle) * radius
@@ -77,7 +76,7 @@ const ENEMY_MASK = ComponentMask.Position |
   ComponentMask.Tag |
   ComponentMask.Enemy;
 
-const spawnCrab = (ecs: EcsWorld, position: Vec2, homeIslandIndex: number, stats: CrabStats, isBoss = false) => {
+const spawnCrab = (ecs: EcsWorld, rng: RngState, position: Vec2, homeIslandIndex: number, stats: CrabStats, isBoss = false) => {
   const id = createEntity(ecs, ENEMY_MASK, EntityTag.Enemy);
   ecs.position.x[id] = position.x;
   ecs.position.y[id] = position.y;
@@ -94,13 +93,13 @@ const spawnCrab = (ecs: EcsWorld, position: Vec2, homeIslandIndex: number, stats
   ecs.enemyAttackRange[id] = stats.attackRange;
   ecs.enemyAttackCooldown[id] = stats.attackCooldown;
   ecs.enemyAttackTimer[id] = 0;
-  ecs.enemyWanderAngle[id] = Math.random() * Math.PI * 2;
-  ecs.enemyWanderTimer[id] = randomBetween(stats.wanderTimerMin, stats.wanderTimerMax);
+  ecs.enemyWanderAngle[id] = nextFloat(rng) * Math.PI * 2;
+  ecs.enemyWanderTimer[id] = nextRange(rng, stats.wanderTimerMin, stats.wanderTimerMax);
   ecs.enemyHomeIsland[id] = homeIslandIndex;
   ecs.enemyHitTimer[id] = 0;
 };
 
-const spawnWolf = (ecs: EcsWorld, position: Vec2, homeIslandIndex: number, stats: CrabStats, isBoss = false) => {
+const spawnWolf = (ecs: EcsWorld, rng: RngState, position: Vec2, homeIslandIndex: number, stats: CrabStats, isBoss = false) => {
   const id = createEntity(ecs, ENEMY_MASK, EntityTag.Enemy);
   ecs.position.x[id] = position.x;
   ecs.position.y[id] = position.y;
@@ -117,13 +116,13 @@ const spawnWolf = (ecs: EcsWorld, position: Vec2, homeIslandIndex: number, stats
   ecs.enemyAttackRange[id] = stats.attackRange;
   ecs.enemyAttackCooldown[id] = stats.attackCooldown;
   ecs.enemyAttackTimer[id] = 0;
-  ecs.enemyWanderAngle[id] = Math.random() * Math.PI * 2;
-  ecs.enemyWanderTimer[id] = randomBetween(stats.wanderTimerMin, stats.wanderTimerMax);
+  ecs.enemyWanderAngle[id] = nextFloat(rng) * Math.PI * 2;
+  ecs.enemyWanderTimer[id] = nextRange(rng, stats.wanderTimerMin, stats.wanderTimerMax);
   ecs.enemyHomeIsland[id] = homeIslandIndex;
   ecs.enemyHitTimer[id] = 0;
 };
 
-const spawnKraken = (ecs: EcsWorld, position: Vec2) => {
+const spawnKraken = (ecs: EcsWorld, rng: RngState, position: Vec2) => {
   const id = createEntity(ecs, ENEMY_MASK, EntityTag.Enemy);
   ecs.position.x[id] = position.x;
   ecs.position.y[id] = position.y;
@@ -140,13 +139,13 @@ const spawnKraken = (ecs: EcsWorld, position: Vec2) => {
   ecs.enemyAttackRange[id] = 0;
   ecs.enemyAttackCooldown[id] = KRAKEN_STATS.attackCooldown;
   ecs.enemyAttackTimer[id] = 0;
-  ecs.enemyWanderAngle[id] = Math.random() * Math.PI * 2;
-  ecs.enemyWanderTimer[id] = randomBetween(KRAKEN_STATS.wanderTimerMin, KRAKEN_STATS.wanderTimerMax);
+  ecs.enemyWanderAngle[id] = nextFloat(rng) * Math.PI * 2;
+  ecs.enemyWanderTimer[id] = nextRange(rng, KRAKEN_STATS.wanderTimerMin, KRAKEN_STATS.wanderTimerMax);
   ecs.enemyHomeIsland[id] = -1;
   ecs.enemyHitTimer[id] = 0;
 };
 
-export const createEnemies = (ecs: EcsWorld, world: WorldState) => {
+export const createEnemies = (ecs: EcsWorld, world: WorldState, rng: RngState) => {
   if (world.islands.length === 0) {
     return;
   }
@@ -154,37 +153,37 @@ export const createEnemies = (ecs: EcsWorld, world: WorldState) => {
   world.islands.forEach((island, index) => {
     if (island.type === "standard") {
       for (let i = 0; i < STANDARD_CRAB_COUNT; i += 1) {
-        const position = randomPointInIsland(island, CRAB_SPAWN_RADIUS_SCALE);
-        spawnCrab(ecs, position, index, CRAB_DEFAULT_STATS);
+        const position = randomPointInIsland(rng, island, CRAB_SPAWN_RADIUS_SCALE);
+        spawnCrab(ecs, rng, position, index, CRAB_DEFAULT_STATS);
       }
       return;
     }
 
     if (island.type === "forest") {
       for (let i = 0; i < FOREST_WOLF_COUNT; i += 1) {
-        const position = randomPointInIsland(island, WOLF_SPAWN_RADIUS_SCALE);
-        spawnWolf(ecs, position, index, WOLF_DEFAULT_STATS);
+        const position = randomPointInIsland(rng, island, WOLF_SPAWN_RADIUS_SCALE);
+        spawnWolf(ecs, rng, position, index, WOLF_DEFAULT_STATS);
       }
       return;
     }
 
     if (island.type === "wolfBoss") {
       for (let i = 0; i < WOLF_BOSS_COUNT; i += 1) {
-        const position = randomPointInIsland(island, WOLF_BOSS_RADIUS_SCALE);
-        spawnWolf(ecs, position, index, WOLF_BOSS_STATS, true);
+        const position = randomPointInIsland(rng, island, WOLF_BOSS_RADIUS_SCALE);
+        spawnWolf(ecs, rng, position, index, WOLF_BOSS_STATS, true);
       }
       return;
     }
 
     for (let i = 0; i < BEACH_BOSS_CRAB_COUNT; i += 1) {
-      const position = randomPointInIsland(island, CRAB_BOSS_RADIUS_SCALE);
-      spawnCrab(ecs, position, index, CRAB_BOSS_STATS, true);
+      const position = randomPointInIsland(rng, island, CRAB_BOSS_RADIUS_SCALE);
+      spawnCrab(ecs, rng, position, index, CRAB_BOSS_STATS, true);
     }
   });
 
   const spawnAnchor = world.islands[0]?.center ?? { x: 0, y: 0 };
   for (let i = 0; i < KRAKEN_SPAWN_COUNT; i += 1) {
-    const position = randomPointInSea(spawnAnchor, world.islands);
-    spawnKraken(ecs, position);
+    const position = randomPointInSea(rng, spawnAnchor, world.islands);
+    spawnKraken(ecs, rng, position);
   }
 };

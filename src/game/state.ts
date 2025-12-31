@@ -1,9 +1,9 @@
-import { createEcsWorld, createEntity, type EcsWorld, type EntityId } from "../core/ecs";
+import { ComponentMask, createEcsWorld, createEntity, EntityTag, type EcsWorld, type EntityId } from "../core/ecs";
+import { createRng, type RngState } from "../core/rng";
+import { normalizeSeed } from "../core/seed";
 import { createCraftingState, type CraftingState } from "./crafting";
 import { createEnemies } from "./creatures";
-import type { GroundItem } from "./ground-items";
-import { addToInventory, createInventory, type InventoryState } from "./inventory";
-import { createEquipmentState, type EquipmentState } from "./equipment";
+import { addToInventory } from "./inventory";
 import { createRaftState, type RaftState } from "./raft";
 import { createSurvivalStats, type SurvivalStats } from "./survival";
 import { createWorld, spawnWorldResources } from "../world/world";
@@ -24,8 +24,7 @@ export type GameState = {
   ecs: EcsWorld;
   playerId: EntityId;
   world: WorldState;
-  inventory: InventoryState;
-  equipment: EquipmentState;
+  rng: RngState;
   survival: SurvivalStats;
   crafting: CraftingState;
   raft: RaftState;
@@ -33,22 +32,29 @@ export type GameState = {
   aimAngle: number;
   moveAngle: number;
   damageFlashTimer: number;
-  groundItems: GroundItem[];
-  nextGroundItemId: number;
+  playerAttackTimer: number;
+  useCooldown: number;
   attackEffect: AttackEffect | null;
 };
 
-const seedDevInventory = (inventory: InventoryState) => {
-  addToInventory(inventory, "raft", 1);
-  addToInventory(inventory, "sword", 1);
-  addToInventory(inventory, "crabhelmet", 1);
-  addToInventory(inventory, "wolfcloak", 1);
-  addToInventory(inventory, "krakenring", 1);
+const seedDevInventory = (ecs: EcsWorld, playerId: EntityId) => {
+  addToInventory(ecs, playerId, "raft", 1);
+  addToInventory(ecs, playerId, "sword", 1);
+  addToInventory(ecs, playerId, "crabhelmet", 1);
+  addToInventory(ecs, playerId, "wolfcloak", 1);
+  addToInventory(ecs, playerId, "krakenring", 1);
 };
 
 export const createInitialState = (seed: string | number): GameState => {
   const ecs = createEcsWorld();
-  const playerId = createEntity(ecs);
+  const playerMask = ComponentMask.Position |
+    ComponentMask.PrevPosition |
+    ComponentMask.Velocity |
+    ComponentMask.Radius |
+    ComponentMask.Tag |
+    ComponentMask.Inventory |
+    ComponentMask.Equipment;
+  const playerId = createEntity(ecs, playerMask, EntityTag.Player);
   ecs.position.x[playerId] = 0;
   ecs.position.y[playerId] = 0;
   ecs.prevPosition.x[playerId] = 0;
@@ -56,14 +62,16 @@ export const createInitialState = (seed: string | number): GameState => {
   ecs.velocity.x[playerId] = 0;
   ecs.velocity.y[playerId] = 0;
   ecs.radius[playerId] = 14;
+  ecs.inventorySelected[playerId] = 0;
 
-  const world = createWorld(seed);
+  const normalizedSeed = normalizeSeed(seed);
+  const world = createWorld(normalizedSeed);
+  const rng = createRng(normalizedSeed);
   spawnWorldResources(ecs, world);
-  createEnemies(ecs, world);
-  const inventory = createInventory();
+  createEnemies(ecs, world, rng);
 
   if (import.meta.env.DEV) {
-    seedDevInventory(inventory);
+    seedDevInventory(ecs, playerId);
   }
 
   return {
@@ -71,8 +79,7 @@ export const createInitialState = (seed: string | number): GameState => {
     ecs,
     playerId,
     world,
-    inventory,
-    equipment: createEquipmentState(),
+    rng,
     survival: createSurvivalStats(),
     crafting: createCraftingState(),
     raft: createRaftState(),
@@ -80,8 +87,8 @@ export const createInitialState = (seed: string | number): GameState => {
     aimAngle: 0,
     moveAngle: 0,
     damageFlashTimer: 0,
-    groundItems: [],
-    nextGroundItemId: 1,
+    playerAttackTimer: 0,
+    useCooldown: 0,
     attackEffect: null
   };
 };

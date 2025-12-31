@@ -125,7 +125,7 @@ const startGame = async (seed: string) => {
   bindKeyboard(input);
   bindMouse(input);
   bindCraftScroll(input, () => state.crafting.isOpen);
-  bindInventorySelection(state.inventory, () => !state.crafting.isOpen && !state.isDead);
+  bindInventorySelection(state.ecs, state.playerId, () => !state.crafting.isOpen && !state.isDead);
 
   if (document.fonts && document.fonts.load) {
     try {
@@ -162,7 +162,7 @@ const startGame = async (seed: string) => {
 
       if (!state.isDead) {
         gatherNearbyResource(state, input);
-        updateUseCooldown(delta);
+        updateUseCooldown(state, delta);
         if (!state.crafting.isOpen) {
           updatePlayerAttack(state, input, delta);
           useSelectedItem(state, input);

@@ -1,14 +1,13 @@
 import { type InputState } from "../core/input";
 import type { GameState } from "../game/state";
-import { getEquipmentSlotForItem } from "../game/equipment";
+import { getEquipmentSlotForItem, getEquipmentSlotKind, setEquipmentSlotKind } from "../game/equipment";
 import { clamp } from "../core/math";
+import { getInventorySelectedIndex, getInventorySlotKind, getInventorySlotQuantity, setInventorySlotQuantity } from "../game/inventory";
 import { BERRY_RESTORE_RATIO, CRAB_MEAT_RESTORE_RATIO, ITEM_USE_COOLDOWN, WOLF_MEAT_RESTORE_RATIO } from "../game/use-config";
 
-let useCooldown = 0;
-
-export const updateUseCooldown = (delta: number) => {
-  if (useCooldown > 0) {
-    useCooldown = Math.max(0, useCooldown - delta);
+export const updateUseCooldown = (state: GameState, delta: number) => {
+  if (state.useCooldown > 0) {
+    state.useCooldown = Math.max(0, state.useCooldown - delta);
   }
 };
 
@@ -17,48 +16,44 @@ export const useSelectedItem = (state: GameState, input: InputState) => {
     return;
   }
 
-  const slot = state.inventory.slots[state.inventory.selectedIndex];
-  if (!slot || slot.quantity <= 0 || !slot.kind) {
+  const ecs = state.ecs;
+  const playerId = state.playerId;
+  const selectedIndex = getInventorySelectedIndex(ecs, playerId);
+  const slotKind = getInventorySlotKind(ecs, playerId, selectedIndex);
+  const slotQuantity = getInventorySlotQuantity(ecs, playerId, selectedIndex);
+  if (!slotKind || slotQuantity <= 0) {
     return;
   }
 
   input.useQueued = false;
 
-  const equipSlot = getEquipmentSlotForItem(slot.kind);
+  const equipSlot = getEquipmentSlotForItem(slotKind);
   if (equipSlot) {
-    if (!state.equipment.slots[equipSlot]) {
-      state.equipment.slots[equipSlot] = slot.kind;
-      slot.quantity -= 1;
-      if (slot.quantity <= 0) {
-        slot.quantity = 0;
-        slot.kind = null;
-      }
+    if (!getEquipmentSlotKind(ecs, playerId, equipSlot)) {
+      setEquipmentSlotKind(ecs, playerId, equipSlot, slotKind);
+      setInventorySlotQuantity(ecs, playerId, selectedIndex, slotQuantity - 1);
     }
     return;
   }
 
-  if (slot.kind !== "berries" && slot.kind !== "crabmeat" && slot.kind !== "wolfmeat") {
+  if (slotKind !== "berries" && slotKind !== "crabmeat" && slotKind !== "wolfmeat") {
     return;
   }
 
-  if (useCooldown > 0) {
+  if (state.useCooldown > 0) {
     return;
   }
 
   const stats = state.survival;
-  const restoreRatio = slot.kind === "wolfmeat"
+  const restoreRatio = slotKind === "wolfmeat"
     ? WOLF_MEAT_RESTORE_RATIO
-    : slot.kind === "crabmeat"
+    : slotKind === "crabmeat"
       ? CRAB_MEAT_RESTORE_RATIO
       : BERRY_RESTORE_RATIO;
   const restore = stats.maxHunger * restoreRatio;
   stats.hunger = clamp(stats.hunger + restore, 0, stats.maxHunger);
 
-  slot.quantity -= 1;
-  if (slot.quantity <= 0) {
-    slot.quantity = 0;
-    slot.kind = null;
-  }
+  setInventorySlotQuantity(ecs, playerId, selectedIndex, slotQuantity - 1);
 
-  useCooldown = ITEM_USE_COOLDOWN;
+  state.useCooldown = ITEM_USE_COOLDOWN;
 };

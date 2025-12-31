@@ -1,6 +1,14 @@
 import { consumeDrop, type InputState } from "../core/input";
 import type { GameState } from "../game/state";
 import { isEntityAlive } from "../core/ecs";
+import { spawnGroundItem } from "../game/ground-items";
+import {
+  clearInventorySlot,
+  getInventorySelectedIndex,
+  getInventorySlotKind,
+  getInventorySlotQuantity,
+  setInventorySlotQuantity
+} from "../game/inventory";
 import { GROUND_ITEM_DROP_OFFSET } from "../game/ground-items-config";
 
 export const dropSelectedItem = (state: GameState, input: InputState) => {
@@ -8,8 +16,10 @@ export const dropSelectedItem = (state: GameState, input: InputState) => {
     return;
   }
 
-  const slot = state.inventory.slots[state.inventory.selectedIndex];
-  if (!slot || slot.quantity <= 0 || !slot.kind) {
+  const selectedIndex = getInventorySelectedIndex(state.ecs, state.playerId);
+  const slotKind = getInventorySlotKind(state.ecs, state.playerId, selectedIndex);
+  const slotQuantity = getInventorySlotQuantity(state.ecs, state.playerId, selectedIndex);
+  if (!slotKind || slotQuantity <= 0) {
     return;
   }
 
@@ -21,20 +31,21 @@ export const dropSelectedItem = (state: GameState, input: InputState) => {
 
   const angle = state.aimAngle;
   const offset = GROUND_ITEM_DROP_OFFSET;
-  state.groundItems.push({
-    id: state.nextGroundItemId++,
-    kind: slot.kind,
-    quantity: 1,
-    position: {
+  spawnGroundItem(
+    ecs,
+    slotKind,
+    1,
+    {
       x: ecs.position.x[playerId] + Math.cos(angle) * offset,
       y: ecs.position.y[playerId] + Math.sin(angle) * offset
     },
-    droppedAt: state.time
-  });
+    state.time
+  );
 
-  slot.quantity -= 1;
-  if (slot.quantity <= 0) {
-    slot.quantity = 0;
-    slot.kind = null;
+  const remaining = slotQuantity - 1;
+  if (remaining <= 0) {
+    clearInventorySlot(ecs, playerId, selectedIndex);
+  } else {
+    setInventorySlotQuantity(ecs, playerId, selectedIndex, remaining);
   }
 };
