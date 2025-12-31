@@ -1,4 +1,5 @@
-import { EQUIPMENT_SLOT_COUNT, INVENTORY_SLOT_COUNT, type EcsWorld } from "./ecs";
+import { EQUIPMENT_SLOT_COUNT, INVENTORY_SLOT_COUNT, type EcsSnapshot, type EcsWorld } from "./ecs";
+import type { GameStateSnapshot } from "../game/rollback";
 import type { GameState } from "../game/state";
 import type { WorldState } from "../world/types";
 
@@ -55,7 +56,9 @@ const hashWorld = (hash: number, world: WorldState) => {
   return next;
 };
 
-const hashEcs = (hash: number, ecs: EcsWorld) => {
+type HashableEcs = EcsWorld | EcsSnapshot;
+
+const hashEcs = (hash: number, ecs: HashableEcs) => {
   let next = mixHash(hash, ecs.nextId);
   next = mixHash(next, ecs.capacity);
 
@@ -124,14 +127,24 @@ const hashEcs = (hash: number, ecs: EcsWorld) => {
   return next;
 };
 
-export const hashGameState = (state: GameState) => {
+type HashableGameState = {
+  time: number;
+  playerIds: number[];
+  rngState: number;
+  world: WorldState;
+  crafting: GameStateSnapshot["crafting"];
+  attackEffects: GameStateSnapshot["attackEffects"];
+  ecs: HashableEcs;
+};
+
+const hashGameStateBase = (state: HashableGameState) => {
   let hash = 2166136261;
   hash = mixHash(hash, floatToBits(state.time));
   hash = mixHash(hash, state.playerIds.length);
   for (const playerId of state.playerIds) {
     hash = mixHash(hash, playerId);
   }
-  hash = mixHash(hash, state.rng.state);
+  hash = mixHash(hash, state.rngState);
 
   for (const crafting of state.crafting) {
     hash = mixHash(hash, crafting.isOpen ? 1 : 0);
@@ -157,3 +170,25 @@ export const hashGameState = (state: GameState) => {
   hash = hashEcs(hash, state.ecs);
   return hash >>> 0;
 };
+
+export const hashGameState = (state: GameState) =>
+  hashGameStateBase({
+    time: state.time,
+    playerIds: state.playerIds,
+    rngState: state.rng.state,
+    world: state.world,
+    crafting: state.crafting,
+    attackEffects: state.attackEffects,
+    ecs: state.ecs
+  });
+
+export const hashGameStateSnapshot = (snapshot: GameStateSnapshot) =>
+  hashGameStateBase({
+    time: snapshot.time,
+    playerIds: snapshot.playerIds,
+    rngState: snapshot.rngState,
+    world: snapshot.world,
+    crafting: snapshot.crafting,
+    attackEffects: snapshot.attackEffects,
+    ecs: snapshot.ecs
+  });

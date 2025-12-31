@@ -21,6 +21,7 @@ type Client = {
   roomCode: string | null;
   lastSeenAt: number;
   lastPingAt: number;
+  rateLimits: Map<string, { windowStart: number; count: number }>;
 };
 
 type RoomPlayer = {
@@ -51,6 +52,24 @@ const ROOM_IDLE_TTL_MS = 10 * 60 * 1000;
 const ROOM_CLEANUP_INTERVAL_MS = 30 * 1000;
 const FIXED_ROOM_PLAYER_COUNT = DEFAULT_ROOM_PLAYER_COUNT;
 const ROOM_START_FRAME = 0;
+const INPUT_PACKET_SIZE = 26;
+const MAX_JSON_MESSAGE_BYTES = 64 * 1024;
+const MAX_BINARY_MESSAGE_BYTES = 1024;
+const MAX_FRAME_INDEX = 10_000_000;
+const MAX_SNAPSHOT_BYTES = 2 * 1024 * 1024;
+const MAX_RESYNC_CHUNK_BYTES = 32 * 1024;
+const MAX_RESYNC_CHUNK_BASE64 = Math.ceil(MAX_RESYNC_CHUNK_BYTES / 3) * 4 + 16;
+
+const RATE_WINDOW_SHORT_MS = 1000;
+const RATE_WINDOW_MEDIUM_MS = 10 * 1000;
+const RATE_CREATE_LIMIT = 3;
+const RATE_JOIN_LIMIT = 3;
+const RATE_START_LIMIT = 5;
+const RATE_RESYNC_REQUEST_LIMIT = 20;
+const RATE_STATE_HASH_LIMIT = 20;
+const RATE_RESYNC_META_LIMIT = 5;
+const RATE_RESYNC_CHUNK_LIMIT = 400;
+const RATE_BINARY_LIMIT = 240;
 
 const rooms = new Map<string, Room>();
 const clients = new Map<WebSocket, Client>();
@@ -63,6 +82,20 @@ const createId = () => {
 };
 
 const createSeed = () => randomBytes(8).toString("hex");
+
+const allowRate = (client: Client, key: string, limit: number, windowMs: number) => {
+  const now = Date.now();
+  const entry = client.rateLimits.get(key);
+  if (!entry || now - entry.windowStart >= windowMs) {
+    client.rateLimits.set(key, { windowStart: now, count: 1 });
+    return true;
+  }
+  if (entry.count >= limit) {
+    return false;
+  }
+  entry.count += 1;
+  return true;
+};
 
 const buildPlayersList = (room: Room): RoomPlayerInfo[] =>
   Array.from(room.players.values())
@@ -314,6 +347,10 @@ const handleResyncRequest = (client: Client, fromFrame: number, reason: ResyncRe
     sendError(client.ws, "not-in-room", "Not in a room.");
     return;
   }
+  if (!Number.isFinite(fromFrame) || fromFrame < 0 || fromFrame > MAX_FRAME_INDEX) {
+    sendError(client.ws, "bad-request", "Invalid resync frame.");
+    return;
+  }
 
   const host = room.players.get(room.hostId);
   if (host) {
@@ -334,6 +371,15 @@ const handleResyncState = (client: Client, message: Extract<RoomClientMessage, {
   }
   const requester = room.players.get(message.requesterId);
   if (!requester) {
+    return;
+  }
+  if (!Number.isFinite(message.frame) || message.frame < 0 || message.frame > MAX_FRAME_INDEX) {
+    return;
+  }
+  if (!Number.isFinite(message.totalBytes) || message.totalBytes <= 0 || message.totalBytes > MAX_SNAPSHOT_BYTES) {
+    return;
+  }
+  if (!Number.isFinite(message.chunkSize) || message.chunkSize <= 0 || message.chunkSize > MAX_RESYNC_CHUNK_BYTES) {
     return;
   }
   const payload: RoomServerMessage = {
@@ -363,6 +409,12 @@ const handleResyncChunk = (client: Client, message: Extract<RoomClientMessage, {
   if (!requester) {
     return;
   }
+  if (!Number.isFinite(message.offset) || message.offset < 0 || message.offset > MAX_SNAPSHOT_BYTES) {
+    return;
+  }
+  if (message.data.length > MAX_RESYNC_CHUNK_BASE64) {
+    return;
+  }
   const payload: RoomServerMessage = {
     type: "resync-chunk",
     snapshotId: message.snapshotId,
@@ -386,6 +438,9 @@ const handleStateHash = (client: Client, frame: number, hash: number) => {
   }
   if (!Number.isFinite(frame) || !Number.isFinite(hash)) {
     sendError(client.ws, "bad-request", "Invalid state hash payload.");
+    return;
+  }
+  if (frame < 0 || frame > MAX_FRAME_INDEX) {
     return;
   }
   const message: RoomServerMessage = {
@@ -421,24 +476,45 @@ const handleClientMessage = (client: Client, message: RoomClientMessage) => {
 
   switch (message.type) {
     case "create-room":
+      if (!allowRate(client, "create-room", RATE_CREATE_LIMIT, RATE_WINDOW_MEDIUM_MS)) {
+        sendError(client.ws, "bad-request", "Rate limit exceeded.");
+        return;
+      }
       handleCreateRoom(client, message);
       return;
     case "join-room":
+      if (!allowRate(client, "join-room", RATE_JOIN_LIMIT, RATE_WINDOW_MEDIUM_MS)) {
+        sendError(client.ws, "bad-request", "Rate limit exceeded.");
+        return;
+      }
       handleJoinRoom(client, message);
       return;
     case "leave-room":
       removeClientFromRoom(client, "left");
       return;
     case "start-room":
+      if (!allowRate(client, "start-room", RATE_START_LIMIT, RATE_WINDOW_MEDIUM_MS)) {
+        sendError(client.ws, "bad-request", "Rate limit exceeded.");
+        return;
+      }
       handleStartRoom(client);
       return;
     case "resync-state":
+      if (!allowRate(client, "resync-state", RATE_RESYNC_META_LIMIT, RATE_WINDOW_SHORT_MS)) {
+        return;
+      }
       handleResyncState(client, message);
       return;
     case "resync-chunk":
+      if (!allowRate(client, "resync-chunk", RATE_RESYNC_CHUNK_LIMIT, RATE_WINDOW_SHORT_MS)) {
+        return;
+      }
       handleResyncChunk(client, message);
       return;
     case "state-hash":
+      if (!allowRate(client, "state-hash", RATE_STATE_HASH_LIMIT, RATE_WINDOW_SHORT_MS)) {
+        return;
+      }
       handleStateHash(client, message.frame, message.hash);
       return;
     case "ping":
@@ -446,6 +522,9 @@ const handleClientMessage = (client: Client, message: RoomClientMessage) => {
       sendJson(client.ws, { type: "pong", ts: message.ts });
       return;
     case "resync-request":
+      if (!allowRate(client, "resync-request", RATE_RESYNC_REQUEST_LIMIT, RATE_WINDOW_MEDIUM_MS)) {
+        return;
+      }
       handleResyncRequest(client, message.fromFrame, message.reason);
       return;
     default:
@@ -470,17 +549,40 @@ wss.on("connection", (ws) => {
     ws,
     roomCode: null,
     lastSeenAt: Date.now(),
-    lastPingAt: 0
+    lastPingAt: 0,
+    rateLimits: new Map()
   };
   clients.set(ws, client);
 
   ws.on("message", (data, isBinary) => {
     if (isBinary) {
-      const buffer = data instanceof ArrayBuffer ? data : (data as Buffer).buffer.slice((data as Buffer).byteOffset, (data as Buffer).byteOffset + (data as Buffer).byteLength);
+      const byteLength = data instanceof ArrayBuffer
+        ? data.byteLength
+        : (data as Buffer).byteLength;
+      if (byteLength > MAX_BINARY_MESSAGE_BYTES) {
+        ws.close(1009, "Message too big.");
+        return;
+      }
+      if (byteLength !== INPUT_PACKET_SIZE) {
+        return;
+      }
+      if (!allowRate(client, "binary", RATE_BINARY_LIMIT, RATE_WINDOW_SHORT_MS)) {
+        return;
+      }
+      const buffer = data instanceof ArrayBuffer
+        ? data
+        : (data as Buffer).buffer.slice((data as Buffer).byteOffset, (data as Buffer).byteOffset + (data as Buffer).byteLength);
       handleBinaryMessage(client, buffer);
       return;
     }
 
+    const textByteLength = typeof data === "string"
+      ? Buffer.byteLength(data, "utf8")
+      : (data as Buffer).byteLength;
+    if (textByteLength > MAX_JSON_MESSAGE_BYTES) {
+      ws.close(1009, "Message too big.");
+      return;
+    }
     const text = typeof data === "string" ? data : data.toString("utf8");
     const message = parseClientMessage(text);
     if (!message) {

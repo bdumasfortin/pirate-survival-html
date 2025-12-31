@@ -1,9 +1,9 @@
 import "./style.css";
 import { createInputState, bindKeyboard, bindInventorySelection, bindMouse, bindCraftScroll, type InputState } from "./core/input";
-import { applyRemoteInputFrame, createInputSyncState, loadPlayerInputFrame, readPlayerInputFrame, resetInputSyncState, storeLocalInputFrame, type InputSyncState } from "./core/input-sync";
+import { applyRemoteInputFrame, createInputSyncState, loadPlayerInputFrame, readPlayerInputFrame, trimInputSyncState, storeLocalInputFrame, type InputSyncState } from "./core/input-sync";
 import type { InputFrame } from "./core/input-buffer";
 import { startLoop } from "./core/loop";
-import { hashGameState } from "./core/state-hash";
+import { hashGameStateSnapshot } from "./core/state-hash";
 import { createInitialState, type GameState } from "./game/state";
 import { createGameStateSnapshot, createRollbackBuffer, getRollbackSnapshot, resetRollbackBuffer, restoreGameStateSnapshot, restoreRollbackFrame, storeRollbackSnapshot, type RollbackBuffer } from "./game/rollback";
 import { simulateFrame } from "./game/sim";
@@ -93,6 +93,136 @@ const setNetIndicator = (text: string, visible: boolean) => {
   netIndicator.classList.toggle("hidden", !visible);
 };
 
+const clearResyncTimers = () => {
+  if (resyncRetryTimer !== null) {
+    window.clearTimeout(resyncRetryTimer);
+    resyncRetryTimer = null;
+  }
+  if (resyncTimeoutTimer !== null) {
+    window.clearTimeout(resyncTimeoutTimer);
+    resyncTimeoutTimer = null;
+  }
+};
+
+const scheduleResyncRetry = () => {
+  if (resyncRetryCount >= RESYNC_MAX_RETRIES) {
+    return;
+  }
+  if (!activeSession || !activeRoomSocket || activeRoomSocket.readyState !== WebSocket.OPEN) {
+    return;
+  }
+  if (resyncRequestFrame === null) {
+    return;
+  }
+  if (resyncRetryTimer !== null) {
+    return;
+  }
+  resyncRetryTimer = window.setTimeout(() => {
+    resyncRetryTimer = null;
+    if (!activeSession || activeSession.status !== "paused" || pendingResync) {
+      return;
+    }
+    if (!activeRoomSocket || activeRoomSocket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    resyncRetryCount += 1;
+    activeRoomState?.ui?.setStatus("Resync stalled. Retrying...");
+    sendRoomMessage(activeRoomSocket, { type: "resync-request", fromFrame: resyncRequestFrame ?? 0, reason: "desync" });
+    scheduleResyncRetry();
+  }, RESYNC_RETRY_DELAY_MS);
+};
+
+const scheduleResyncTimeout = () => {
+  if (!pendingResync) {
+    return;
+  }
+  if (resyncTimeoutTimer !== null) {
+    window.clearTimeout(resyncTimeoutTimer);
+  }
+  resyncTimeoutTimer = window.setTimeout(() => {
+    resyncTimeoutTimer = null;
+    if (!pendingResync) {
+      return;
+    }
+    const idleMs = Date.now() - pendingResync.lastReceivedAt;
+    if (idleMs < RESYNC_TIMEOUT_MS) {
+      scheduleResyncTimeout();
+      return;
+    }
+    pendingResync = null;
+    activeRoomState?.ui?.setStatus("Resync timed out. Retrying...", true);
+    setNetIndicator("Resyncing...", true);
+    scheduleResyncRetry();
+  }, RESYNC_TIMEOUT_MS);
+};
+
+const getConfirmedFrame = () => {
+  if (!activeSession || !activeGame) {
+    return -1;
+  }
+  if (activeGame.maxInputFrames.length !== activeSession.expectedPlayerCount) {
+    return -1;
+  }
+  let confirmed = activeGame.maxInputFrames[0] ?? -1;
+  for (const value of activeGame.maxInputFrames) {
+    confirmed = Math.min(confirmed, value);
+  }
+  return Math.min(confirmed, activeGame.clock.frame);
+};
+
+const shouldCompareHashes = (frame: number) => {
+  if (!activeSession || !activeGame) {
+    return false;
+  }
+  if (activeSession.status !== "running" || pendingResync) {
+    return false;
+  }
+  if (lastResyncFrame >= 0 && frame <= lastResyncFrame + HASH_COOLDOWN_FRAMES) {
+    return false;
+  }
+  return frame <= getConfirmedFrame();
+};
+
+const updateMaxInputFrame = (playerIndex: number, frame: number) => {
+  if (!activeGame) {
+    return;
+  }
+  if (playerIndex < 0 || playerIndex >= activeGame.maxInputFrames.length) {
+    return;
+  }
+  const current = activeGame.maxInputFrames[playerIndex] ?? -1;
+  if (frame > current) {
+    activeGame.maxInputFrames[playerIndex] = frame;
+  }
+};
+
+const sendConfirmedStateHash = () => {
+  if (!activeRoomSocket || activeRoomSocket.readyState !== WebSocket.OPEN) {
+    return;
+  }
+  if (!activeGame) {
+    return;
+  }
+  const confirmedFrame = getConfirmedFrame();
+  if (confirmedFrame < 0 || confirmedFrame <= lastHashSentFrame) {
+    return;
+  }
+  if (confirmedFrame % STATE_HASH_INTERVAL_FRAMES !== 0) {
+    return;
+  }
+  if (!shouldCompareHashes(confirmedFrame)) {
+    return;
+  }
+  const snapshot = getRollbackSnapshot(activeGame.rollbackBuffer, confirmedFrame);
+  if (!snapshot) {
+    return;
+  }
+  const hash = hashGameStateSnapshot(snapshot);
+  lastHashSentFrame = confirmedFrame;
+  recordLocalStateHash(confirmedFrame, hash);
+  sendRoomMessage(activeRoomSocket, { type: "state-hash", frame: confirmedFrame, hash });
+};
+
 const generateRandomSeed = () => {
   if (window.crypto?.getRandomValues) {
     const values = new Uint32Array(1);
@@ -123,6 +253,15 @@ const INPUT_BUFFER_FRAMES = 240;
 const ROLLBACK_BUFFER_FRAMES = 240;
 const STATE_HASH_INTERVAL_FRAMES = 30;
 const STATE_HASH_HISTORY_FRAMES = ROLLBACK_BUFFER_FRAMES;
+const MAX_REMOTE_FRAME_AHEAD = 600;
+const MAX_REMOTE_FRAME_BEHIND = ROLLBACK_BUFFER_FRAMES;
+const MAX_SNAPSHOT_BYTES = 2 * 1024 * 1024;
+const MAX_RESYNC_CHUNK_BYTES = 32 * 1024;
+const MAX_RESYNC_CHUNK_BASE64 = Math.ceil(MAX_RESYNC_CHUNK_BYTES / 3) * 4 + 16;
+const HASH_COOLDOWN_FRAMES = 120;
+const RESYNC_RETRY_DELAY_MS = 2000;
+const RESYNC_TIMEOUT_MS = 6000;
+const RESYNC_MAX_RETRIES = 10;
 const PLAYER_COUNT = 1;
 const WS_SERVER_URL = URL_PARAMS.get("ws") ??
   (window.location.protocol === "https:"
@@ -138,6 +277,12 @@ const localStateHashes = new Map<number, number>();
 const remoteStateHashes = new Map<number, Map<string, number>>();
 let lastDesyncFrame = -1;
 let pendingResync: PendingResync | null = null;
+let resyncRetryTimer: number | null = null;
+let resyncTimeoutTimer: number | null = null;
+let resyncRetryCount = 0;
+let resyncRequestFrame: number | null = null;
+let lastResyncFrame = -1;
+let lastHashSentFrame = -1;
 
 type RoomConnectionState = {
   role: "host" | "client";
@@ -169,6 +314,7 @@ type ActiveGameRuntime = {
   clock: { frame: number };
   pendingRollbackFrame: { value: number | null };
   remoteInputQueue: Array<{ playerIndex: number; frame: number; input: InputFrame }>;
+  maxInputFrames: number[];
 };
 
 type PendingResync = {
@@ -181,6 +327,7 @@ type PendingResync = {
   buffer: Uint8Array;
   received: Set<number>;
   receivedBytes: number;
+  lastReceivedAt: number;
 };
 
 const parseRoomServerMessage = (payload: string): RoomServerMessage | null => {
@@ -205,6 +352,7 @@ const resetStateHashTracking = () => {
   localStateHashes.clear();
   remoteStateHashes.clear();
   lastDesyncFrame = -1;
+  lastHashSentFrame = -1;
 };
 
 const pruneStateHashHistory = (currentFrame: number) => {
@@ -244,12 +392,20 @@ const requestDesyncResync = (frame: number, peerId?: string) => {
   pauseSession(activeSession, "desync");
   setNetIndicator("Resyncing...", true);
   pendingResync = null;
+  resyncRequestFrame = frame;
+  resyncRetryCount = 0;
+  clearResyncTimers();
+  scheduleResyncRetry();
   activeRoomState?.ui?.setStatus("Desync detected. Requesting resync...", true);
   sendRoomMessage(activeRoomSocket, { type: "resync-request", fromFrame: frame, reason: "desync" });
 };
 
 const recordLocalStateHash = (frame: number, hash: number) => {
   localStateHashes.set(frame, hash);
+  if (!shouldCompareHashes(frame)) {
+    pruneStateHashHistory(frame);
+    return;
+  }
   const remoteForFrame = remoteStateHashes.get(frame);
   if (remoteForFrame) {
     for (const [playerId, remoteHash] of remoteForFrame.entries()) {
@@ -272,6 +428,10 @@ const recordRemoteStateHash = (playerId: string, frame: number, hash: number) =>
     return;
   }
   remoteForFrame.set(playerId, hash);
+  if (!shouldCompareHashes(frame)) {
+    pruneStateHashHistory(frame);
+    return;
+  }
   const localHash = localStateHashes.get(frame);
   if (localHash !== undefined && localHash !== hash) {
     requestDesyncResync(frame, playerId);
@@ -284,6 +444,9 @@ const clearLocalStateHashesFrom = (frame: number) => {
     if (key >= frame) {
       localStateHashes.delete(key);
     }
+  }
+  if (lastHashSentFrame >= frame) {
+    lastHashSentFrame = frame - 1;
   }
 };
 
@@ -314,11 +477,7 @@ const applyResyncSnapshot = (pending: PendingResync) => {
   activeGame.state.localPlayerIndex = localIndex;
   activeGame.inputSync.localPlayerIndex = localIndex;
   resetRollbackBuffer(activeGame.rollbackBuffer, pending.frame, activeGame.state);
-  resetInputSyncState(activeGame.inputSync);
-  activeGame.pendingRollbackFrame.value = null;
-  activeGame.remoteInputQueue.length = 0;
-  activeGame.clock.frame = pending.frame;
-  setSessionFrame(activeSession, pending.frame);
+  trimInputSyncState(activeGame.inputSync, pending.frame);
   activeSession.seed = pending.seed;
   activeSession.players = pending.players.map((player) => ({
     id: player.id,
@@ -327,6 +486,22 @@ const applyResyncSnapshot = (pending: PendingResync) => {
   }));
   activeSession.expectedPlayerCount = activeSession.players.length;
   activeGame.inputSync.playerCount = activeSession.expectedPlayerCount;
+  const resetFrame = pending.frame - 1;
+  activeGame.maxInputFrames.length = activeSession.expectedPlayerCount;
+  for (let i = 0; i < activeGame.maxInputFrames.length; i += 1) {
+    activeGame.maxInputFrames[i] = resetFrame;
+  }
+  activeGame.pendingRollbackFrame.value = null;
+  for (const entry of activeGame.remoteInputQueue) {
+    if (entry.frame < pending.frame) {
+      continue;
+    }
+    applyRemoteInputFrame(activeGame.inputSync, entry.playerIndex, pending.frame, entry.frame, entry.input);
+    updateMaxInputFrame(entry.playerIndex, entry.frame);
+  }
+  activeGame.remoteInputQueue.length = 0;
+  activeGame.clock.frame = pending.frame;
+  setSessionFrame(activeSession, pending.frame);
   if (activeGame.frameInputs.length !== activeSession.expectedPlayerCount) {
     activeGame.frameInputs.length = 0;
     for (let i = 0; i < activeSession.expectedPlayerCount; i += 1) {
@@ -336,6 +511,10 @@ const applyResyncSnapshot = (pending: PendingResync) => {
   setHudSeed(pending.seed);
   resumeSessionFromFrame(activeSession, pending.frame);
   resetStateHashTracking();
+  lastResyncFrame = pending.frame;
+  resyncRetryCount = 0;
+  resyncRequestFrame = null;
+  clearResyncTimers();
   pendingResync = null;
   setNetIndicator("", false);
   activeRoomState?.ui?.setStatus("Resync complete.");
@@ -356,6 +535,10 @@ const sendResyncSnapshot = (roomState: RoomConnectionState, requesterId: string,
     snapshotFrame = activeGame.clock.frame;
   }
   const bytes = serializeGameStateSnapshot(snapshot);
+  if (bytes.length > MAX_SNAPSHOT_BYTES) {
+    roomState.ui?.setStatus("Snapshot too large to resync.", true);
+    return;
+  }
   const snapshotId = createSnapshotId();
   const chunkSize = 16 * 1024;
   const seed = roomState.seed ?? activeSession.seed ?? "";
@@ -438,6 +621,10 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
   resetStateHashTracking();
   setNetIndicator("", false);
   pendingResync = null;
+  resyncRequestFrame = null;
+  resyncRetryCount = 0;
+  lastResyncFrame = -1;
+  clearResyncTimers();
 
   const sessionSeed = session.seed ?? seed;
   const state = createInitialState(sessionSeed, session.expectedPlayerCount, session.localPlayerIndex);
@@ -457,7 +644,8 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
     frameInputs,
     clock,
     pendingRollbackFrame,
-    remoteInputQueue
+    remoteInputQueue,
+    maxInputFrames: Array.from({ length: session.expectedPlayerCount }, () => -1)
   };
 
   const enqueueRemoteInput = (playerIndex: number, remoteFrame: number, inputFrame: InputFrame) => {
@@ -493,9 +681,25 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
   if (transport) {
     transport.onMessage((data) => {
       const packet = decodeInputPacket(data);
-      if (packet) {
-        enqueueRemoteInput(packet.playerIndex, packet.frame, packet.input);
+      if (!packet) {
+        return;
       }
+      if (packet.frame < 0) {
+        return;
+      }
+      if (packet.playerIndex < 0 || packet.playerIndex >= session.expectedPlayerCount) {
+        return;
+      }
+      const maxAhead = session.status === "running" && !pendingResync
+        ? MAX_REMOTE_FRAME_AHEAD
+        : MAX_REMOTE_FRAME_AHEAD * 4;
+      if (packet.frame > clock.frame + maxAhead) {
+        return;
+      }
+      if (packet.frame < clock.frame - MAX_REMOTE_FRAME_BEHIND) {
+        return;
+      }
+      enqueueRemoteInput(packet.playerIndex, packet.frame, packet.input);
     });
   }
 
@@ -506,6 +710,7 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
 
     for (const entry of remoteInputQueue) {
       const rollbackFrame = applyRemoteInputFrame(inputSync, entry.playerIndex, clock.frame, entry.frame, entry.input);
+      updateMaxInputFrame(entry.playerIndex, entry.frame);
       if (rollbackFrame !== null) {
         pendingRollbackFrame.value = pendingRollbackFrame.value === null
           ? rollbackFrame
@@ -564,6 +769,7 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
 
       const inputFrameIndex = clock.frame + inputDelayFrames;
       storeLocalInputFrame(inputSync, inputFrameIndex, liveInput);
+      updateMaxInputFrame(session.localPlayerIndex, inputFrameIndex);
 
       if (transport) {
         const outgoing = readPlayerInputFrame(inputSync, session.localPlayerIndex, inputFrameIndex);
@@ -590,11 +796,7 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
       simulateFrame(state, frameInputs, delta);
       clock.frame += 1;
       setSessionFrame(session, clock.frame);
-      if (activeRoomSocket && activeRoomSocket.readyState === WebSocket.OPEN && clock.frame % STATE_HASH_INTERVAL_FRAMES === 0) {
-        const hash = hashGameState(state);
-        recordLocalStateHash(clock.frame, hash);
-        sendRoomMessage(activeRoomSocket, { type: "state-hash", frame: clock.frame, hash });
-      }
+      sendConfirmedStateHash();
     },
     onRender: () => {
       render(ctx, state);
@@ -632,10 +834,13 @@ const startNetworkHost = (seed: string, options: NetworkStartOptions = {}) => {
 
   const { socket, transport } = createWebSocketTransport(serverUrl, (payload) => {
     const message = parseRoomServerMessage(payload);
-    if (!message) {
-      return;
-    }
-    handleRoomServerMessage(roomState, socket, message);
+      if (!message) {
+        return;
+      }
+      if (!pendingResync && activeSession?.status === "paused") {
+        scheduleResyncRetry();
+      }
+      handleRoomServerMessage(roomState, socket, message);
   });
 
   roomState.transport = transport;
@@ -795,10 +1000,27 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
       if (!activeSession || message.playerId === activeSession.localId) {
         return;
       }
+      if (message.frame < activeSession.currentFrame - STATE_HASH_HISTORY_FRAMES ||
+        message.frame > activeSession.currentFrame + MAX_REMOTE_FRAME_AHEAD) {
+        return;
+      }
       recordRemoteStateHash(message.playerId, message.frame, message.hash);
       return;
     case "resync-state": {
+      if (message.totalBytes <= 0 || message.totalBytes > MAX_SNAPSHOT_BYTES) {
+        roomState.ui?.setStatus("Resync snapshot rejected (too large).", true);
+        setNetIndicator("", false);
+        return;
+      }
+      if (message.chunkSize <= 0 || message.chunkSize > MAX_RESYNC_CHUNK_BYTES) {
+        roomState.ui?.setStatus("Resync snapshot rejected (chunk size).", true);
+        setNetIndicator("", false);
+        return;
+      }
+      clearResyncTimers();
       roomState.players = message.players;
+      resyncRequestFrame = message.frame;
+      resyncRetryCount = 0;
       pendingResync = {
         snapshotId: message.snapshotId,
         frame: message.frame,
@@ -808,14 +1030,19 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
         chunkSize: message.chunkSize,
         buffer: new Uint8Array(message.totalBytes),
         received: new Set(),
-        receivedBytes: 0
+        receivedBytes: 0,
+        lastReceivedAt: Date.now()
       };
       setNetIndicator("Receiving snapshot...", true);
       roomState.ui?.setStatus("Receiving resync snapshot...");
+      scheduleResyncTimeout();
       return;
     }
     case "resync-chunk": {
       if (!pendingResync || pendingResync.snapshotId !== message.snapshotId) {
+        return;
+      }
+      if (message.data.length > MAX_RESYNC_CHUNK_BASE64) {
         return;
       }
       const bytes = decodeBase64(message.data);
@@ -823,10 +1050,12 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
       if (pendingResync.received.has(offset) || offset >= pendingResync.totalBytes) {
         return;
       }
-      const available = Math.min(bytes.length, pendingResync.totalBytes - offset);
+      const available = Math.min(bytes.length, pendingResync.chunkSize, pendingResync.totalBytes - offset);
       pendingResync.buffer.set(bytes.subarray(0, available), offset);
       pendingResync.received.add(offset);
       pendingResync.receivedBytes += available;
+      pendingResync.lastReceivedAt = Date.now();
+      scheduleResyncTimeout();
       if (pendingResync.receivedBytes >= pendingResync.totalBytes) {
         applyResyncSnapshot(pendingResync);
       }
@@ -857,6 +1086,10 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
           sendResyncSnapshot(roomState, message.requesterId, message.fromFrame);
         } else if (isLocalRequester) {
           pendingResync = null;
+          resyncRequestFrame = message.fromFrame;
+          resyncRetryCount = 0;
+          clearResyncTimers();
+          scheduleResyncRetry();
         }
       }
       return;

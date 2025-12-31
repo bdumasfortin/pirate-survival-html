@@ -41,9 +41,9 @@ Keep this checklist updated as we complete steps.
 - [x] Validate snapshot applies deterministically across peers.
 
 ## 8) Hardening + abuse limits
-- [ ] Validate message sizes, drop malformed frames, clamp frame drift.
-- [ ] Rate-limit joins and input spam per connection.
-- [ ] Idle room expiry + disconnected player cleanup.
+- [x] Validate message sizes, drop malformed frames, clamp frame drift.
+- [x] Rate-limit joins and input spam per connection.
+- [x] Idle room expiry + disconnected player cleanup.
 
 ## 9) Local + remote testing
 - [ ] Local 2-client test with `net=ws` using two browser windows.

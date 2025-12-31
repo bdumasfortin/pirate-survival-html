@@ -73,3 +73,21 @@ export const resetInputSyncState = (sync: InputSyncState) => {
     buffer.mouseY.fill(0);
   }
 };
+
+export const trimInputSyncState = (sync: InputSyncState, minFrame: number) => {
+  for (const buffer of sync.buffers) {
+    for (let i = 0; i < buffer.capacity; i += 1) {
+      if (buffer.frames[i] >= minFrame) {
+        continue;
+      }
+      buffer.frames[i] = -1;
+      buffer.buttons[i] = 0;
+      buffer.craftIndex[i] = 0;
+      buffer.craftScroll[i] = 0;
+      buffer.inventoryIndex[i] = 0;
+      buffer.inventoryScroll[i] = 0;
+      buffer.mouseX[i] = 0;
+      buffer.mouseY[i] = 0;
+    }
+  }
+};
