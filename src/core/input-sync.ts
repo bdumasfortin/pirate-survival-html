@@ -57,6 +57,18 @@ export const applyRemoteInputFrame = (
     return null;
   }
 
+  const existing = readInputFrame(buffer, frame);
+  if (existing &&
+    existing.buttons === inputFrame.buttons &&
+    existing.craftIndex === inputFrame.craftIndex &&
+    existing.craftScroll === inputFrame.craftScroll &&
+    existing.inventoryIndex === inputFrame.inventoryIndex &&
+    existing.inventoryScroll === inputFrame.inventoryScroll &&
+    existing.mouseX === inputFrame.mouseX &&
+    existing.mouseY === inputFrame.mouseY) {
+    return null;
+  }
+
   storeInputFrameData(buffer, frame, inputFrame);
   return frame < currentFrame ? frame : null;
 };

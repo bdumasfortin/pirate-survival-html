@@ -1,7 +1,7 @@
 import "./style.css";
 import { createInputState, bindKeyboard, bindInventorySelection, bindMouse, bindCraftScroll, type InputState } from "./core/input";
-import { applyRemoteInputFrame, createInputSyncState, loadPlayerInputFrame, readPlayerInputFrame, trimInputSyncState, storeLocalInputFrame, type InputSyncState } from "./core/input-sync";
-import type { InputFrame } from "./core/input-buffer";
+import { applyRemoteInputFrame, createInputSyncState, readPlayerInputFrame, trimInputSyncState, storeLocalInputFrame, type InputSyncState } from "./core/input-sync";
+import { applyInputFrame, InputBits, storeInputFrameData, type InputFrame } from "./core/input-buffer";
 import { startLoop } from "./core/loop";
 import { hashGameStateSnapshot } from "./core/state-hash";
 import { createInitialState, type GameState } from "./game/state";
@@ -183,6 +183,48 @@ const shouldCompareHashes = (frame: number) => {
   return frame <= getConfirmedFrame();
 };
 
+const createEmptyInputFrame = (): InputFrame => ({
+  buttons: 0,
+  craftIndex: -1,
+  craftScroll: 0,
+  inventoryIndex: -1,
+  inventoryScroll: 0,
+  mouseX: 0,
+  mouseY: 0
+});
+
+const EMPTY_INPUT_FRAME = createEmptyInputFrame();
+
+const PREDICTED_BUTTON_MASK = InputBits.Up | InputBits.Down | InputBits.Left | InputBits.Right | InputBits.HasMouse;
+
+const fillPredictedFrame = (target: InputFrame, source: InputFrame) => {
+  target.buttons = source.buttons & PREDICTED_BUTTON_MASK;
+  target.craftIndex = -1;
+  target.craftScroll = 0;
+  target.inventoryIndex = -1;
+  target.inventoryScroll = 0;
+  target.mouseX = source.mouseX;
+  target.mouseY = source.mouseY;
+};
+
+const findLatestInputFrame = (sync: InputSyncState, playerIndex: number, targetFrame: number) => {
+  const buffer = sync.buffers[playerIndex];
+  if (!buffer) {
+    return null;
+  }
+  let bestFrame = -1;
+  for (let i = 0; i < buffer.capacity; i += 1) {
+    const frame = buffer.frames[i];
+    if (frame >= 0 && frame <= targetFrame && frame > bestFrame) {
+      bestFrame = frame;
+    }
+  }
+  if (bestFrame < 0) {
+    return null;
+  }
+  return readPlayerInputFrame(sync, playerIndex, bestFrame);
+};
+
 const updateMaxInputFrame = (playerIndex: number, frame: number) => {
   if (!activeGame) {
     return;
@@ -311,6 +353,7 @@ type ActiveGameRuntime = {
   rollbackBuffer: RollbackBuffer;
   inputSync: InputSyncState;
   frameInputs: InputState[];
+  predictedFrames: InputFrame[];
   clock: { frame: number };
   pendingRollbackFrame: { value: number | null };
   remoteInputQueue: Array<{ playerIndex: number; frame: number; input: InputFrame }>;
@@ -491,6 +534,10 @@ const applyResyncSnapshot = (pending: PendingResync) => {
   for (let i = 0; i < activeGame.maxInputFrames.length; i += 1) {
     activeGame.maxInputFrames[i] = resetFrame;
   }
+  activeGame.predictedFrames.length = 0;
+  for (let i = 0; i < activeSession.expectedPlayerCount; i += 1) {
+    activeGame.predictedFrames.push(createEmptyInputFrame());
+  }
   activeGame.pendingRollbackFrame.value = null;
   for (const entry of activeGame.remoteInputQueue) {
     if (entry.frame < pending.frame) {
@@ -631,6 +678,7 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
   setHudSeed(sessionSeed);
   const liveInput = createInputState();
   const frameInputs = Array.from({ length: session.expectedPlayerCount }, () => createInputState());
+  const predictedFrames = Array.from({ length: session.expectedPlayerCount }, () => createEmptyInputFrame());
   const inputSync = createInputSyncState(session.expectedPlayerCount, session.localPlayerIndex, INPUT_BUFFER_FRAMES);
   const rollbackBuffer = createRollbackBuffer(ROLLBACK_BUFFER_FRAMES);
   const clock = { frame: session.startFrame };
@@ -642,6 +690,7 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
     rollbackBuffer,
     inputSync,
     frameInputs,
+    predictedFrames,
     clock,
     pendingRollbackFrame,
     remoteInputQueue,
@@ -722,7 +771,30 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
 
   const loadFrameInputs = (targetFrame: number) => {
     for (let playerIndex = 0; playerIndex < session.expectedPlayerCount; playerIndex += 1) {
-      loadPlayerInputFrame(inputSync, playerIndex, targetFrame, frameInputs[playerIndex]);
+      const input = readPlayerInputFrame(inputSync, playerIndex, targetFrame);
+      if (input) {
+        applyInputFrame(input, frameInputs[playerIndex]);
+        continue;
+      }
+
+      if (playerIndex === session.localPlayerIndex) {
+        applyInputFrame(EMPTY_INPUT_FRAME, frameInputs[playerIndex]);
+        continue;
+      }
+
+      const fallback = findLatestInputFrame(inputSync, playerIndex, targetFrame);
+      if (fallback) {
+        const predicted = predictedFrames[playerIndex];
+        fillPredictedFrame(predicted, fallback);
+        const buffer = inputSync.buffers[playerIndex];
+        if (buffer) {
+          storeInputFrameData(buffer, targetFrame, predicted);
+        }
+        applyInputFrame(predicted, frameInputs[playerIndex]);
+        continue;
+      }
+
+      applyInputFrame(EMPTY_INPUT_FRAME, frameInputs[playerIndex]);
     }
   };
 

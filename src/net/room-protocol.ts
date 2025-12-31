@@ -3,7 +3,7 @@ export const ROOM_CODE_LENGTH = 5;
 export const ROOM_MIN_PLAYERS = 2;
 export const ROOM_MAX_PLAYERS = 4;
 export const DEFAULT_ROOM_PLAYER_COUNT = 2;
-export const DEFAULT_INPUT_DELAY_FRAMES = 2;
+export const DEFAULT_INPUT_DELAY_FRAMES = 4;
 
 export const normalizeRoomCode = (code: string) => code.trim().toUpperCase();
 
