@@ -3,16 +3,16 @@
 Keep this checklist updated as we complete steps.
 
 ## 1) Protocol + room model
-- [ ] Define room code format (length, alphabet) and max player count.
-- [ ] Define server envelope messages (create/join/leave/error/ping).
-- [ ] Define game payload messages (start, input-frame, resync-request/resync-state).
-- [ ] Decide host responsibilities (who triggers start, who provides resync snapshots).
+- [x] Define room code format (length, alphabet) and max player count.
+- [x] Define server envelope messages (create/join/leave/error/ping).
+- [x] Define game payload messages (start, input-frame, resync-request/resync-state).
+- [x] Decide host responsibilities (who triggers start, who provides resync snapshots).
 
 ## 2) Server scaffolding
-- [ ] Add a `server/` workspace with Node + TypeScript build/run scripts.
-- [ ] Implement room registry (`Map<code, Room>`), player registry, and TTL cleanup.
-- [ ] Implement short-code generator with collision checks.
-- [ ] Add basic logging and per-room metrics (players, ping).
+- [x] Add a `server/` workspace with Node + TypeScript build/run scripts.
+- [x] Implement room registry (`Map<code, Room>`), player registry, and TTL cleanup.
+- [x] Implement short-code generator with collision checks.
+- [x] Add basic logging and per-room metrics (players, ping).
 
 ## 3) WebSocket transport (client)
 - [ ] Add `WebSocketTransport` implementing `Transport` (send/onMessage/close).
