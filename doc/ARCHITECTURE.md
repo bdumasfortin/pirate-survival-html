@@ -48,13 +48,15 @@
 - `src/game/survival-config.ts` hunger/health tuning.
 - `src/game/use-config.ts` item use tuning.
 - `src/game/creatures.ts` crab definitions + spawn helpers.
+- `src/game/enemy-loot.ts` enemy loot tables + drop helpers.
 - `src/game/survival.ts` survival stats model.
 - `src/systems/movement.ts` movement updates.
 - `src/systems/collisions.ts` island boundary constraints + sliding.
 - `src/systems/gathering.ts` resource interaction + respawn.
 - `src/systems/ground-items.ts` ground item pickup.
 - `src/systems/crafting.ts` crafting menu toggle + recipe crafting.
-- `src/systems/enemies.ts` enemy behavior + player combat.
+- `src/systems/enemies.ts` enemy behavior + damage.
+- `src/systems/player-combat.ts` player melee combat (attack effects + target selection).
 - `src/systems/raft.ts` raft boarding + disembarking.
 - `src/systems/survival.ts` hunger decay + health loss.
 - `src/systems/use-selected-item.ts` item use + cooldown.

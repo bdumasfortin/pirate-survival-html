@@ -65,7 +65,3 @@ export const itemImages: Record<ResourceKind, HTMLImageElement> = {
   wolfcloak: loadImage(wolfcloakUrl),
   krakenring: loadImage(krakenringUrl)
 };
-
-
-
-
