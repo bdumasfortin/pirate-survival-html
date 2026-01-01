@@ -47,7 +47,9 @@ jobs:
         run: npm run build:bundle --prefix server
       - name: Read version
         id: version
-        run: echo "version=$(node -p \"require('./package.json').version\")" >> "$GITHUB_OUTPUT"
+        run: |
+          version=$(node -p "require('./package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Upload server bundle
         uses: actions/upload-artifact@v4
         with:
