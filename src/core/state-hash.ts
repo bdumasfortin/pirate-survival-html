@@ -88,6 +88,7 @@ const hashEcs = (hash: number, ecs: HashableEcs) => {
   next = hashFloatArray(next, ecs.playerArmor, entityCount);
   next = hashFloatArray(next, ecs.playerMaxArmor, entityCount);
   next = hashFloatArray(next, ecs.playerArmorRegenTimer, entityCount);
+  next = hashFloatArray(next, ecs.playerRespawnTimer, entityCount);
   next = hashIntArray(next, ecs.playerIsDead, entityCount);
   next = hashIntArray(next, ecs.playerIsOnRaft, entityCount);
 
@@ -123,6 +124,7 @@ const hashEcs = (hash: number, ecs: HashableEcs) => {
   next = hashIntArray(next, ecs.groundItemKind, entityCount);
   next = hashIntArray(next, ecs.groundItemQuantity, entityCount);
   next = hashFloatArray(next, ecs.groundItemDroppedAt, entityCount);
+  next = hashIntArray(next, ecs.propKind, entityCount);
 
   return next;
 };

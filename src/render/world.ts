@@ -7,9 +7,10 @@ import { ComponentMask, forEachEntity, isEntityAlive } from "../core/ecs";
 import { enemyKindFromIndex } from "../game/enemy-kinds";
 import { GROUND_ITEM_MASK } from "../game/ground-items";
 import { drawIsland, insetPoints } from "./render-helpers";
-import { isImageReady, itemImages, worldImages } from "./assets";
+import { isImageReady, itemImages, propImages, worldImages } from "./assets";
 import { itemKindFromIndex } from "../game/item-kinds";
 import { resourceNodeTypeFromIndex } from "../world/resource-node-types";
+import { propKindFromIndex } from "../game/prop-kinds";
 
 const SEA_GRADIENT_TOP = "#2c7a7b";
 const SEA_GRADIENT_BOTTOM = "#0b2430";
@@ -22,6 +23,7 @@ const GROUND_ITEM_SPARKLE_COUNT = 5;
 const GROUND_ITEM_SPARKLE_RADIUS = 1.4;
 const GROUND_ITEM_SPARKLE_ORBIT = 10;
 const GROUND_ITEM_SPARKLE_SPEED = 1.8;
+const PROP_RENDER_SIZE = 24;
 const ATTACK_EFFECT_COLOR = "rgba(255, 233, 180, 0.4)";
 const PLAYER_COLOR = "#222222";
 
@@ -162,6 +164,30 @@ const renderResources = (ctx: CanvasRenderingContext2D, state: GameState) => {
   });
 };
 
+const renderProps = (ctx: CanvasRenderingContext2D, state: GameState) => {
+  const ecs = state.ecs;
+  const propMask = ComponentMask.Prop | ComponentMask.Position;
+  forEachEntity(ecs, propMask, (id) => {
+    const kind = propKindFromIndex(ecs.propKind[id]);
+    const image = propImages[kind];
+    if (image && isImageReady(image)) {
+      ctx.drawImage(
+        image,
+        ecs.position.x[id] - PROP_RENDER_SIZE / 2,
+        ecs.position.y[id] - PROP_RENDER_SIZE / 2,
+        PROP_RENDER_SIZE,
+        PROP_RENDER_SIZE
+      );
+      return;
+    }
+
+    ctx.beginPath();
+    ctx.arc(ecs.position.x[id], ecs.position.y[id], PROP_RENDER_SIZE * 0.35, 0, Math.PI * 2);
+    ctx.fillStyle = "#d5b075";
+    ctx.fill();
+  });
+};
+
 const renderEnemies = (ctx: CanvasRenderingContext2D, state: GameState) => {
   const ecs = state.ecs;
   const enemyMask = ComponentMask.Enemy | ComponentMask.Position | ComponentMask.Radius | ComponentMask.Velocity;
@@ -294,6 +320,7 @@ export const renderWorld = (ctx: CanvasRenderingContext2D, state: GameState) => 
 
   renderIslands(ctx, state);
   renderResources(ctx, state);
+  renderProps(ctx, state);
   renderGroundItems(ctx, state);
   renderEnemies(ctx, state);
   renderAttackEffects(ctx, state);

@@ -8,6 +8,8 @@ import { createSurvivalStats } from "./survival";
 import { createWorld, spawnWorldResources } from "../world/world";
 import type { WorldState } from "../world/types";
 import type { Vec2 } from "../core/types";
+import { normalize } from "../core/math";
+import { spawnProp } from "./props";
 
 export type AttackEffect = {
   origin: Vec2;
@@ -71,6 +73,7 @@ export const createInitialState = (seed: string | number, playerCount = 1, local
     ecs.playerDamageFlashTimer[playerId] = 0;
     ecs.playerAttackTimer[playerId] = 0;
     ecs.playerUseCooldown[playerId] = 0;
+    ecs.playerRespawnTimer[playerId] = 0;
     ecs.playerIsDead[playerId] = 0;
     ecs.playerIsOnRaft[playerId] = 0;
 
@@ -96,6 +99,18 @@ export const createInitialState = (seed: string | number, playerCount = 1, local
   const world = createWorld(normalizedSeed);
   const rng = createRng(normalizedSeed);
   spawnWorldResources(ecs, world);
+  const spawnIsland = world.islands[0];
+  if (spawnIsland && spawnIsland.points.length > 0) {
+    const index = Math.abs(spawnIsland.seed) % spawnIsland.points.length;
+    const edgePoint = spawnIsland.points[index];
+    const dir = normalize(edgePoint.x - spawnIsland.center.x, edgePoint.y - spawnIsland.center.y);
+    const offset = 18;
+    const position = {
+      x: edgePoint.x - dir.x * offset,
+      y: edgePoint.y - dir.y * offset
+    };
+    spawnProp(ecs, "strawhat", position);
+  }
   createEnemies(ecs, world, rng);
 
   return {

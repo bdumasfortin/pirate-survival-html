@@ -1,4 +1,5 @@
 import type { ItemKind } from "../game/item-kinds";
+import type { PropKind } from "../game/prop-kinds";
 import type { EquipmentSlotType } from "../game/equipment";
 import crabUrl from "../assets/svg/crab.svg";
 import wolfUrl from "../assets/svg/wolf.svg";
@@ -18,6 +19,7 @@ import wolfmeatUrl from "../assets/svg/items/wolfmeat.svg";
 import crabhelmetUrl from "../assets/svg/items/crabhelmet.svg";
 import wolfcloakUrl from "../assets/svg/items/wolfcloak.svg";
 import krakenringUrl from "../assets/svg/items/krakenring.svg";
+import strawhatUrl from "../assets/svg/strawhat.svg";
 import placeholderHelmetUrl from "../assets/svg/placeholders/placeholder-helmet.svg";
 import placeholderCloakUrl from "../assets/svg/placeholders/placeholder-cloak.svg";
 import placeholderChestUrl from "../assets/svg/placeholders/placeholder-chest.svg";
@@ -64,4 +66,8 @@ export const itemImages: Record<ItemKind, HTMLImageElement> = {
   crabhelmet: loadImage(crabhelmetUrl),
   wolfcloak: loadImage(wolfcloakUrl),
   krakenring: loadImage(krakenringUrl)
+};
+
+export const propImages: Record<PropKind, HTMLImageElement> = {
+  strawhat: loadImage(strawhatUrl)
 };

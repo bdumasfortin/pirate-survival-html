@@ -67,9 +67,14 @@ const ARMOR_BAR_GAP = 16;
 const buildVersionLabel = `v${__APP_VERSION__}${import.meta.env.DEV ? "-dev" : ""}`;
 
 let activeSeedLabel = "Seed: --";
+let activeRoomCodeLabel: string | null = null;
 
 export const setHudSeed = (seed: string) => {
   activeSeedLabel = `Seed: ${seed}`;
+};
+
+export const setHudRoomCode = (code: string | null) => {
+  activeRoomCodeLabel = code ? `Room: ${code}` : null;
 };
 
 const getLocalPlayerId = (state: GameState) => state.playerIds[state.localPlayerIndex];
@@ -523,14 +528,22 @@ const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => 
 const renderBuildVersion = (ctx: CanvasRenderingContext2D) => {
   const { innerWidth } = window;
   const fontSize = 14;
+  const lines = [buildVersionLabel];
+  if (activeRoomCodeLabel) {
+    lines.push(activeRoomCodeLabel);
+  }
+  lines.push(activeSeedLabel);
 
   ctx.save();
   ctx.font = `${fontSize}px ${UI_FONT}`;
   ctx.fillStyle = "rgba(246, 231, 193, 0.7)";
   ctx.textAlign = "right";
   ctx.textBaseline = "top";
-  ctx.fillText(buildVersionLabel, innerWidth - HUD_MARGIN, HUD_MARGIN);
-  ctx.fillText(activeSeedLabel, innerWidth - HUD_MARGIN, HUD_MARGIN + fontSize + 6);
+  const startY = HUD_MARGIN;
+  const lineHeight = fontSize + 6;
+  lines.forEach((line, index) => {
+    ctx.fillText(line, innerWidth - HUD_MARGIN, startY + index * lineHeight);
+  });
   ctx.restore();
 };
 
@@ -649,6 +662,8 @@ const renderDeathOverlay = (ctx: CanvasRenderingContext2D, state: GameState) => 
   }
 
   const { innerWidth, innerHeight } = window;
+  const respawnTimer = state.ecs.playerRespawnTimer[playerId];
+  const countdown = Math.max(0, Math.ceil(respawnTimer));
   ctx.save();
   ctx.fillStyle = "rgba(8, 10, 12, 0.72)";
   ctx.fillRect(0, 0, innerWidth, innerHeight);
@@ -661,7 +676,7 @@ const renderDeathOverlay = (ctx: CanvasRenderingContext2D, state: GameState) => 
 
   ctx.font = `18px ${UI_FONT}`;
   ctx.fillStyle = "rgba(246, 231, 193, 0.85)";
-  ctx.fillText("F5 to restart", innerWidth / 2, innerHeight / 2 + 46);
+  ctx.fillText(`Respawning in ${countdown}...`, innerWidth / 2, innerHeight / 2 + 46);
   ctx.restore();
 };
 

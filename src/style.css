@@ -65,6 +65,21 @@ canvas {
   scrollbar-width: none;
 }
 
+.menu-card--compact {
+  width: min(360px, 90vw);
+}
+
+.menu-title {
+  margin-bottom: 18px;
+  font-size: 26px;
+  letter-spacing: 0.4px;
+  text-align: center;
+}
+
+.menu-card--compact .menu-actions {
+  flex-direction: column;
+}
+
 .menu-card::-webkit-scrollbar {
   width: 0;
   height: 0;

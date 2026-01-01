@@ -9,7 +9,7 @@ import { createGameStateSnapshot, createRollbackBuffer, getRollbackSnapshot, res
 import { simulateFrame } from "./game/sim";
 import { runDeterminismCheck } from "./dev/determinism";
 import { render } from "./render/renderer";
-import { setHudSeed } from "./render/ui";
+import { setHudRoomCode, setHudSeed } from "./render/ui";
 import { createClientSession, createHostSession, finalizeSessionStart, pauseSession, resumeSessionFromFrame, setSessionFrame, type SessionState } from "./net/session";
 import { decodeInputPacket, encodeInputPacket, type InputPacket } from "./net/input-wire";
 import { decodeBase64, deserializeGameStateSnapshot, encodeBase64, serializeGameStateSnapshot } from "./net/snapshot";
@@ -62,6 +62,9 @@ const roomStatus = document.getElementById("room-status") as HTMLElement | null;
 const roomCodeDisplay = document.getElementById("room-code-display") as HTMLElement | null;
 const roomPlayerCount = document.getElementById("room-player-count") as HTMLElement | null;
 const netIndicator = document.getElementById("net-indicator") as HTMLElement | null;
+const inGameMenu = document.getElementById("in-game-menu") as HTMLElement | null;
+const resumeButton = document.getElementById("resume-game") as HTMLButtonElement | null;
+const exitToMenuButton = document.getElementById("exit-to-menu") as HTMLButtonElement | null;
 
 const resize = () => {
   const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -93,6 +96,20 @@ const setNetIndicator = (text: string, visible: boolean) => {
   netIndicator.classList.toggle("hidden", !visible);
 };
 
+let isInGameMenuOpen = false;
+
+const setInGameMenuVisible = (visible: boolean) => {
+  if (!inGameMenu) {
+    return;
+  }
+  isInGameMenuOpen = visible;
+  inGameMenu.classList.toggle("hidden", !visible);
+};
+
+const returnToMainMenu = () => {
+  window.location.href = window.location.pathname;
+};
+
 const clearResyncTimers = () => {
   if (resyncRetryTimer !== null) {
     window.clearTimeout(resyncRetryTimer);
@@ -102,6 +119,53 @@ const clearResyncTimers = () => {
     window.clearTimeout(resyncTimeoutTimer);
     resyncTimeoutTimer = null;
   }
+};
+
+const clearResyncSendState = () => {
+  if (resyncSendTimer !== null) {
+    window.clearTimeout(resyncSendTimer);
+    resyncSendTimer = null;
+  }
+  resyncSendState = null;
+};
+
+const scheduleResyncChunkSend = () => {
+  if (!resyncSendState) {
+    return;
+  }
+  if (resyncSendTimer !== null) {
+    return;
+  }
+  resyncSendTimer = window.setTimeout(() => {
+    resyncSendTimer = null;
+    const sendState = resyncSendState;
+    if (!sendState) {
+      return;
+    }
+    if (!activeRoomSocket || activeRoomSocket.readyState !== WebSocket.OPEN) {
+      clearResyncSendState();
+      return;
+    }
+    let sent = 0;
+    while (sent < RESYNC_CHUNKS_PER_TICK && sendState.offset < sendState.bytes.length) {
+      const offset = sendState.offset;
+      const chunk = sendState.bytes.subarray(offset, offset + sendState.chunkSize);
+      sendRoomMessage(activeRoomSocket, {
+        type: "resync-chunk",
+        requesterId: sendState.requesterId,
+        snapshotId: sendState.snapshotId,
+        offset,
+        data: encodeBase64(chunk)
+      });
+      sendState.offset += sendState.chunkSize;
+      sent += 1;
+    }
+    if (sendState.offset >= sendState.bytes.length) {
+      resyncSendState = null;
+      return;
+    }
+    scheduleResyncChunkSend();
+  }, RESYNC_CHUNK_SEND_INTERVAL_MS);
 };
 
 const scheduleResyncRetry = () => {
@@ -304,6 +368,8 @@ const HASH_COOLDOWN_FRAMES = 120;
 const RESYNC_RETRY_DELAY_MS = 2000;
 const RESYNC_TIMEOUT_MS = 6000;
 const RESYNC_MAX_RETRIES = 10;
+const RESYNC_CHUNK_SEND_INTERVAL_MS = 16;
+const RESYNC_CHUNKS_PER_TICK = 4;
 const PLAYER_COUNT = 1;
 const WS_SERVER_URL = URL_PARAMS.get("ws") ??
   (window.location.protocol === "https:"
@@ -323,6 +389,8 @@ let resyncRetryTimer: number | null = null;
 let resyncTimeoutTimer: number | null = null;
 let resyncRetryCount = 0;
 let resyncRequestFrame: number | null = null;
+let resyncSendState: ResyncSendState | null = null;
+let resyncSendTimer: number | null = null;
 let lastResyncFrame = -1;
 let lastHashSentFrame = -1;
 
@@ -371,6 +439,14 @@ type PendingResync = {
   received: Set<number>;
   receivedBytes: number;
   lastReceivedAt: number;
+};
+
+type ResyncSendState = {
+  requesterId: string;
+  snapshotId: string;
+  bytes: Uint8Array;
+  offset: number;
+  chunkSize: number;
 };
 
 const parseRoomServerMessage = (payload: string): RoomServerMessage | null => {
@@ -599,16 +675,15 @@ const sendResyncSnapshot = (roomState: RoomConnectionState, requesterId: string,
     totalBytes: bytes.length,
     chunkSize
   });
-  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-    const chunk = bytes.subarray(offset, offset + chunkSize);
-    sendRoomMessage(activeRoomSocket, {
-      type: "resync-chunk",
-      requesterId,
-      snapshotId,
-      offset,
-      data: encodeBase64(chunk)
-    });
-  }
+  clearResyncSendState();
+  resyncSendState = {
+    requesterId,
+    snapshotId,
+    bytes,
+    offset: 0,
+    chunkSize
+  };
+  scheduleResyncChunkSend();
 };
 
 const buildSessionFromStart = (
@@ -656,6 +731,7 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
   hasStarted = true;
   setOverlayVisible(menuOverlay, false);
   setOverlayVisible(loadingOverlay, true);
+  setInGameMenuVisible(false);
 
   await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
 
@@ -667,11 +743,13 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
   activeSession = session;
   resetStateHashTracking();
   setNetIndicator("", false);
+  setHudRoomCode(activeRoomState?.roomCode ?? null);
   pendingResync = null;
   resyncRequestFrame = null;
   resyncRetryCount = 0;
   lastResyncFrame = -1;
   clearResyncTimers();
+  clearResyncSendState();
 
   const sessionSeed = session.seed ?? seed;
   const state = createInitialState(sessionSeed, session.expectedPlayerCount, session.localPlayerIndex);
@@ -932,6 +1010,8 @@ const startNetworkHost = (seed: string, options: NetworkStartOptions = {}) => {
     roomState.ui?.setStatus("Disconnected from server.", true);
     roomState.ui?.setActionsEnabled(true);
     roomState.ui?.setStartEnabled(false);
+    setHudRoomCode(null);
+    clearResyncSendState();
     if (activeRoomSocket === socket) {
       activeRoomSocket = null;
       activeRoomState = null;
@@ -1004,6 +1084,8 @@ const startNetworkClient = (roomCode: string, options: NetworkStartOptions = {})
     roomState.ui?.setStatus("Disconnected from server.", true);
     roomState.ui?.setActionsEnabled(true);
     roomState.ui?.setStartEnabled(false);
+    setHudRoomCode(null);
+    clearResyncSendState();
     if (activeRoomSocket === socket) {
       activeRoomSocket = null;
       activeRoomState = null;
@@ -1022,9 +1104,9 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
       roomState.players = message.players;
       roomState.localPlayerIndex = message.playerIndex;
       roomState.localPlayerId = message.players.find((player) => player.index === message.playerIndex)?.id ?? null;
-      roomState.ui?.setStatus(`Room created. Share code ${message.code}.`);
+  roomState.ui?.setStatus(`Room created. Share code ${message.code}.`);
   roomState.ui?.setRoomInfo(message.code, message.players, message.playerCount);
-  roomState.ui?.setStartEnabled(message.players.length >= message.playerCount);
+  roomState.ui?.setStartEnabled(roomState.role === "host");
   console.info(`[room] created code=${message.code} players=${message.playerCount}`);
   return;
 }
@@ -1046,7 +1128,7 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
     case "room-updated":
   roomState.players = message.players;
   roomState.ui?.setRoomInfo(roomState.roomCode, message.players, roomState.playerCount);
-  roomState.ui?.setStartEnabled(roomState.role === "host" && message.players.length >= roomState.playerCount);
+  roomState.ui?.setStartEnabled(roomState.role === "host");
   return;
     case "start": {
       if (hasStarted) {
@@ -1177,6 +1259,23 @@ const initMenu = () => {
     return;
   }
 
+  resumeButton?.addEventListener("click", () => setInGameMenuVisible(false));
+  exitToMenuButton?.addEventListener("click", returnToMainMenu);
+  window.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") {
+      return;
+    }
+    if (!hasStarted || !activeGame || !activeSession) {
+      return;
+    }
+    const craftingOpen = activeGame.state.crafting[activeSession.localPlayerIndex]?.isOpen ?? false;
+    if (craftingOpen) {
+      return;
+    }
+    setInGameMenuVisible(!isInGameMenuOpen);
+    event.preventDefault();
+  });
+
   const hasMenu = menuOverlay && loadingOverlay && seedInput && randomSeedButton && startButton;
   if (!hasMenu) {
     const seed = generateRandomSeed();
@@ -1198,6 +1297,7 @@ const initMenu = () => {
         roomCodeDisplay.textContent = code ?? "--";
         const total = playerCount > 0 ? playerCount : players.length;
         roomPlayerCount.textContent = `${players.length}/${total}`;
+        setHudRoomCode(code);
       },
       setStartEnabled: (enabled) => {
         startRoomButton.disabled = !enabled;
@@ -1343,10 +1443,6 @@ const initMenu = () => {
       return;
     }
     if (!activeRoomSocket || activeRoomSocket.readyState !== WebSocket.OPEN) {
-      return;
-    }
-    if (activeRoomState.players.length < activeRoomState.playerCount) {
-      roomUi?.setStatus("Waiting for more players...");
       return;
     }
     sendRoomMessage(activeRoomSocket, { type: "start-room" });

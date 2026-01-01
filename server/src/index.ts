@@ -48,7 +48,7 @@ type Room = {
 };
 
 const PORT = Number(process.env.PORT ?? "8787");
-const ROOM_IDLE_TTL_MS = 10 * 60 * 1000;
+const ROOM_IDLE_TTL_MS = 60 * 60 * 1000;
 const ROOM_CLEANUP_INTERVAL_MS = 30 * 1000;
 const FIXED_ROOM_PLAYER_COUNT = DEFAULT_ROOM_PLAYER_COUNT;
 const ROOM_START_FRAME = 0;

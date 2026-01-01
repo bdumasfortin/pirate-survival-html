@@ -6,7 +6,8 @@ export enum EntityTag {
   Player = 1,
   Enemy = 2,
   Resource = 3,
-  GroundItem = 4
+  GroundItem = 4,
+  Prop = 5
 }
 
 export const INVENTORY_SLOT_COUNT = 9;
@@ -22,7 +23,8 @@ export const ComponentMask = {
   Resource: 1 << 6,
   Inventory: 1 << 7,
   Equipment: 1 << 8,
-  GroundItem: 1 << 9
+  GroundItem: 1 << 9,
+  Prop: 1 << 10
 } as const;
 
 export type Vec2Store = {
@@ -52,6 +54,7 @@ export type EcsWorld = {
   playerArmor: Float32Array;
   playerMaxArmor: Float32Array;
   playerArmorRegenTimer: Float32Array;
+  playerRespawnTimer: Float32Array;
   playerIsDead: Uint8Array;
   playerIsOnRaft: Uint8Array;
   enemyKind: Uint8Array;
@@ -83,6 +86,7 @@ export type EcsWorld = {
   groundItemKind: Uint8Array;
   groundItemQuantity: Int16Array;
   groundItemDroppedAt: Float32Array;
+  propKind: Uint8Array;
 };
 
 export type EcsSnapshot = {
@@ -107,6 +111,7 @@ export type EcsSnapshot = {
   playerArmor: Float32Array;
   playerMaxArmor: Float32Array;
   playerArmorRegenTimer: Float32Array;
+  playerRespawnTimer: Float32Array;
   playerIsDead: Uint8Array;
   playerIsOnRaft: Uint8Array;
   enemyKind: Uint8Array;
@@ -138,6 +143,7 @@ export type EcsSnapshot = {
   groundItemKind: Uint8Array;
   groundItemQuantity: Int16Array;
   groundItemDroppedAt: Float32Array;
+  propKind: Uint8Array;
 };
 
 export const DEFAULT_ENTITY_MASK = ComponentMask.Position |
@@ -179,6 +185,7 @@ const resizeWorld = (world: EcsWorld, capacity: number) => {
   world.playerArmor = resizeFloat32(world.playerArmor, capacity);
   world.playerMaxArmor = resizeFloat32(world.playerMaxArmor, capacity);
   world.playerArmorRegenTimer = resizeFloat32(world.playerArmorRegenTimer, capacity);
+  world.playerRespawnTimer = resizeFloat32(world.playerRespawnTimer, capacity);
   world.playerIsDead = resizeUint8(world.playerIsDead, capacity);
   world.playerIsOnRaft = resizeUint8(world.playerIsOnRaft, capacity);
   world.enemyKind = resizeUint8(world.enemyKind, capacity);
@@ -210,6 +217,7 @@ const resizeWorld = (world: EcsWorld, capacity: number) => {
   world.groundItemKind = resizeUint8(world.groundItemKind, capacity);
   world.groundItemQuantity = resizeInt16(world.groundItemQuantity, capacity);
   world.groundItemDroppedAt = resizeFloat32(world.groundItemDroppedAt, capacity);
+  world.propKind = resizeUint8(world.propKind, capacity);
   world.capacity = capacity;
 };
 
@@ -259,6 +267,7 @@ export const createEcsWorld = (capacity = 64): EcsWorld => ({
   playerArmor: new Float32Array(capacity),
   playerMaxArmor: new Float32Array(capacity),
   playerArmorRegenTimer: new Float32Array(capacity),
+  playerRespawnTimer: new Float32Array(capacity),
   playerIsDead: new Uint8Array(capacity),
   playerIsOnRaft: new Uint8Array(capacity),
   enemyKind: new Uint8Array(capacity),
@@ -289,7 +298,8 @@ export const createEcsWorld = (capacity = 64): EcsWorld => ({
   equipmentKind: new Int16Array(capacity * EQUIPMENT_SLOT_COUNT),
   groundItemKind: new Uint8Array(capacity),
   groundItemQuantity: new Int16Array(capacity),
-  groundItemDroppedAt: new Float32Array(capacity)
+  groundItemDroppedAt: new Float32Array(capacity),
+  propKind: new Uint8Array(capacity)
 });
 
 export const ensureCapacity = (world: EcsWorld, id: number) => {
@@ -387,6 +397,7 @@ export const createEcsSnapshot = (world: EcsWorld): EcsSnapshot => ({
   playerArmor: cloneFloat32(world.playerArmor),
   playerMaxArmor: cloneFloat32(world.playerMaxArmor),
   playerArmorRegenTimer: cloneFloat32(world.playerArmorRegenTimer),
+  playerRespawnTimer: cloneFloat32(world.playerRespawnTimer),
   playerIsDead: cloneUint8(world.playerIsDead),
   playerIsOnRaft: cloneUint8(world.playerIsOnRaft),
   enemyKind: cloneUint8(world.enemyKind),
@@ -417,7 +428,8 @@ export const createEcsSnapshot = (world: EcsWorld): EcsSnapshot => ({
   equipmentKind: cloneInt16(world.equipmentKind),
   groundItemKind: cloneUint8(world.groundItemKind),
   groundItemQuantity: cloneInt16(world.groundItemQuantity),
-  groundItemDroppedAt: cloneFloat32(world.groundItemDroppedAt)
+  groundItemDroppedAt: cloneFloat32(world.groundItemDroppedAt),
+  propKind: cloneUint8(world.propKind)
 });
 
 export const restoreEcsSnapshot = (world: EcsWorld, snapshot: EcsSnapshot) => {
@@ -442,6 +454,7 @@ export const restoreEcsSnapshot = (world: EcsWorld, snapshot: EcsSnapshot) => {
   world.playerArmor = cloneFloat32(snapshot.playerArmor);
   world.playerMaxArmor = cloneFloat32(snapshot.playerMaxArmor);
   world.playerArmorRegenTimer = cloneFloat32(snapshot.playerArmorRegenTimer);
+  world.playerRespawnTimer = cloneFloat32(snapshot.playerRespawnTimer);
   world.playerIsDead = cloneUint8(snapshot.playerIsDead);
   world.playerIsOnRaft = cloneUint8(snapshot.playerIsOnRaft);
   world.enemyKind = cloneUint8(snapshot.enemyKind);
@@ -473,4 +486,5 @@ export const restoreEcsSnapshot = (world: EcsWorld, snapshot: EcsSnapshot) => {
   world.groundItemKind = cloneUint8(snapshot.groundItemKind);
   world.groundItemQuantity = cloneInt16(snapshot.groundItemQuantity);
   world.groundItemDroppedAt = cloneFloat32(snapshot.groundItemDroppedAt);
+  world.propKind = cloneUint8(snapshot.propKind);
 };
