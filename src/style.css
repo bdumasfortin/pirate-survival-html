@@ -210,6 +210,21 @@ button.primary {
   font-size: 16px;
 }
 
+.server-build-link {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  font-size: 14px;
+  color: rgba(246, 231, 193, 0.8);
+  text-decoration: none;
+}
+
+.server-build-link:hover {
+  color: rgba(246, 231, 193, 1);
+  text-decoration: underline;
+}
+
 .menu-links {
   display: flex;
   justify-content: center;

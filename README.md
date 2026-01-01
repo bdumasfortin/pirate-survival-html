@@ -20,6 +20,20 @@ From the repo root:
 
 You can set a custom port with `PORT=9000 npm run dev`.
 
+### Build the relay server
+From `server/`:
+1) `npm run build`
+2) Run the compiled server: `npm run start`
+
+The output is in `server/dist`.
+
+### Bundle the relay server (single file)
+From `server/`:
+1) `npm run build:bundle`
+2) Run the bundled server: `npm run start:bundle`
+
+This outputs `server/dist/server.js` for easy distribution (Node required, no npm install needed on the host).
+
 ### 2) Host a room (client)
 Open the game and use the Multiplayer tab in the start menu to create a room.
 
