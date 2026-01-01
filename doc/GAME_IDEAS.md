@@ -1,4 +1,4 @@
-# Pirate Survival - Ideas and To-Do
+# Game Ideas
 
 ## World and exploration
 - More biomes (reef, swamp, volcanic, jungle) with unique resources.
@@ -25,14 +25,13 @@
 - Inventory upgrades (bags, chests).
 
 ## Co-op and meta
-- Co-op networking (2-4 players).
+- Expand multiplayer beyond 2 players (3-4 players, reconnects).
 - Shared bases and crafting stations.
 - Rankings and milestones (days survived, bosses slain, rare loot).
 
 ## UI and UX
 - Crafting filters and categories.
 - Item tooltips with stats and flavor text.
-- Minimap and map screen.
 
 ## Audio and presentation
 - Ambient music and ocean SFX.

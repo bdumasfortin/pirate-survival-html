@@ -30,6 +30,7 @@ type SerializedEcsSnapshot = {
   playerArmor: number[];
   playerMaxArmor: number[];
   playerArmorRegenTimer: number[];
+  playerRespawnTimer: number[];
   playerIsDead: number[];
   playerIsOnRaft: number[];
   enemyKind: number[];
@@ -61,6 +62,7 @@ type SerializedEcsSnapshot = {
   groundItemKind: number[];
   groundItemQuantity: number[];
   groundItemDroppedAt: number[];
+  propKind: number[];
 };
 
 type SerializedGameStateSnapshot = {
@@ -104,6 +106,7 @@ const serializeEcsSnapshot = (ecs: EcsSnapshot): SerializedEcsSnapshot => ({
   playerArmor: Array.from(ecs.playerArmor),
   playerMaxArmor: Array.from(ecs.playerMaxArmor),
   playerArmorRegenTimer: Array.from(ecs.playerArmorRegenTimer),
+  playerRespawnTimer: Array.from(ecs.playerRespawnTimer),
   playerIsDead: Array.from(ecs.playerIsDead),
   playerIsOnRaft: Array.from(ecs.playerIsOnRaft),
   enemyKind: Array.from(ecs.enemyKind),
@@ -134,7 +137,8 @@ const serializeEcsSnapshot = (ecs: EcsSnapshot): SerializedEcsSnapshot => ({
   equipmentKind: Array.from(ecs.equipmentKind),
   groundItemKind: Array.from(ecs.groundItemKind),
   groundItemQuantity: Array.from(ecs.groundItemQuantity),
-  groundItemDroppedAt: Array.from(ecs.groundItemDroppedAt)
+  groundItemDroppedAt: Array.from(ecs.groundItemDroppedAt),
+  propKind: Array.from(ecs.propKind)
 });
 
 const deserializeVec2Store = (payload: SerializedVec2Store): Vec2Store => ({
@@ -164,6 +168,7 @@ const deserializeEcsSnapshot = (payload: SerializedEcsSnapshot): EcsSnapshot => 
   playerArmor: new Float32Array(payload.playerArmor),
   playerMaxArmor: new Float32Array(payload.playerMaxArmor),
   playerArmorRegenTimer: new Float32Array(payload.playerArmorRegenTimer),
+  playerRespawnTimer: new Float32Array(payload.playerRespawnTimer),
   playerIsDead: new Uint8Array(payload.playerIsDead),
   playerIsOnRaft: new Uint8Array(payload.playerIsOnRaft),
   enemyKind: new Uint8Array(payload.enemyKind),
@@ -194,7 +199,8 @@ const deserializeEcsSnapshot = (payload: SerializedEcsSnapshot): EcsSnapshot => 
   equipmentKind: new Int16Array(payload.equipmentKind),
   groundItemKind: new Uint8Array(payload.groundItemKind),
   groundItemQuantity: new Int16Array(payload.groundItemQuantity),
-  groundItemDroppedAt: new Float32Array(payload.groundItemDroppedAt)
+  groundItemDroppedAt: new Float32Array(payload.groundItemDroppedAt),
+  propKind: new Uint8Array(payload.propKind)
 });
 
 export const serializeGameStateSnapshot = (snapshot: GameStateSnapshot) => {

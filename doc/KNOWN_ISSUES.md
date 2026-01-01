@@ -2,4 +2,4 @@
 
 Track confirmed bugs and gameplay issues here.
 
-- Kraken paths on island.
+- [ ] Multiplayer can stutter during/after late-join resyncs, especially with low input delay (workaround: set `inputDelay=4`).

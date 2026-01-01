@@ -28,6 +28,7 @@ type RoomPlayer = {
   id: string;
   index: number;
   isHost: boolean;
+  name: string;
   ws: WebSocket;
   lastSeenAt: number;
   lastPingAt: number;
@@ -48,7 +49,7 @@ type Room = {
 };
 
 const PORT = Number(process.env.PORT ?? "8787");
-const ROOM_IDLE_TTL_MS = 10 * 60 * 1000;
+const ROOM_IDLE_TTL_MS = 60 * 60 * 1000;
 const ROOM_CLEANUP_INTERVAL_MS = 30 * 1000;
 const FIXED_ROOM_PLAYER_COUNT = DEFAULT_ROOM_PLAYER_COUNT;
 const ROOM_START_FRAME = 0;
@@ -73,6 +74,7 @@ const RATE_STATE_HASH_LIMIT = 20;
 const RATE_RESYNC_META_LIMIT = 5;
 const RATE_RESYNC_CHUNK_LIMIT = 400;
 const RATE_BINARY_LIMIT = 240;
+const MAX_PLAYER_NAME_LENGTH = 16;
 
 const rooms = new Map<string, Room>();
 const clients = new Map<WebSocket, Client>();
@@ -85,6 +87,14 @@ const createId = () => {
 };
 
 const createSeed = () => randomBytes(8).toString("hex");
+
+const sanitizePlayerName = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+  return trimmed.slice(0, MAX_PLAYER_NAME_LENGTH);
+};
 
 const allowRate = (client: Client, key: string, limit: number, windowMs: number) => {
   const now = Date.now();
@@ -102,7 +112,7 @@ const allowRate = (client: Client, key: string, limit: number, windowMs: number)
 
 const buildPlayersList = (room: Room): RoomPlayerInfo[] =>
   Array.from(room.players.values())
-    .map((player) => ({ id: player.id, index: player.index, isHost: player.isHost }))
+    .map((player) => ({ id: player.id, index: player.index, isHost: player.isHost, name: player.name }))
     .sort((a, b) => a.index - b.index);
 
 const sendJson = (ws: WebSocket, message: RoomServerMessage) => {
@@ -179,12 +189,13 @@ const touchRoom = (room: Room) => {
   room.lastActivity = Date.now();
 };
 
-const addPlayerToRoom = (room: Room, client: Client, index: number, isHost: boolean) => {
+const addPlayerToRoom = (room: Room, client: Client, index: number, isHost: boolean, name: string) => {
   const now = Date.now();
   const player: RoomPlayer = {
     id: client.id,
     index,
     isHost,
+    name,
     ws: client.ws,
     lastSeenAt: now,
     lastPingAt: client.lastPingAt
@@ -192,6 +203,25 @@ const addPlayerToRoom = (room: Room, client: Client, index: number, isHost: bool
   room.players.set(client.id, player);
   client.roomCode = room.code;
   room.lastActivity = now;
+};
+
+const assignHost = (room: Room) => {
+  let nextHost: RoomPlayer | null = null;
+  for (const player of room.players.values()) {
+    if (!nextHost || player.index < nextHost.index) {
+      nextHost = player;
+    }
+  }
+
+  if (!nextHost) {
+    room.hostId = "";
+    return;
+  }
+
+  room.hostId = nextHost.id;
+  for (const player of room.players.values()) {
+    player.isHost = player.id === room.hostId;
+  }
 };
 
 const removeClientFromRoom = (client: Client, reason = "left") => {
@@ -209,14 +239,16 @@ const removeClientFromRoom = (client: Client, reason = "left") => {
   client.roomCode = null;
   touchRoom(room);
 
-  if (wasHost) {
-    closeRoom(room, "host-left");
-    return;
-  }
-
   if (room.players.size === 0) {
     rooms.delete(room.code);
     logRoom(room, "removed (empty)");
+    return;
+  }
+
+  if (wasHost) {
+    assignHost(room);
+    broadcastRoom(room, { type: "room-updated", players: buildPlayersList(room) });
+    logRoom(room, `host ${reason} (reassigned)`);
     return;
   }
 
@@ -252,6 +284,12 @@ const handleCreateRoom = (client: Client, message: Extract<RoomClientMessage, { 
     return;
   }
 
+  const playerName = sanitizePlayerName(message.playerName ?? "");
+  if (!playerName) {
+    sendError(client.ws, "bad-request", "Player name required.");
+    return;
+  }
+
   const playerCount = FIXED_ROOM_PLAYER_COUNT;
   const seed = message.seed ?? createSeed();
   const inputDelayFrames = Math.max(0, Math.floor(message.inputDelayFrames ?? DEFAULT_INPUT_DELAY_FRAMES));
@@ -271,7 +309,7 @@ const handleCreateRoom = (client: Client, message: Extract<RoomClientMessage, { 
     players: new Map()
   };
 
-  addPlayerToRoom(room, client, 0, true);
+  addPlayerToRoom(room, client, 0, true, playerName);
   rooms.set(code, room);
 
   sendJson(client.ws, {
@@ -293,6 +331,12 @@ const handleJoinRoom = (client: Client, message: Extract<RoomClientMessage, { ty
     return;
   }
 
+  const playerName = sanitizePlayerName(message.playerName ?? "");
+  if (!playerName) {
+    sendError(client.ws, "bad-request", "Player name required.");
+    return;
+  }
+
   const code = normalizeRoomCode(message.code);
   if (!isValidRoomCode(code)) {
     sendError(client.ws, "invalid-code", "Invalid room code.");
@@ -311,7 +355,7 @@ const handleJoinRoom = (client: Client, message: Extract<RoomClientMessage, { ty
   }
 
   const index = getNextPlayerIndex(room);
-  addPlayerToRoom(room, client, index, false);
+  addPlayerToRoom(room, client, index, false, playerName);
   const players = buildPlayersList(room);
   sendJson(client.ws, {
     type: "room-joined",

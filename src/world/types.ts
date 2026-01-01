@@ -9,17 +9,6 @@ export type Island = {
   seed: number;
 };
 
-export type ResourceKind =
-  | "wood"
-  | "rock"
-  | "berries"
-  | "raft"
-  | "sword"
-  | "crabmeat"
-  | "wolfmeat"
-  | "crabhelmet"
-  | "wolfcloak"
-  | "krakenring";
 export type ResourceNodeType = "tree" | "rock" | "bush";
 
 export type YieldRange = {

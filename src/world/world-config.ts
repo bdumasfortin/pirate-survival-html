@@ -1,5 +1,6 @@
 import type { Vec2 } from "../core/types";
-import type { IslandType, ResourceKind, ResourceNodeType, YieldRange } from "./types";
+import type { ItemKind } from "../game/item-kinds";
+import type { IslandType, ResourceNodeType, YieldRange } from "./types";
 
 export type IslandSpec = {
   center: Vec2;
@@ -44,7 +45,7 @@ export const RESOURCE_PLACEMENT_CONFIG = {
 
 export type ResourceNodeConfig = {
   nodeType: ResourceNodeType;
-  kind: ResourceKind;
+  kind: ItemKind;
   radius: number;
   count: number;
   yield: YieldRange;

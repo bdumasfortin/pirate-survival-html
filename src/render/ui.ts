@@ -1,6 +1,7 @@
 import type { GameState } from "../game/state";
 import { EQUIPMENT_SLOT_ORDER, getEquipmentSlotKind, type EquipmentSlotType } from "../game/equipment";
-import type { ResourceKind, ResourceNodeType } from "../world/types";
+import type { ResourceNodeType } from "../world/types";
+import type { ItemKind } from "../game/item-kinds";
 import { findClosestIslandEdge } from "../world/island-geometry";
 import { canCraft, recipes } from "../game/crafting";
 import type { Recipe } from "../game/crafting";
@@ -8,7 +9,7 @@ import { getNearestGatherableResource } from "../systems/gathering";
 import { DAMAGE_FLASH_DURATION } from "../game/combat-config";
 import { RAFT_INTERACTION_DISTANCE } from "../game/raft-config";
 import { INVENTORY_SLOT_COUNT, isEntityAlive } from "../core/ecs";
-import { resourceNodeTypeFromIndex } from "../world/resource-kinds";
+import { resourceNodeTypeFromIndex } from "../world/resource-node-types";
 import { equipmentPlaceholderImages, isImageReady, itemImages } from "./assets";
 import { drawRoundedRect } from "./render-helpers";
 import {
@@ -42,7 +43,7 @@ import {
   getInventorySlotQuantity
 } from "../game/inventory";
 
-const resourceColors: Record<ResourceKind, string> = {
+const itemColors: Record<ItemKind, string> = {
   wood: "#a06a3b",
   rock: "#9aa0a6",
   berries: "#8b4fd6",
@@ -66,14 +67,19 @@ const ARMOR_BAR_GAP = 16;
 const buildVersionLabel = `v${__APP_VERSION__}${import.meta.env.DEV ? "-dev" : ""}`;
 
 let activeSeedLabel = "Seed: --";
+let activeRoomCodeLabel: string | null = null;
 
 export const setHudSeed = (seed: string) => {
   activeSeedLabel = `Seed: ${seed}`;
 };
 
+export const setHudRoomCode = (code: string | null) => {
+  activeRoomCodeLabel = code ? `Room: ${code}` : null;
+};
+
 const getLocalPlayerId = (state: GameState) => state.playerIds[state.localPlayerIndex];
 
-const getItemIcon = (kind: ResourceKind) => {
+const getItemIcon = (kind: ItemKind) => {
   const image = itemImages[kind];
   return isImageReady(image) ? image : null;
 };
@@ -130,7 +136,7 @@ const renderInventory = (ctx: CanvasRenderingContext2D, state: GameState) => {
     const slotKind = getInventorySlotKind(ecs, playerId, index);
     const slotQuantity = getInventorySlotQuantity(ecs, playerId, index);
     if (slotKind && slotQuantity > 0) {
-      const color = resourceColors[slotKind];
+      const color = itemColors[slotKind];
       const iconSize = INVENTORY_SLOT_SIZE * 0.6;
       const icon = getItemIcon(slotKind);
 
@@ -224,7 +230,7 @@ const renderEquipment = (ctx: CanvasRenderingContext2D, state: GameState) => {
       } else {
         ctx.beginPath();
         ctx.arc(x + EQUIPMENT_SLOT_SIZE / 2, y + EQUIPMENT_SLOT_SIZE / 2, EQUIPMENT_SLOT_SIZE * 0.22, 0, Math.PI * 2);
-        ctx.fillStyle = resourceColors[equipped] ?? "#f0d58b";
+        ctx.fillStyle = itemColors[equipped] ?? "#f0d58b";
         ctx.fill();
       }
       return;
@@ -453,7 +459,7 @@ const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => 
       ctx.globalAlpha = alpha;
       ctx.beginPath();
       ctx.arc(x + CRAFT_TILE_SIZE / 2, y + CRAFT_TILE_SIZE / 2, CRAFT_TILE_SIZE * 0.22, 0, Math.PI * 2);
-      ctx.fillStyle = resourceColors[recipe.output.kind];
+      ctx.fillStyle = itemColors[recipe.output.kind];
       ctx.fill();
       ctx.restore();
     }
@@ -506,7 +512,7 @@ const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => 
           0,
           Math.PI * 2
         );
-        ctx.fillStyle = resourceColors[input.kind];
+        ctx.fillStyle = itemColors[input.kind];
         ctx.fill();
         ctx.fillStyle = "#f0d58b";
       }
@@ -522,14 +528,22 @@ const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => 
 const renderBuildVersion = (ctx: CanvasRenderingContext2D) => {
   const { innerWidth } = window;
   const fontSize = 14;
+  const lines = [buildVersionLabel];
+  if (activeRoomCodeLabel) {
+    lines.push(activeRoomCodeLabel);
+  }
+  lines.push(activeSeedLabel);
 
   ctx.save();
   ctx.font = `${fontSize}px ${UI_FONT}`;
   ctx.fillStyle = "rgba(246, 231, 193, 0.7)";
   ctx.textAlign = "right";
   ctx.textBaseline = "top";
-  ctx.fillText(buildVersionLabel, innerWidth - HUD_MARGIN, HUD_MARGIN);
-  ctx.fillText(activeSeedLabel, innerWidth - HUD_MARGIN, HUD_MARGIN + fontSize + 6);
+  const startY = HUD_MARGIN;
+  const lineHeight = fontSize + 6;
+  lines.forEach((line, index) => {
+    ctx.fillText(line, innerWidth - HUD_MARGIN, startY + index * lineHeight);
+  });
   ctx.restore();
 };
 
@@ -648,6 +662,8 @@ const renderDeathOverlay = (ctx: CanvasRenderingContext2D, state: GameState) => 
   }
 
   const { innerWidth, innerHeight } = window;
+  const respawnTimer = state.ecs.playerRespawnTimer[playerId];
+  const countdown = Math.max(0, Math.ceil(respawnTimer));
   ctx.save();
   ctx.fillStyle = "rgba(8, 10, 12, 0.72)";
   ctx.fillRect(0, 0, innerWidth, innerHeight);
@@ -660,7 +676,7 @@ const renderDeathOverlay = (ctx: CanvasRenderingContext2D, state: GameState) => 
 
   ctx.font = `18px ${UI_FONT}`;
   ctx.fillStyle = "rgba(246, 231, 193, 0.85)";
-  ctx.fillText("F5 to restart", innerWidth / 2, innerHeight / 2 + 46);
+  ctx.fillText(`Respawning in ${countdown}...`, innerWidth / 2, innerHeight / 2 + 46);
   ctx.restore();
 };
 

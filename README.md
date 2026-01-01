@@ -30,7 +30,10 @@ Optional params:
 - `ws=ws://localhost:8787` to point at a custom relay URL.
 - `inputDelay=4` to override the input delay (frames).
 
-After the room is created, the server logs the room code and the client logs it in the console.
+Notes:
+- Rooms are fixed to 2 players for now.
+- Player name is required for host/join and is stored in browser storage.
+- After creating a room, share the code shown in the UI. The host must click "Start Room" to begin.
 
 ### 3) Join a room (client)
 Open a second window and use the Multiplayer tab to join a room.
@@ -38,7 +41,7 @@ Open a second window and use the Multiplayer tab to join a room.
 Or open directly with:
 `http://localhost:5173/?net=ws&role=client&room=ABCDE`
 
-Replace `ABCDE` with the room code from the host. Run `window.startRoom()` in the host console to start the match.
+Replace `ABCDE` with the room code from the host. The host must press "Start Room" to start the match.
 
 ### 4) Network simulation (optional)
 To test jitter/latency in the relay, set env vars before `npm run dev` in `server/`:
@@ -67,11 +70,6 @@ Friend URL example:
 Notes:
 - `YOUR_PUBLIC_IP` can be your ISP public IP or a dynamic DNS hostname.
 - Some ISPs use CGNAT, which blocks inbound connections; if port forwarding does not work, you will need a VPS instead.
-
-## Deploy (GitHub Pages)
-- Project page URL: `https://bdumasfortin.github.io/pirate-survival-html/`
-- Push to `main` and GitHub Actions will build + deploy automatically.
-- Pages source should be set to GitHub Actions in the repo settings.
 
 ## Controls
 - Move: WASD or Arrow keys

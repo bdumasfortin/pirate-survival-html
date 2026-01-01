@@ -3,7 +3,7 @@ import { destroyEntity, forEachEntity, isEntityAlive, type EntityId } from "../c
 import { addToInventory } from "../game/inventory";
 import { GROUND_ITEM_PICKUP_COOLDOWN, GROUND_ITEM_PICKUP_RANGE } from "../game/ground-items-config";
 import { GROUND_ITEM_MASK } from "../game/ground-items";
-import { resourceKindFromIndex } from "../world/resource-kinds";
+import { itemKindFromIndex } from "../game/item-kinds";
 
 export const pickupGroundItems = (state: GameState, playerId: EntityId) => {
   const ecs = state.ecs;
@@ -27,7 +27,7 @@ export const pickupGroundItems = (state: GameState, playerId: EntityId) => {
       return;
     }
 
-    const kind = resourceKindFromIndex(ecs.groundItemKind[id]);
+    const kind = itemKindFromIndex(ecs.groundItemKind[id]);
     const added = addToInventory(ecs, playerId, kind, ecs.groundItemQuantity[id]);
     if (added <= 0) {
       return;

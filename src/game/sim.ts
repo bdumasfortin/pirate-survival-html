@@ -5,7 +5,8 @@ import type { GameState } from "./state";
 import { updateMovement } from "../systems/movement";
 import { constrainPlayerToIslands } from "../systems/collisions";
 import { updateCrafting } from "../systems/crafting";
-import { updateCrabs, updatePlayerAttack } from "../systems/crabs";
+import { updateEnemies } from "../systems/enemies";
+import { updatePlayerCombat } from "../systems/player-combat";
 import { updateInventorySelection } from "../systems/inventory-selection";
 import { gatherNearbyResource, updateResourceRespawns } from "../systems/gathering";
 import { updateRaft } from "../systems/raft";
@@ -54,18 +55,25 @@ export const simulateFrame = (state: GameState, inputs: InputState[], delta: num
     if (!input) {
       continue;
     }
-
-    if (isEntityAlive(ecs, playerId)) {
-      const playerX = ecs.position.x[playerId];
-      const playerY = ecs.position.y[playerId];
-      updateMouseWorldPosition(input, playerX, playerY);
-      updateAimAngle(state, playerId, input, playerX, playerY);
+    if (!isEntityAlive(ecs, playerId)) {
+      continue;
     }
+
+    const playerX = ecs.position.x[playerId];
+    const playerY = ecs.position.y[playerId];
+    updateMouseWorldPosition(input, playerX, playerY);
+    updateAimAngle(state, playerId, input, playerX, playerY);
 
     updateInventorySelection(state, playerId, input);
 
     if (!ecs.playerIsDead[playerId]) {
       updateMovement(state, playerId, input, delta);
+      if (!input.mouseWorld) {
+        const speed = Math.hypot(ecs.velocity.x[playerId], ecs.velocity.y[playerId]);
+        if (speed > 0.01) {
+          ecs.playerAimAngle[playerId] = ecs.playerMoveAngle[playerId];
+        }
+      }
       constrainPlayerToIslands(state, playerId);
       updateCrafting(state, index, playerId, input);
       if (!state.crafting[index]?.isOpen) {
@@ -82,12 +90,15 @@ export const simulateFrame = (state: GameState, inputs: InputState[], delta: num
     if (!input) {
       continue;
     }
+    if (!isEntityAlive(ecs, playerId)) {
+      continue;
+    }
 
     if (!ecs.playerIsDead[playerId]) {
       gatherNearbyResource(state, playerId, input);
       updateUseCooldown(state, playerId, delta);
       if (!state.crafting[index]?.isOpen) {
-        updatePlayerAttack(state, index, playerId, input, delta);
+        updatePlayerCombat(state, index, playerId, input, delta);
         useSelectedItem(state, playerId, input);
       }
       dropSelectedItem(state, playerId, input);
@@ -95,10 +106,13 @@ export const simulateFrame = (state: GameState, inputs: InputState[], delta: num
     }
   }
 
-  updateCrabs(state, delta);
+  updateEnemies(state, delta);
 
   for (let index = 0; index < state.playerIds.length; index += 1) {
     const playerId = state.playerIds[index];
+    if (!isEntityAlive(ecs, playerId)) {
+      continue;
+    }
     updateSurvival(state, index, playerId, delta);
   }
 

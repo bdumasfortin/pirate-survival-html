@@ -1,4 +1,5 @@
-import type { ResourceKind } from "../world/types";
+import type { ItemKind } from "../game/item-kinds";
+import type { PropKind } from "../game/prop-kinds";
 import type { EquipmentSlotType } from "../game/equipment";
 import crabUrl from "../assets/svg/crab.svg";
 import wolfUrl from "../assets/svg/wolf.svg";
@@ -18,6 +19,7 @@ import wolfmeatUrl from "../assets/svg/items/wolfmeat.svg";
 import crabhelmetUrl from "../assets/svg/items/crabhelmet.svg";
 import wolfcloakUrl from "../assets/svg/items/wolfcloak.svg";
 import krakenringUrl from "../assets/svg/items/krakenring.svg";
+import strawhatUrl from "../assets/svg/strawhat.svg";
 import placeholderHelmetUrl from "../assets/svg/placeholders/placeholder-helmet.svg";
 import placeholderCloakUrl from "../assets/svg/placeholders/placeholder-cloak.svg";
 import placeholderChestUrl from "../assets/svg/placeholders/placeholder-chest.svg";
@@ -53,7 +55,7 @@ export const equipmentPlaceholderImages: Record<EquipmentSlotType, HTMLImageElem
   ring: loadImage(placeholderRingUrl)
 };
 
-export const itemImages: Record<ResourceKind, HTMLImageElement> = {
+export const itemImages: Record<ItemKind, HTMLImageElement> = {
   wood: loadImage(itemWoodUrl),
   rock: loadImage(itemRockUrl),
   raft: loadImage(itemRaftUrl),
@@ -66,6 +68,6 @@ export const itemImages: Record<ResourceKind, HTMLImageElement> = {
   krakenring: loadImage(krakenringUrl)
 };
 
-
-
-
+export const propImages: Record<PropKind, HTMLImageElement> = {
+  strawhat: loadImage(strawhatUrl)
+};

@@ -2,6 +2,7 @@ import "./style.css";
 import { createInputState, bindKeyboard, bindInventorySelection, bindMouse, bindCraftScroll, type InputState } from "./core/input";
 import { applyRemoteInputFrame, createInputSyncState, readPlayerInputFrame, trimInputSyncState, storeLocalInputFrame, type InputSyncState } from "./core/input-sync";
 import { applyInputFrame, InputBits, storeInputFrameData, type InputFrame } from "./core/input-buffer";
+import { isEntityAlive } from "./core/ecs";
 import { startLoop } from "./core/loop";
 import { hashGameStateSnapshot } from "./core/state-hash";
 import { createInitialState, type GameState } from "./game/state";
@@ -9,7 +10,8 @@ import { createGameStateSnapshot, createRollbackBuffer, getRollbackSnapshot, res
 import { simulateFrame } from "./game/sim";
 import { runDeterminismCheck } from "./dev/determinism";
 import { render } from "./render/renderer";
-import { setHudSeed } from "./render/ui";
+import { setHudRoomCode, setHudSeed } from "./render/ui";
+import { setPlayerNameLabels } from "./render/world";
 import { createClientSession, createHostSession, finalizeSessionStart, pauseSession, resumeSessionFromFrame, setSessionFrame, type SessionState } from "./net/session";
 import { decodeInputPacket, encodeInputPacket, type InputPacket } from "./net/input-wire";
 import { decodeBase64, deserializeGameStateSnapshot, encodeBase64, serializeGameStateSnapshot } from "./net/snapshot";
@@ -53,6 +55,7 @@ const multiCreateButton = document.getElementById("multi-create") as HTMLButtonE
 const multiJoinButton = document.getElementById("multi-join") as HTMLButtonElement | null;
 const soloPanel = document.getElementById("solo-panel") as HTMLElement | null;
 const multiPanel = document.getElementById("multi-panel") as HTMLElement | null;
+const playerNameInput = document.getElementById("player-name") as HTMLInputElement | null;
 const serverUrlInput = document.getElementById("server-url") as HTMLInputElement | null;
 const roomCodeInput = document.getElementById("room-code") as HTMLInputElement | null;
 const createRoomButton = document.getElementById("create-room") as HTMLButtonElement | null;
@@ -62,6 +65,9 @@ const roomStatus = document.getElementById("room-status") as HTMLElement | null;
 const roomCodeDisplay = document.getElementById("room-code-display") as HTMLElement | null;
 const roomPlayerCount = document.getElementById("room-player-count") as HTMLElement | null;
 const netIndicator = document.getElementById("net-indicator") as HTMLElement | null;
+const inGameMenu = document.getElementById("in-game-menu") as HTMLElement | null;
+const resumeButton = document.getElementById("resume-game") as HTMLButtonElement | null;
+const exitToMenuButton = document.getElementById("exit-to-menu") as HTMLButtonElement | null;
 
 const resize = () => {
   const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -93,6 +99,20 @@ const setNetIndicator = (text: string, visible: boolean) => {
   netIndicator.classList.toggle("hidden", !visible);
 };
 
+let isInGameMenuOpen = false;
+
+const setInGameMenuVisible = (visible: boolean) => {
+  if (!inGameMenu) {
+    return;
+  }
+  isInGameMenuOpen = visible;
+  inGameMenu.classList.toggle("hidden", !visible);
+};
+
+const returnToMainMenu = () => {
+  window.location.href = window.location.pathname;
+};
+
 const clearResyncTimers = () => {
   if (resyncRetryTimer !== null) {
     window.clearTimeout(resyncRetryTimer);
@@ -102,6 +122,53 @@ const clearResyncTimers = () => {
     window.clearTimeout(resyncTimeoutTimer);
     resyncTimeoutTimer = null;
   }
+};
+
+const clearResyncSendState = () => {
+  if (resyncSendTimer !== null) {
+    window.clearTimeout(resyncSendTimer);
+    resyncSendTimer = null;
+  }
+  resyncSendState = null;
+};
+
+const scheduleResyncChunkSend = () => {
+  if (!resyncSendState) {
+    return;
+  }
+  if (resyncSendTimer !== null) {
+    return;
+  }
+  resyncSendTimer = window.setTimeout(() => {
+    resyncSendTimer = null;
+    const sendState = resyncSendState;
+    if (!sendState) {
+      return;
+    }
+    if (!activeRoomSocket || activeRoomSocket.readyState !== WebSocket.OPEN) {
+      clearResyncSendState();
+      return;
+    }
+    let sent = 0;
+    while (sent < RESYNC_CHUNKS_PER_TICK && sendState.offset < sendState.bytes.length) {
+      const offset = sendState.offset;
+      const chunk = sendState.bytes.subarray(offset, offset + sendState.chunkSize);
+      sendRoomMessage(activeRoomSocket, {
+        type: "resync-chunk",
+        requesterId: sendState.requesterId,
+        snapshotId: sendState.snapshotId,
+        offset,
+        data: encodeBase64(chunk)
+      });
+      sendState.offset += sendState.chunkSize;
+      sent += 1;
+    }
+    if (sendState.offset >= sendState.bytes.length) {
+      resyncSendState = null;
+      return;
+    }
+    scheduleResyncChunkSend();
+  }, RESYNC_CHUNK_SEND_INTERVAL_MS);
 };
 
 const scheduleResyncRetry = () => {
@@ -304,6 +371,10 @@ const HASH_COOLDOWN_FRAMES = 120;
 const RESYNC_RETRY_DELAY_MS = 2000;
 const RESYNC_TIMEOUT_MS = 6000;
 const RESYNC_MAX_RETRIES = 10;
+const RESYNC_CHUNK_SEND_INTERVAL_MS = 16;
+const RESYNC_CHUNKS_PER_TICK = 4;
+const PLAYER_NAME_STORAGE_KEY = "pirate_player_name";
+const MAX_PLAYER_NAME_LENGTH = 16;
 const PLAYER_COUNT = 1;
 const WS_SERVER_URL = URL_PARAMS.get("ws") ??
   (window.location.protocol === "https:"
@@ -311,6 +382,26 @@ const WS_SERVER_URL = URL_PARAMS.get("ws") ??
     : `ws://${window.location.hostname}:8787`);
 const WS_ROOM_CODE = URL_PARAMS.get("room");
 const WS_ROLE = (URL_PARAMS.get("role") ?? (WS_ROOM_CODE ? "client" : "host")).toLowerCase();
+const sanitizePlayerName = (value: string) => value.trim().slice(0, MAX_PLAYER_NAME_LENGTH);
+const readStoredPlayerName = () => {
+  try {
+    return localStorage.getItem(PLAYER_NAME_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+};
+const storePlayerName = (value: string) => {
+  try {
+    if (!value) {
+      localStorage.removeItem(PLAYER_NAME_STORAGE_KEY);
+      return;
+    }
+    localStorage.setItem(PLAYER_NAME_STORAGE_KEY, value);
+  } catch {
+    // Ignore storage errors (private mode, etc).
+  }
+};
+const getPlayerNameValue = () => sanitizePlayerName(playerNameInput?.value ?? readStoredPlayerName());
 let activeRoomState: RoomConnectionState | null = null;
 let activeRoomSocket: WebSocket | null = null;
 let activeSession: SessionState | null = null;
@@ -323,6 +414,8 @@ let resyncRetryTimer: number | null = null;
 let resyncTimeoutTimer: number | null = null;
 let resyncRetryCount = 0;
 let resyncRequestFrame: number | null = null;
+let resyncSendState: ResyncSendState | null = null;
+let resyncSendTimer: number | null = null;
 let lastResyncFrame = -1;
 let lastHashSentFrame = -1;
 
@@ -358,6 +451,7 @@ type ActiveGameRuntime = {
   pendingRollbackFrame: { value: number | null };
   remoteInputQueue: Array<{ playerIndex: number; frame: number; input: InputFrame }>;
   maxInputFrames: number[];
+  minRemoteInputFrames: number[];
 };
 
 type PendingResync = {
@@ -371,6 +465,14 @@ type PendingResync = {
   received: Set<number>;
   receivedBytes: number;
   lastReceivedAt: number;
+};
+
+type ResyncSendState = {
+  requesterId: string;
+  snapshotId: string;
+  bytes: Uint8Array;
+  offset: number;
+  chunkSize: number;
 };
 
 const parseRoomServerMessage = (payload: string): RoomServerMessage | null => {
@@ -396,6 +498,80 @@ const resetStateHashTracking = () => {
   remoteStateHashes.clear();
   lastDesyncFrame = -1;
   lastHashSentFrame = -1;
+};
+
+const syncRoomPlayers = (roomState: RoomConnectionState, players: RoomPlayerInfo[]) => {
+  roomState.players = players;
+
+  if (activeSession) {
+    activeSession.players = players.map((player) => ({
+      id: player.id,
+      index: player.index,
+      isLocal: player.id === activeSession.localId
+    }));
+    const localInfo = players.find((player) => player.id === activeSession.localId);
+    if (localInfo) {
+      activeSession.localPlayerIndex = localInfo.index;
+      activeSession.isHost = localInfo.isHost;
+      roomState.role = localInfo.isHost ? "host" : "client";
+    }
+  }
+
+  if (!activeGame) {
+    return;
+  }
+
+  const ecs = activeGame.state.ecs;
+  const connected = new Set(players.map((player) => player.index));
+  if (activeGame.minRemoteInputFrames.length !== activeGame.state.playerIds.length) {
+    activeGame.minRemoteInputFrames = Array.from(
+      { length: activeGame.state.playerIds.length },
+      (_, index) => activeGame.minRemoteInputFrames[index] ?? 0
+    );
+  }
+  for (let index = 0; index < activeGame.state.playerIds.length; index += 1) {
+    const playerId = activeGame.state.playerIds[index];
+    if (playerId === undefined) {
+      continue;
+    }
+    const shouldBeAlive = connected.has(index);
+    const isAlive = isEntityAlive(ecs, playerId);
+    if (shouldBeAlive && !isAlive) {
+      ecs.alive[playerId] = 1;
+      const delayFrames = Math.max(0, roomState.inputDelayFrames);
+      if (index !== activeSession?.localPlayerIndex) {
+        activeGame.minRemoteInputFrames[index] = activeGame.clock.frame + delayFrames;
+      }
+      continue;
+    }
+    if (!shouldBeAlive && isAlive) {
+      ecs.alive[playerId] = 0;
+      if (activeGame.state.attackEffects[index]) {
+        activeGame.state.attackEffects[index] = null;
+      }
+    }
+  }
+
+  const labels = Array.from({ length: activeGame.state.playerIds.length }, () => "");
+  for (const player of players) {
+    if (player.index >= 0 && player.index < labels.length) {
+      labels[player.index] = player.name;
+    }
+  }
+  setPlayerNameLabels(labels);
+};
+
+const getNextRoomPlayerIndex = (roomState: RoomConnectionState) => {
+  const used = new Set<number>();
+  for (const player of roomState.players) {
+    used.add(player.index);
+  }
+  for (let index = 0; index < roomState.playerCount; index += 1) {
+    if (!used.has(index)) {
+      return index;
+    }
+  }
+  return roomState.playerCount;
 };
 
 const pruneStateHashHistory = (currentFrame: number) => {
@@ -527,15 +703,22 @@ const applyResyncSnapshot = (pending: PendingResync) => {
     index: player.index,
     isLocal: player.id === activeSession.localId
   }));
-  activeSession.expectedPlayerCount = activeSession.players.length;
-  activeGame.inputSync.playerCount = activeSession.expectedPlayerCount;
+  const expectedPlayerCount = activeRoomState?.playerCount && activeRoomState.playerCount > 0
+    ? activeRoomState.playerCount
+    : Math.max(activeSession.expectedPlayerCount, pending.players.length);
+  activeSession.expectedPlayerCount = expectedPlayerCount;
+  activeGame.inputSync.playerCount = expectedPlayerCount;
   const resetFrame = pending.frame - 1;
-  activeGame.maxInputFrames.length = activeSession.expectedPlayerCount;
+  activeGame.maxInputFrames.length = expectedPlayerCount;
   for (let i = 0; i < activeGame.maxInputFrames.length; i += 1) {
     activeGame.maxInputFrames[i] = resetFrame;
   }
+  if (activeGame.minRemoteInputFrames.length !== expectedPlayerCount) {
+    const next = Array.from({ length: expectedPlayerCount }, (_, index) => activeGame.minRemoteInputFrames[index] ?? 0);
+    activeGame.minRemoteInputFrames = next;
+  }
   activeGame.predictedFrames.length = 0;
-  for (let i = 0; i < activeSession.expectedPlayerCount; i += 1) {
+  for (let i = 0; i < expectedPlayerCount; i += 1) {
     activeGame.predictedFrames.push(createEmptyInputFrame());
   }
   activeGame.pendingRollbackFrame.value = null;
@@ -549,9 +732,9 @@ const applyResyncSnapshot = (pending: PendingResync) => {
   activeGame.remoteInputQueue.length = 0;
   activeGame.clock.frame = pending.frame;
   setSessionFrame(activeSession, pending.frame);
-  if (activeGame.frameInputs.length !== activeSession.expectedPlayerCount) {
+  if (activeGame.frameInputs.length !== expectedPlayerCount) {
     activeGame.frameInputs.length = 0;
-    for (let i = 0; i < activeSession.expectedPlayerCount; i += 1) {
+    for (let i = 0; i < expectedPlayerCount; i += 1) {
       activeGame.frameInputs.push(createInputState());
     }
   }
@@ -565,9 +748,17 @@ const applyResyncSnapshot = (pending: PendingResync) => {
   pendingResync = null;
   setNetIndicator("", false);
   activeRoomState?.ui?.setStatus("Resync complete.");
+  if (activeRoomState) {
+    syncRoomPlayers(activeRoomState, pending.players);
+  }
 };
 
-const sendResyncSnapshot = (roomState: RoomConnectionState, requesterId: string, fromFrame: number) => {
+const sendResyncSnapshot = (
+  roomState: RoomConnectionState,
+  requesterId: string,
+  fromFrame: number,
+  options: { useLiveSnapshot?: boolean } = {}
+) => {
   if (!activeGame || !activeSession || !activeSession.isHost) {
     return;
   }
@@ -575,8 +766,10 @@ const sendResyncSnapshot = (roomState: RoomConnectionState, requesterId: string,
     return;
   }
   const requestedFrame = Math.max(0, Math.floor(fromFrame));
-  let snapshot = getRollbackSnapshot(activeGame.rollbackBuffer, requestedFrame);
   let snapshotFrame = requestedFrame;
+  let snapshot = options.useLiveSnapshot
+    ? null
+    : getRollbackSnapshot(activeGame.rollbackBuffer, requestedFrame);
   if (!snapshot) {
     snapshot = createGameStateSnapshot(activeGame.state);
     snapshotFrame = activeGame.clock.frame;
@@ -599,16 +792,15 @@ const sendResyncSnapshot = (roomState: RoomConnectionState, requesterId: string,
     totalBytes: bytes.length,
     chunkSize
   });
-  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-    const chunk = bytes.subarray(offset, offset + chunkSize);
-    sendRoomMessage(activeRoomSocket, {
-      type: "resync-chunk",
-      requesterId,
-      snapshotId,
-      offset,
-      data: encodeBase64(chunk)
-    });
-  }
+  clearResyncSendState();
+  resyncSendState = {
+    requesterId,
+    snapshotId,
+    bytes,
+    offset: 0,
+    chunkSize
+  };
+  scheduleResyncChunkSend();
 };
 
 const buildSessionFromStart = (
@@ -646,6 +838,7 @@ type NetworkStartOptions = {
   serverUrl?: string;
   inputDelayFrames?: number;
   ui?: RoomUiState | null;
+  playerName?: string;
 };
 
 const startGame = async (seed: string, options: StartGameOptions = {}) => {
@@ -656,6 +849,7 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
   hasStarted = true;
   setOverlayVisible(menuOverlay, false);
   setOverlayVisible(loadingOverlay, true);
+  setInGameMenuVisible(false);
 
   await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
 
@@ -667,11 +861,13 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
   activeSession = session;
   resetStateHashTracking();
   setNetIndicator("", false);
+  setHudRoomCode(activeRoomState?.roomCode ?? null);
   pendingResync = null;
   resyncRequestFrame = null;
   resyncRetryCount = 0;
   lastResyncFrame = -1;
   clearResyncTimers();
+  clearResyncSendState();
 
   const sessionSeed = session.seed ?? seed;
   const state = createInitialState(sessionSeed, session.expectedPlayerCount, session.localPlayerIndex);
@@ -694,8 +890,12 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
     clock,
     pendingRollbackFrame,
     remoteInputQueue,
-    maxInputFrames: Array.from({ length: session.expectedPlayerCount }, () => -1)
+    maxInputFrames: Array.from({ length: session.expectedPlayerCount }, () => -1),
+    minRemoteInputFrames: Array.from({ length: session.expectedPlayerCount }, () => 0)
   };
+  if (activeRoomState) {
+    syncRoomPlayers(activeRoomState, activeRoomState.players);
+  }
 
   const enqueueRemoteInput = (playerIndex: number, remoteFrame: number, inputFrame: InputFrame) => {
     remoteInputQueue.push({ playerIndex, frame: remoteFrame, input: inputFrame });
@@ -758,6 +958,14 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
     }
 
     for (const entry of remoteInputQueue) {
+      const playerId = activeGame?.state.playerIds[entry.playerIndex];
+      if (playerId === undefined || !isEntityAlive(activeGame.state.ecs, playerId)) {
+        continue;
+      }
+      const minFrame = activeGame?.minRemoteInputFrames[entry.playerIndex] ?? 0;
+      if (entry.frame < minFrame) {
+        continue;
+      }
       const rollbackFrame = applyRemoteInputFrame(inputSync, entry.playerIndex, clock.frame, entry.frame, entry.input);
       updateMaxInputFrame(entry.playerIndex, entry.frame);
       if (rollbackFrame !== null) {
@@ -880,6 +1088,7 @@ const startNetworkHost = (seed: string, options: NetworkStartOptions = {}) => {
   const playerCount = 2;
   const inputDelayFrames = options.inputDelayFrames ?? REQUESTED_INPUT_DELAY_FRAMES;
   const serverUrl = options.serverUrl ?? WS_SERVER_URL;
+  const playerName = sanitizePlayerName(options.playerName ?? getPlayerNameValue());
   const ui = options.ui ?? null;
 
   ui?.setStatus("Connecting to room server...");
@@ -922,6 +1131,7 @@ const startNetworkHost = (seed: string, options: NetworkStartOptions = {}) => {
   socket.addEventListener("open", () => {
     sendRoomMessage(socket, {
       type: "create-room",
+      playerName,
       playerCount,
       seed,
       inputDelayFrames
@@ -932,6 +1142,8 @@ const startNetworkHost = (seed: string, options: NetworkStartOptions = {}) => {
     roomState.ui?.setStatus("Disconnected from server.", true);
     roomState.ui?.setActionsEnabled(true);
     roomState.ui?.setStartEnabled(false);
+    setHudRoomCode(null);
+    clearResyncSendState();
     if (activeRoomSocket === socket) {
       activeRoomSocket = null;
       activeRoomState = null;
@@ -952,6 +1164,7 @@ const startNetworkHost = (seed: string, options: NetworkStartOptions = {}) => {
 const startNetworkClient = (roomCode: string, options: NetworkStartOptions = {}) => {
   const serverUrl = options.serverUrl ?? WS_SERVER_URL;
   const inputDelayFrames = options.inputDelayFrames ?? REQUESTED_INPUT_DELAY_FRAMES;
+  const playerName = sanitizePlayerName(options.playerName ?? getPlayerNameValue());
   const ui = options.ui ?? null;
 
   ui?.setStatus("Connecting to room server...");
@@ -997,13 +1210,15 @@ const startNetworkClient = (roomCode: string, options: NetworkStartOptions = {})
   activeRoomSocket = socket;
 
   socket.addEventListener("open", () => {
-    sendRoomMessage(socket, { type: "join-room", code: normalizedCode });
+    sendRoomMessage(socket, { type: "join-room", code: normalizedCode, playerName });
   });
 
   socket.addEventListener("close", () => {
     roomState.ui?.setStatus("Disconnected from server.", true);
     roomState.ui?.setActionsEnabled(true);
     roomState.ui?.setStartEnabled(false);
+    setHudRoomCode(null);
+    clearResyncSendState();
     if (activeRoomSocket === socket) {
       activeRoomSocket = null;
       activeRoomState = null;
@@ -1022,9 +1237,9 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
       roomState.players = message.players;
       roomState.localPlayerIndex = message.playerIndex;
       roomState.localPlayerId = message.players.find((player) => player.index === message.playerIndex)?.id ?? null;
-      roomState.ui?.setStatus(`Room created. Share code ${message.code}.`);
+  roomState.ui?.setStatus(`Room created. Share code ${message.code}.`);
   roomState.ui?.setRoomInfo(message.code, message.players, message.playerCount);
-  roomState.ui?.setStartEnabled(message.players.length >= message.playerCount);
+  roomState.ui?.setStartEnabled(roomState.role === "host");
   console.info(`[room] created code=${message.code} players=${message.playerCount}`);
   return;
 }
@@ -1043,11 +1258,12 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
       console.info(`[room] joined code=${message.code} players=${message.playerCount}`);
       return;
     }
-    case "room-updated":
-  roomState.players = message.players;
-  roomState.ui?.setRoomInfo(roomState.roomCode, message.players, roomState.playerCount);
-  roomState.ui?.setStartEnabled(roomState.role === "host" && message.players.length >= roomState.playerCount);
-  return;
+    case "room-updated": {
+      syncRoomPlayers(roomState, message.players);
+      roomState.ui?.setRoomInfo(roomState.roomCode, message.players, roomState.playerCount);
+      roomState.ui?.setStartEnabled(roomState.role === "host");
+      return;
+    }
     case "start": {
       if (hasStarted) {
         return;
@@ -1143,6 +1359,28 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
     case "resync-request": {
       if (activeSession) {
         const isLocalRequester = message.requesterId === activeSession.localId;
+        if (message.reason === "late-join" && message.requesterId) {
+          const hasRequester = roomState.players.some((player) => player.id === message.requesterId);
+          if (!hasRequester) {
+            const assignedIndex = getNextRoomPlayerIndex(roomState);
+            const nextPlayers = [...roomState.players, {
+              id: message.requesterId,
+              index: assignedIndex,
+              isHost: false,
+              name: ""
+            }].sort((a, b) => a.index - b.index);
+            syncRoomPlayers(roomState, nextPlayers);
+            roomState.ui?.setRoomInfo(roomState.roomCode, nextPlayers, roomState.playerCount);
+          }
+          if (activeGame) {
+            const requester = roomState.players.find((player) => player.id === message.requesterId);
+            const requesterIndex = requester?.index ?? getNextRoomPlayerIndex(roomState);
+            if (requesterIndex >= 0 && requesterIndex < activeGame.minRemoteInputFrames.length) {
+              activeGame.minRemoteInputFrames[requesterIndex] = activeGame.clock.frame +
+                Math.max(0, roomState.inputDelayFrames);
+            }
+          }
+        }
         if (!activeSession.isHost || isLocalRequester) {
           pauseSession(activeSession, message.reason);
           const label = message.reason === "late-join"
@@ -1155,7 +1393,11 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
         }
         console.info(`[room] resync requested reason=${message.reason} requester=${message.requesterId}`);
         if (activeSession.isHost && message.requesterId && !isLocalRequester) {
-          sendResyncSnapshot(roomState, message.requesterId, message.fromFrame);
+          const useLiveSnapshot = message.reason === "late-join";
+          const requestedFrame = useLiveSnapshot && activeGame
+            ? activeGame.clock.frame
+            : message.fromFrame;
+          sendResyncSnapshot(roomState, message.requesterId, requestedFrame, { useLiveSnapshot });
         } else if (isLocalRequester) {
           pendingResync = null;
           resyncRequestFrame = message.fromFrame;
@@ -1177,6 +1419,23 @@ const initMenu = () => {
     return;
   }
 
+  resumeButton?.addEventListener("click", () => setInGameMenuVisible(false));
+  exitToMenuButton?.addEventListener("click", returnToMainMenu);
+  window.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") {
+      return;
+    }
+    if (!hasStarted || !activeGame || !activeSession) {
+      return;
+    }
+    const craftingOpen = activeGame.state.crafting[activeSession.localPlayerIndex]?.isOpen ?? false;
+    if (craftingOpen) {
+      return;
+    }
+    setInGameMenuVisible(!isInGameMenuOpen);
+    event.preventDefault();
+  });
+
   const hasMenu = menuOverlay && loadingOverlay && seedInput && randomSeedButton && startButton;
   if (!hasMenu) {
     const seed = generateRandomSeed();
@@ -1188,6 +1447,18 @@ const initMenu = () => {
     return;
   }
 
+  let multiplayerActionsEnabled = true;
+  const updateMultiplayerActions = () => {
+    const nameValid = getPlayerNameValue().length > 0;
+    const enabled = multiplayerActionsEnabled && nameValid;
+    if (createRoomButton) {
+      createRoomButton.disabled = !enabled;
+    }
+    if (joinRoomButton) {
+      joinRoomButton.disabled = !enabled;
+    }
+  };
+
   const roomUi: RoomUiState | null = roomStatus && roomCodeDisplay && roomPlayerCount && createRoomButton && joinRoomButton && startRoomButton
     ? {
       setStatus: (text, isError = false) => {
@@ -1198,13 +1469,14 @@ const initMenu = () => {
         roomCodeDisplay.textContent = code ?? "--";
         const total = playerCount > 0 ? playerCount : players.length;
         roomPlayerCount.textContent = `${players.length}/${total}`;
+        setHudRoomCode(code);
       },
       setStartEnabled: (enabled) => {
         startRoomButton.disabled = !enabled;
       },
       setActionsEnabled: (enabled) => {
-        createRoomButton.disabled = !enabled;
-        joinRoomButton.disabled = !enabled;
+        multiplayerActionsEnabled = enabled;
+        updateMultiplayerActions();
         if (multiCreateButton) {
           multiCreateButton.disabled = !enabled;
         }
@@ -1222,6 +1494,9 @@ const initMenu = () => {
         }
         if (roomCodeInput) {
           roomCodeInput.disabled = !enabled;
+        }
+        if (playerNameInput) {
+          playerNameInput.disabled = !enabled;
         }
         if (seedInputMulti) {
           seedInputMulti.disabled = !enabled;
@@ -1276,7 +1551,22 @@ const initMenu = () => {
   if (roomCodeInput && WS_ROOM_CODE) {
     roomCodeInput.value = WS_ROOM_CODE;
   }
+  if (playerNameInput) {
+    const storedName = sanitizePlayerName(readStoredPlayerName());
+    if (storedName) {
+      playerNameInput.value = storedName;
+    }
+    playerNameInput.addEventListener("input", () => {
+      const sanitized = sanitizePlayerName(playerNameInput.value);
+      if (playerNameInput.value !== sanitized) {
+        playerNameInput.value = sanitized;
+      }
+      storePlayerName(sanitized);
+      updateMultiplayerActions();
+    });
+  }
   roomUi?.setRoomInfo(null, [], 0);
+  updateMultiplayerActions();
 
   randomSeedButton.addEventListener("click", () => {
     const seed = generateRandomSeed();
@@ -1293,6 +1583,17 @@ const initMenu = () => {
       seedInputMulti.select();
     }
   });
+
+  const ensurePlayerName = () => {
+    const playerName = getPlayerNameValue();
+    if (!playerName) {
+      roomUi?.setStatus("Enter player name.", true);
+      playerNameInput?.focus();
+      return null;
+    }
+    storePlayerName(playerName);
+    return playerName;
+  };
 
   const handleStart = () => {
     const seed = getSeedValue(seedInput);
@@ -1315,6 +1616,10 @@ const initMenu = () => {
   });
 
   createRoomButton?.addEventListener("click", () => {
+    const playerName = ensurePlayerName();
+    if (!playerName) {
+      return;
+    }
     const seed = getSeedValue(seedInputMulti ?? seedInput);
     const serverUrl = serverUrlInput?.value.trim() || WS_SERVER_URL;
     setMode("multi");
@@ -1322,11 +1627,16 @@ const initMenu = () => {
     startNetworkHost(seed, {
       serverUrl,
       inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
-      ui: roomUi
+      ui: roomUi,
+      playerName
     });
   });
 
   joinRoomButton?.addEventListener("click", () => {
+    const playerName = ensurePlayerName();
+    if (!playerName) {
+      return;
+    }
     const serverUrl = serverUrlInput?.value.trim() || WS_SERVER_URL;
     const code = roomCodeInput?.value.trim() ?? "";
     setMode("multi");
@@ -1334,7 +1644,8 @@ const initMenu = () => {
     startNetworkClient(code, {
       serverUrl,
       inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
-      ui: roomUi
+      ui: roomUi,
+      playerName
     });
   });
 
@@ -1345,10 +1656,6 @@ const initMenu = () => {
     if (!activeRoomSocket || activeRoomSocket.readyState !== WebSocket.OPEN) {
       return;
     }
-    if (activeRoomState.players.length < activeRoomState.playerCount) {
-      roomUi?.setStatus("Waiting for more players...");
-      return;
-    }
     sendRoomMessage(activeRoomSocket, { type: "start-room" });
     activeRoomState.hasSentStart = true;
     roomUi?.setStatus("Starting match...");
@@ -1357,21 +1664,31 @@ const initMenu = () => {
   if (NETWORK_MODE === "ws") {
     setMode("multi");
     if (WS_ROLE === "client" && WS_ROOM_CODE) {
+      const playerName = ensurePlayerName();
+      if (!playerName) {
+        return;
+      }
       setMultiplayerMode("join");
       startNetworkClient(WS_ROOM_CODE, {
         serverUrl: WS_SERVER_URL,
         inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
-        ui: roomUi
+        ui: roomUi,
+        playerName
       });
       return;
     }
     if (WS_ROLE === "host") {
+      const playerName = ensurePlayerName();
+      if (!playerName) {
+        return;
+      }
       const seed = getSeedValue(seedInputMulti ?? seedInput);
       setMultiplayerMode("create");
       startNetworkHost(seed, {
         serverUrl: WS_SERVER_URL,
         inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
-        ui: roomUi
+        ui: roomUi,
+        playerName
       });
       return;
     }

@@ -2,7 +2,8 @@ import type { Vec2 } from "../core/types";
 import { normalizeSeed } from "../core/seed";
 import type { EcsWorld } from "../core/ecs";
 import { ComponentMask, createEntity, EntityTag } from "../core/ecs";
-import { resourceKindToIndex, resourceNodeTypeToIndex } from "./resource-kinds";
+import { itemKindToIndex } from "../game/item-kinds";
+import { resourceNodeTypeToIndex } from "./resource-node-types";
 import type { Island, IslandType, WorldState, YieldRange } from "./types";
 import type { IslandSpec } from "./world-config";
 import {
@@ -124,7 +125,7 @@ const spawnResourcesForIsland = (ecs: EcsWorld, island: Island, seed: number) =>
       ecs.position.y[id] = position.y;
       ecs.radius[id] = config.radius;
       ecs.resourceNodeType[id] = resourceNodeTypeToIndex(config.nodeType);
-      ecs.resourceKind[id] = resourceKindToIndex(config.kind);
+      ecs.resourceKind[id] = itemKindToIndex(config.kind);
       ecs.resourceRotation[id] = rng() * Math.PI * 2;
       ecs.resourceYieldMin[id] = config.yield.min;
       ecs.resourceYieldMax[id] = config.yield.max;

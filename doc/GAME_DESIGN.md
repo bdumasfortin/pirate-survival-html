@@ -2,7 +2,7 @@
 
 ## Game overview
 - Whimsical pirate survival game about a stranded pirate exploring a procedural archipelago.
-- Single-player with planned co-op; no PvP.
+- Single-player and 2-player co-op (relay server); no PvP.
 - Focus on gathering, crafting, exploration, and PvE.
 
 ## Controls
@@ -28,6 +28,7 @@
 - Camera follows the player; world is larger than the view.
 - Player sprite faces the cursor.
 - Death disables input and shows a death overlay (F5 hint).
+- In multiplayer, other players have name tags above their characters.
 
 ## Survival systems
 - Health and hunger.
@@ -63,17 +64,24 @@
 - Berry bushes: 2-3 berries, berries respawn on a timer.
 
 ## Creatures and loot
-- Crabs: drop crab meat; boss crab drops crab helmet.
-- Wolves: drop wolf meat; wolf boss drops wolf cloak.
-- Krakens: drop kraken ring.
-- Food use:
-  - Berries restore 20% hunger.
-  - Crab meat restores 75% hunger.
-  - Wolf meat restores 100% hunger.
+- Crabs: drops crab meat; boss crab drops crab helmet.
+- Wolves: drops wolf meat; wolf boss drops wolf cloak.
+- Krakens: drops kraken ring.
+- Food restores hunger.
 
 ## Raft
 - Craftable raft used to traverse water.
 - Board/disembark near shore using LMB while raft is selected.
+
+## Props
+- Decorative world props (non-pickup items).
+- A straw hat spawns near the edge of the spawn island.
+
+## Multiplayer
+- Relay-only WebSocket server with room codes.
+- Host creates a room and shares the code; host must start the match.
+- Rooms are fixed to 2 players for now.
+- Player names are required when hosting/joining and persist in browser storage.
 
 ## UI and visuals
 - Hotbar with item icons and stack counts.

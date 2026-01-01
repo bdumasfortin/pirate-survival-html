@@ -7,6 +7,7 @@ This defines the wire messages and room model for the relay-only server.
 - Code matching is case-insensitive, server stores uppercase.
 - Player count: fixed to 2 (server ignores `create-room.playerCount`).
 - Host: room creator, index 0. Host selects seed and triggers start (no auto-start).
+- Player names: clients provide `playerName`, server stores and relays it with player lists.
 - Late join: server sends `start` to the new client and broadcasts `resync-request` (reason: `late-join`).
 - Server role: assigns player indices, validates room membership, relays inputs and session control.
 
@@ -18,8 +19,8 @@ This defines the wire messages and room model for the relay-only server.
 - Rate limits apply to join/start/resync/state-hash/binary messages to prevent spam.
 
 ## Client -> Server messages (JSON)
-- `create-room` { playerCount?, seed?, inputDelayFrames? } (playerCount ignored)
-- `join-room` { code }
+- `create-room` { playerName, playerCount?, seed?, inputDelayFrames? } (playerCount ignored)
+- `join-room` { code, playerName }
 - `leave-room` {}
 - `start-room` {}
 - `state-hash` { frame, hash }
@@ -40,6 +41,8 @@ This defines the wire messages and room model for the relay-only server.
 - `resync-chunk` { snapshotId, offset, data }
 - `error` { code, message }
 - `pong` { ts }
+
+`players[]` entries include `{ id, index, isHost, name }`.
 
 ## Resync snapshot delivery
 - Server forwards `resync-request` to the host only.

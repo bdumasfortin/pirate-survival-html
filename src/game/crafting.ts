@@ -1,9 +1,9 @@
-import type { ResourceKind } from "../world/types";
+import type { ItemKind } from "./item-kinds";
 import { addToInventory, getAvailableSpace, getTotalOfKind, removeFromInventory } from "./inventory";
 import type { EcsWorld, EntityId } from "../core/ecs";
 
 export type RecipeIngredient = {
-  kind: ResourceKind;
+  kind: ItemKind;
   amount: number;
 };
 

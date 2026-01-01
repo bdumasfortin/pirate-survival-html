@@ -7,8 +7,11 @@ import { ComponentMask, forEachEntity, isEntityAlive } from "../core/ecs";
 import { enemyKindFromIndex } from "../game/enemy-kinds";
 import { GROUND_ITEM_MASK } from "../game/ground-items";
 import { drawIsland, insetPoints } from "./render-helpers";
-import { isImageReady, itemImages, worldImages } from "./assets";
-import { resourceKindFromIndex, resourceNodeTypeFromIndex } from "../world/resource-kinds";
+import { isImageReady, itemImages, propImages, worldImages } from "./assets";
+import { itemKindFromIndex } from "../game/item-kinds";
+import { resourceNodeTypeFromIndex } from "../world/resource-node-types";
+import { propKindFromIndex } from "../game/prop-kinds";
+import { UI_FONT } from "./ui-config";
 
 const SEA_GRADIENT_TOP = "#2c7a7b";
 const SEA_GRADIENT_BOTTOM = "#0b2430";
@@ -21,8 +24,35 @@ const GROUND_ITEM_SPARKLE_COUNT = 5;
 const GROUND_ITEM_SPARKLE_RADIUS = 1.4;
 const GROUND_ITEM_SPARKLE_ORBIT = 10;
 const GROUND_ITEM_SPARKLE_SPEED = 1.8;
+const PROP_RENDER_SIZE = 24;
 const ATTACK_EFFECT_COLOR = "rgba(255, 233, 180, 0.4)";
 const PLAYER_COLOR = "#222222";
+const PLAYER_NAME_COLOR = "#f6f2e7";
+const PLAYER_NAME_STROKE = "rgba(0, 0, 0, 0.65)";
+const PLAYER_NAME_OFFSET = 12;
+const PLAYER_NAME_FONT_SIZE = 8;
+const PLAYER_NAME_PADDING_X = 4;
+const PLAYER_NAME_PADDING_Y = 2;
+const PLAYER_NAME_RADIUS = 4;
+const PLAYER_NAME_LOWER_OFFSET = 4;
+const PLAYER_NAME_TEXT_OFFSET = 2;
+
+let playerNameLabels: string[] = [];
+
+export const setPlayerNameLabels = (labels: string[]) => {
+  playerNameLabels = labels;
+};
+
+const drawRoundedRect = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) => {
+  const clamped = Math.max(0, Math.min(radius, Math.min(width, height) / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + clamped, y);
+  ctx.arcTo(x + width, y, x + width, y + height, clamped);
+  ctx.arcTo(x + width, y + height, x, y + height, clamped);
+  ctx.arcTo(x, y + height, x, y, clamped);
+  ctx.arcTo(x, y, x + width, y, clamped);
+  ctx.closePath();
+};
 
 const islandStyles: Record<IslandType, { sand: string; grass?: string }> = {
   standard: { sand: "#f6e7c1", grass: "#7dbb6a" },
@@ -80,7 +110,7 @@ const renderGroundItems = (ctx: CanvasRenderingContext2D, state: GameState) => {
   const time = state.time;
   const ecs = state.ecs;
   forEachEntity(ecs, GROUND_ITEM_MASK, (id) => {
-    const kind = resourceKindFromIndex(ecs.groundItemKind[id]);
+    const kind = itemKindFromIndex(ecs.groundItemKind[id]);
     const icon = getItemIcon(kind);
     if (icon) {
       ctx.drawImage(icon, ecs.position.x[id] - size / 2, ecs.position.y[id] - size / 2, size, size);
@@ -157,6 +187,30 @@ const renderResources = (ctx: CanvasRenderingContext2D, state: GameState) => {
     ctx.beginPath();
     ctx.arc(ecs.position.x[id], ecs.position.y[id], ecs.radius[id], 0, Math.PI * 2);
     ctx.fillStyle = color;
+    ctx.fill();
+  });
+};
+
+const renderProps = (ctx: CanvasRenderingContext2D, state: GameState) => {
+  const ecs = state.ecs;
+  const propMask = ComponentMask.Prop | ComponentMask.Position;
+  forEachEntity(ecs, propMask, (id) => {
+    const kind = propKindFromIndex(ecs.propKind[id]);
+    const image = propImages[kind];
+    if (image && isImageReady(image)) {
+      ctx.drawImage(
+        image,
+        ecs.position.x[id] - PROP_RENDER_SIZE / 2,
+        ecs.position.y[id] - PROP_RENDER_SIZE / 2,
+        PROP_RENDER_SIZE,
+        PROP_RENDER_SIZE
+      );
+      return;
+    }
+
+    ctx.beginPath();
+    ctx.arc(ecs.position.x[id], ecs.position.y[id], PROP_RENDER_SIZE * 0.35, 0, Math.PI * 2);
+    ctx.fillStyle = "#d5b075";
     ctx.fill();
   });
 };
@@ -239,7 +293,8 @@ const renderAttackEffects = (ctx: CanvasRenderingContext2D, state: GameState) =>
 const renderEntities = (ctx: CanvasRenderingContext2D, state: GameState) => {
   const ecs = state.ecs;
 
-  for (const playerId of state.playerIds) {
+  for (let index = 0; index < state.playerIds.length; index += 1) {
+    const playerId = state.playerIds[index];
     if (!isEntityAlive(ecs, playerId)) {
       continue;
     }
@@ -266,13 +321,36 @@ const renderEntities = (ctx: CanvasRenderingContext2D, state: GameState) => {
       ctx.rotate(ecs.playerAimAngle[playerId] - Math.PI / 2);
       ctx.drawImage(pirateImage, -size / 2, -size / 2, size, size);
       ctx.restore();
-      continue;
+    } else {
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = PLAYER_COLOR;
+      ctx.fill();
     }
 
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = PLAYER_COLOR;
-    ctx.fill();
+    const label = playerNameLabels[index];
+    if (label && index !== state.localPlayerIndex) {
+      ctx.save();
+      ctx.font = `${PLAYER_NAME_FONT_SIZE}px ${UI_FONT}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = PLAYER_NAME_COLOR;
+      const labelY = y - radius - PLAYER_NAME_OFFSET + PLAYER_NAME_LOWER_OFFSET + PLAYER_NAME_TEXT_OFFSET;
+      const metrics = ctx.measureText(label);
+      const textHeight = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent;
+      const rectWidth = metrics.width + PLAYER_NAME_PADDING_X * 2;
+      const rectHeight = textHeight + PLAYER_NAME_PADDING_Y * 2;
+      const rectX = x - rectWidth / 2;
+      const rectY = labelY - rectHeight / 2;
+
+      ctx.fillStyle = PLAYER_NAME_STROKE;
+      drawRoundedRect(ctx, rectX, rectY, rectWidth, rectHeight, PLAYER_NAME_RADIUS);
+      ctx.fill();
+
+      ctx.fillStyle = PLAYER_NAME_COLOR;
+      ctx.fillText(label, x, labelY);
+      ctx.restore();
+    }
   }
 };
 
@@ -293,6 +371,7 @@ export const renderWorld = (ctx: CanvasRenderingContext2D, state: GameState) => 
 
   renderIslands(ctx, state);
   renderResources(ctx, state);
+  renderProps(ctx, state);
   renderGroundItems(ctx, state);
   renderEnemies(ctx, state);
   renderAttackEffects(ctx, state);

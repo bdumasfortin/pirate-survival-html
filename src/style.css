@@ -65,6 +65,21 @@ canvas {
   scrollbar-width: none;
 }
 
+.menu-card--compact {
+  width: min(360px, 90vw);
+}
+
+.menu-title {
+  margin-bottom: 18px;
+  font-size: 26px;
+  letter-spacing: 0.4px;
+  text-align: center;
+}
+
+.menu-card--compact .menu-actions {
+  flex-direction: column;
+}
+
 .menu-card::-webkit-scrollbar {
   width: 0;
   height: 0;
@@ -124,7 +139,8 @@ canvas {
 }
 
 .menu-field input,
-#server-url {
+#server-url,
+#player-name {
   background: rgba(8, 14, 18, 0.7);
   border: 1px solid rgba(246, 231, 193, 0.2);
   border-radius: 12px;
@@ -135,7 +151,8 @@ canvas {
 }
 
 .menu-field input::placeholder,
-#server-url::placeholder {
+#server-url::placeholder,
+#player-name::placeholder {
   color: rgba(246, 231, 193, 0.4);
 }
 

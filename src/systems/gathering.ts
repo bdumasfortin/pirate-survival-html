@@ -3,7 +3,7 @@ import { ComponentMask, destroyEntity, forEachEntity, isEntityAlive, type EcsWor
 import { nextInt, type RngState } from "../core/rng";
 import { addToInventory } from "../game/inventory";
 import type { GameState } from "../game/state";
-import { resourceKindFromIndex } from "../world/resource-kinds";
+import { itemKindFromIndex } from "../game/item-kinds";
 
 export const GATHER_RANGE = 10;
 const RESOURCE_MASK = ComponentMask.Resource | ComponentMask.Position | ComponentMask.Radius;
@@ -70,7 +70,7 @@ export const gatherNearbyResource = (state: GameState, playerId: EntityId, input
     return;
   }
 
-  const kind = resourceKindFromIndex(ecs.resourceKind[targetId]);
+  const kind = itemKindFromIndex(ecs.resourceKind[targetId]);
   const added = addToInventory(ecs, playerId, kind, 1);
   if (added <= 0) {
     return;

@@ -30,6 +30,9 @@
           </div>
 
           <div id="multi-panel" class="menu-panel hidden">
+            <label for="player-name">Player name</label>
+            <input id="player-name" type="text" placeholder="Your name" maxlength="16" autocomplete="off" />
+
             <label for="server-url">Server URL</label>
             <input id="server-url" type="text" placeholder="ws://localhost:8787" autocomplete="off" />
 
@@ -70,6 +73,14 @@
       </div>
       <div id="loading-overlay" class="overlay hidden">
         <div class="loading-card">Generating world...</div>
+      </div>
+    <div id="in-game-menu" class="overlay hidden">
+      <div class="menu-card menu-card--compact">
+        <div class="menu-actions">
+          <button id="resume-game" type="button">Resume</button>
+          <button id="exit-to-menu" type="button" class="primary">Exit to Main Menu</button>
+          </div>
+        </div>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
