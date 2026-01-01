@@ -205,6 +205,11 @@ button.primary {
   flex: 1;
 }
 
+.copy-link {
+  width: 100%;
+  font-size: 16px;
+}
+
 .menu-links {
   display: flex;
   justify-content: center;
