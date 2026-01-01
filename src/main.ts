@@ -60,6 +60,7 @@ const serverUrlInput = document.getElementById("server-url") as HTMLInputElement
 const roomCodeInput = document.getElementById("room-code") as HTMLInputElement | null;
 const createRoomButton = document.getElementById("create-room") as HTMLButtonElement | null;
 const joinRoomButton = document.getElementById("join-room") as HTMLButtonElement | null;
+const copyJoinLinkButton = document.getElementById("copy-join-link") as HTMLButtonElement | null;
 const startRoomButton = document.getElementById("start-room") as HTMLButtonElement | null;
 const roomStatus = document.getElementById("room-status") as HTMLElement | null;
 const roomCodeDisplay = document.getElementById("room-code-display") as HTMLElement | null;
@@ -97,6 +98,52 @@ const setNetIndicator = (text: string, visible: boolean) => {
   }
   netIndicator.textContent = text;
   netIndicator.classList.toggle("hidden", !visible);
+};
+
+const clearRoomTimeouts = (roomState: RoomConnectionState) => {
+  if (roomState.connectTimeoutId !== null) {
+    window.clearTimeout(roomState.connectTimeoutId);
+    roomState.connectTimeoutId = null;
+  }
+  if (roomState.requestTimeoutId !== null) {
+    window.clearTimeout(roomState.requestTimeoutId);
+    roomState.requestTimeoutId = null;
+  }
+};
+
+const scheduleConnectTimeout = (roomState: RoomConnectionState, socket: WebSocket, serverUrl: string) => {
+  if (roomState.connectTimeoutId !== null) {
+    window.clearTimeout(roomState.connectTimeoutId);
+  }
+  roomState.connectTimeoutId = window.setTimeout(() => {
+    roomState.connectTimeoutId = null;
+    if (socket.readyState === WebSocket.OPEN) {
+      return;
+    }
+    roomState.suppressCloseStatus = true;
+    roomState.ui?.setStatus(`Connection timed out. Check server URL and port (${serverUrl}).`, true);
+    roomState.ui?.setActionsEnabled(true);
+    roomState.ui?.setStartEnabled(false);
+    socket.close();
+  }, CONNECT_TIMEOUT_MS);
+};
+
+const scheduleRoomRequestTimeout = (roomState: RoomConnectionState, socket: WebSocket, action: "create" | "join") => {
+  if (roomState.requestTimeoutId !== null) {
+    window.clearTimeout(roomState.requestTimeoutId);
+  }
+  roomState.requestTimeoutId = window.setTimeout(() => {
+    roomState.requestTimeoutId = null;
+    if (socket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    const verb = action === "create" ? "create" : "join";
+    roomState.suppressCloseStatus = true;
+    roomState.ui?.setStatus(`Timed out waiting to ${verb} room.`, true);
+    roomState.ui?.setActionsEnabled(true);
+    roomState.ui?.setStartEnabled(false);
+    socket.close();
+  }, ROOM_REQUEST_TIMEOUT_MS);
 };
 
 let isInGameMenuOpen = false;
@@ -342,6 +389,39 @@ const generateRandomSeed = () => {
   return Math.floor(Math.random() * 1_000_000_000).toString(36);
 };
 
+const getServerUrlValue = () => serverUrlInput?.value.trim() || WS_SERVER_URL;
+
+const buildJoinLink = (roomCode: string, serverUrl: string) => {
+  const url = new URL(window.location.href);
+  url.searchParams.set("net", "ws");
+  url.searchParams.set("role", "client");
+  url.searchParams.set("room", normalizeRoomCode(roomCode));
+  url.searchParams.set("ws", serverUrl);
+  return url.toString();
+};
+
+const copyTextToClipboard = async (text: string) => {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Fallback below.
+    }
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  const ok = document.execCommand("copy");
+  document.body.removeChild(textarea);
+  return ok;
+};
+
 const getSeedValue = (input: HTMLInputElement | null) => {
   const value = input?.value.trim() ?? "";
   return value.length > 0 ? value : generateRandomSeed();
@@ -373,7 +453,11 @@ const RESYNC_TIMEOUT_MS = 6000;
 const RESYNC_MAX_RETRIES = 10;
 const RESYNC_CHUNK_SEND_INTERVAL_MS = 16;
 const RESYNC_CHUNKS_PER_TICK = 4;
+const CONNECT_TIMEOUT_MS = 8000;
+const ROOM_REQUEST_TIMEOUT_MS = 8000;
 const PLAYER_NAME_STORAGE_KEY = "pirate_player_name";
+const SERVER_URL_STORAGE_KEY = "pirate_server_url";
+const ROOM_CODE_STORAGE_KEY = "pirate_room_code";
 const MAX_PLAYER_NAME_LENGTH = 16;
 const PLAYER_COUNT = 1;
 const WS_SERVER_URL = URL_PARAMS.get("ws") ??
@@ -390,6 +474,22 @@ const readStoredPlayerName = () => {
     return "";
   }
 };
+
+const readStoredServerUrl = () => {
+  try {
+    return localStorage.getItem(SERVER_URL_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+};
+
+const readStoredRoomCode = () => {
+  try {
+    return localStorage.getItem(ROOM_CODE_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+};
 const storePlayerName = (value: string) => {
   try {
     if (!value) {
@@ -397,6 +497,30 @@ const storePlayerName = (value: string) => {
       return;
     }
     localStorage.setItem(PLAYER_NAME_STORAGE_KEY, value);
+  } catch {
+    // Ignore storage errors (private mode, etc).
+  }
+};
+
+const storeServerUrl = (value: string) => {
+  try {
+    if (!value) {
+      localStorage.removeItem(SERVER_URL_STORAGE_KEY);
+      return;
+    }
+    localStorage.setItem(SERVER_URL_STORAGE_KEY, value);
+  } catch {
+    // Ignore storage errors (private mode, etc).
+  }
+};
+
+const storeRoomCode = (value: string) => {
+  try {
+    if (!value) {
+      localStorage.removeItem(ROOM_CODE_STORAGE_KEY);
+      return;
+    }
+    localStorage.setItem(ROOM_CODE_STORAGE_KEY, value);
   } catch {
     // Ignore storage errors (private mode, etc).
   }
@@ -432,6 +556,10 @@ type RoomConnectionState = {
   transport: Transport | null;
   hasSentStart: boolean;
   ui: RoomUiState | null;
+  pendingAction: "create" | "join" | null;
+  connectTimeoutId: number | null;
+  requestTimeoutId: number | null;
+  suppressCloseStatus: boolean;
 };
 
 type RoomUiState = {
@@ -491,6 +619,40 @@ const sendRoomMessage = (socket: WebSocket, message: RoomClientMessage) => {
   if (socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify(message));
   }
+};
+
+const formatRoomError = (roomState: RoomConnectionState, message: Extract<RoomServerMessage, { type: "error" }>) => {
+  const action = roomState.pendingAction === "create"
+    ? "Create room failed"
+    : roomState.pendingAction === "join"
+      ? "Join room failed"
+      : "Room error";
+
+  let detail = message.message;
+  switch (message.code) {
+    case "room-not-found":
+      detail = "Room not found. Check the code and server URL.";
+      break;
+    case "room-full":
+      detail = "Room is full.";
+      break;
+    case "invalid-code":
+      detail = "Invalid room code. Use the 5-character code from the host.";
+      break;
+    case "not-host":
+      detail = "Only the host can perform that action.";
+      break;
+    case "not-in-room":
+      detail = "You are not currently in a room.";
+      break;
+    case "bad-request":
+      detail = message.message || "Bad request.";
+      break;
+    default:
+      break;
+  }
+
+  return `${action}. ${detail}`;
 };
 
 const resetStateHashTracking = () => {
@@ -1106,7 +1268,11 @@ const startNetworkHost = (seed: string, options: NetworkStartOptions = {}) => {
     players: [],
     transport: null,
     hasSentStart: false,
-    ui
+    ui,
+    pendingAction: "create",
+    connectTimeoutId: null,
+    requestTimeoutId: null,
+    suppressCloseStatus: false
   };
 
   if (activeRoomSocket && activeRoomSocket.readyState === WebSocket.OPEN) {
@@ -1128,7 +1294,11 @@ const startNetworkHost = (seed: string, options: NetworkStartOptions = {}) => {
   activeRoomState = roomState;
   activeRoomSocket = socket;
 
+  scheduleConnectTimeout(roomState, socket, serverUrl);
+
   socket.addEventListener("open", () => {
+    roomState.suppressCloseStatus = false;
+    clearRoomTimeouts(roomState);
     sendRoomMessage(socket, {
       type: "create-room",
       playerName,
@@ -1136,10 +1306,21 @@ const startNetworkHost = (seed: string, options: NetworkStartOptions = {}) => {
       seed,
       inputDelayFrames
     });
+    scheduleRoomRequestTimeout(roomState, socket, "create");
+  });
+
+  socket.addEventListener("error", () => {
+    roomState.suppressCloseStatus = true;
+    roomState.ui?.setStatus("Network error. Could not connect to server.", true);
+    roomState.ui?.setActionsEnabled(true);
+    roomState.ui?.setStartEnabled(false);
   });
 
   socket.addEventListener("close", () => {
-    roomState.ui?.setStatus("Disconnected from server.", true);
+    clearRoomTimeouts(roomState);
+    if (!roomState.suppressCloseStatus) {
+      roomState.ui?.setStatus("Disconnected from server.", true);
+    }
     roomState.ui?.setActionsEnabled(true);
     roomState.ui?.setStartEnabled(false);
     setHudRoomCode(null);
@@ -1190,7 +1371,11 @@ const startNetworkClient = (roomCode: string, options: NetworkStartOptions = {})
     players: [],
     transport: null,
     hasSentStart: false,
-    ui
+    ui,
+    pendingAction: "join",
+    connectTimeoutId: null,
+    requestTimeoutId: null,
+    suppressCloseStatus: false
   };
 
   if (activeRoomSocket && activeRoomSocket.readyState === WebSocket.OPEN) {
@@ -1209,12 +1394,27 @@ const startNetworkClient = (roomCode: string, options: NetworkStartOptions = {})
   activeRoomState = roomState;
   activeRoomSocket = socket;
 
+  scheduleConnectTimeout(roomState, socket, serverUrl);
+
   socket.addEventListener("open", () => {
+    roomState.suppressCloseStatus = false;
+    clearRoomTimeouts(roomState);
     sendRoomMessage(socket, { type: "join-room", code: normalizedCode, playerName });
+    scheduleRoomRequestTimeout(roomState, socket, "join");
+  });
+
+  socket.addEventListener("error", () => {
+    roomState.suppressCloseStatus = true;
+    roomState.ui?.setStatus("Network error. Could not connect to server.", true);
+    roomState.ui?.setActionsEnabled(true);
+    roomState.ui?.setStartEnabled(false);
   });
 
   socket.addEventListener("close", () => {
-    roomState.ui?.setStatus("Disconnected from server.", true);
+    clearRoomTimeouts(roomState);
+    if (!roomState.suppressCloseStatus) {
+      roomState.ui?.setStatus("Disconnected from server.", true);
+    }
     roomState.ui?.setActionsEnabled(true);
     roomState.ui?.setStartEnabled(false);
     setHudRoomCode(null);
@@ -1229,6 +1429,8 @@ const startNetworkClient = (roomCode: string, options: NetworkStartOptions = {})
 const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSocket, message: RoomServerMessage) => {
   switch (message.type) {
     case "room-created": {
+      clearRoomTimeouts(roomState);
+      roomState.pendingAction = null;
       roomState.roomCode = message.code;
       roomState.roomId = message.roomId;
       roomState.playerCount = message.playerCount;
@@ -1244,6 +1446,8 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
   return;
 }
     case "room-joined": {
+      clearRoomTimeouts(roomState);
+      roomState.pendingAction = null;
       roomState.roomCode = message.code;
       roomState.roomId = message.roomId;
       roomState.playerCount = message.playerCount;
@@ -1350,7 +1554,9 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
       return;
     }
     case "error":
-      roomState.ui?.setStatus(`Error: ${message.message}`, true);
+      clearRoomTimeouts(roomState);
+      roomState.pendingAction = null;
+      roomState.ui?.setStatus(formatRoomError(roomState, message), true);
       roomState.ui?.setActionsEnabled(true);
       console.warn(`[room] error ${message.code}: ${message.message}`);
       return;
@@ -1448,6 +1654,11 @@ const initMenu = () => {
   }
 
   let multiplayerActionsEnabled = true;
+  const setJoinLinkEnabled = (enabled: boolean) => {
+    if (copyJoinLinkButton) {
+      copyJoinLinkButton.disabled = !enabled;
+    }
+  };
   const updateMultiplayerActions = () => {
     const nameValid = getPlayerNameValue().length > 0;
     const enabled = multiplayerActionsEnabled && nameValid;
@@ -1470,6 +1681,8 @@ const initMenu = () => {
         const total = playerCount > 0 ? playerCount : players.length;
         roomPlayerCount.textContent = `${players.length}/${total}`;
         setHudRoomCode(code);
+        setJoinLinkEnabled(Boolean(code));
+        storeRoomCode(code ?? "");
       },
       setStartEnabled: (enabled) => {
         startRoomButton.disabled = !enabled;
@@ -1477,6 +1690,7 @@ const initMenu = () => {
       setActionsEnabled: (enabled) => {
         multiplayerActionsEnabled = enabled;
         updateMultiplayerActions();
+        setJoinLinkEnabled(enabled && Boolean(activeRoomState?.roomCode));
         if (multiCreateButton) {
           multiCreateButton.disabled = !enabled;
         }
@@ -1546,10 +1760,23 @@ const initMenu = () => {
   setMultiplayerMode("create");
 
   if (serverUrlInput) {
-    serverUrlInput.value = WS_SERVER_URL;
+    const storedUrl = readStoredServerUrl();
+    serverUrlInput.value = storedUrl || WS_SERVER_URL;
+    serverUrlInput.addEventListener("input", () => {
+      const value = serverUrlInput.value.trim();
+      storeServerUrl(value);
+    });
   }
-  if (roomCodeInput && WS_ROOM_CODE) {
-    roomCodeInput.value = WS_ROOM_CODE;
+  if (roomCodeInput) {
+    const storedCode = readStoredRoomCode();
+    roomCodeInput.value = WS_ROOM_CODE || storedCode;
+    roomCodeInput.addEventListener("input", () => {
+      const value = normalizeRoomCode(roomCodeInput.value);
+      if (roomCodeInput.value !== value) {
+        roomCodeInput.value = value;
+      }
+      storeRoomCode(value);
+    });
   }
   if (playerNameInput) {
     const storedName = sanitizePlayerName(readStoredPlayerName());
@@ -1567,6 +1794,7 @@ const initMenu = () => {
   }
   roomUi?.setRoomInfo(null, [], 0);
   updateMultiplayerActions();
+  setJoinLinkEnabled(false);
 
   randomSeedButton.addEventListener("click", () => {
     const seed = generateRandomSeed();
@@ -1621,7 +1849,7 @@ const initMenu = () => {
       return;
     }
     const seed = getSeedValue(seedInputMulti ?? seedInput);
-    const serverUrl = serverUrlInput?.value.trim() || WS_SERVER_URL;
+    const serverUrl = getServerUrlValue();
     setMode("multi");
     setMultiplayerMode("create");
     startNetworkHost(seed, {
@@ -1637,7 +1865,7 @@ const initMenu = () => {
     if (!playerName) {
       return;
     }
-    const serverUrl = serverUrlInput?.value.trim() || WS_SERVER_URL;
+    const serverUrl = getServerUrlValue();
     const code = roomCodeInput?.value.trim() ?? "";
     setMode("multi");
     setMultiplayerMode("join");
@@ -1659,6 +1887,17 @@ const initMenu = () => {
     sendRoomMessage(activeRoomSocket, { type: "start-room" });
     activeRoomState.hasSentStart = true;
     roomUi?.setStatus("Starting match...");
+  });
+
+  copyJoinLinkButton?.addEventListener("click", async () => {
+    const code = activeRoomState?.roomCode;
+    if (!code) {
+      return;
+    }
+    const serverUrl = getServerUrlValue();
+    const link = buildJoinLink(code, serverUrl);
+    const ok = await copyTextToClipboard(link);
+    roomUi?.setStatus(ok ? "Join link copied." : "Failed to copy join link.", !ok);
   });
 
   if (NETWORK_MODE === "ws") {

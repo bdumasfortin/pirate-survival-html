@@ -41,6 +41,29 @@ jobs:
         run: npm ci
       - name: Build
         run: npm run build
+      - name: Install server dependencies
+        run: npm ci --prefix server
+      - name: Build server bundle
+        run: npm run build:bundle --prefix server
+      - name: Read version
+        id: version
+        run: echo "version=$(node -p \"require('./package.json').version\")" >> "$GITHUB_OUTPUT"
+      - name: Upload server bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: pirate-survival-server
+          path: |
+            server/dist/server.js
+            server/dist/README.md
+      - name: Create GitHub release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          artifacts: server/dist/server.js,server/dist/README.md
+          allowUpdates: true
+          replacesArtifacts: true
+          generateReleaseNotes: true
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact

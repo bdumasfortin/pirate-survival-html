@@ -13,7 +13,7 @@ import {
   type RoomServerErrorCode,
   type RoomServerMessage,
   type ResyncReason
-} from "./room-protocol";
+} from "./room-protocol.js";
 
 type Client = {
   id: string;

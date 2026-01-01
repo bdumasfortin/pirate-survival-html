@@ -1,5 +1,6 @@
 # TO DO
 
+- [ ] Add a timeout for room creation (and other API calls)
 - [ ] Campfire
 - [ ] Cooking
 - [ ] Day/Night cycle
