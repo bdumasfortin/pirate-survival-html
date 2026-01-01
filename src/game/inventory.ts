@@ -1,7 +1,7 @@
 import type { EcsWorld, EntityId } from "../core/ecs";
 import { INVENTORY_SLOT_COUNT } from "../core/ecs";
-import type { ResourceKind } from "../world/types";
-import { resourceKindFromIndex, resourceKindToIndex } from "../world/resource-kinds";
+import type { ItemKind } from "./item-kinds";
+import { itemKindFromIndex, itemKindToIndex } from "./item-kinds";
 
 export const STACK_LIMIT = 20;
 
@@ -19,9 +19,9 @@ export const getInventorySlotKindIndex = (ecs: EcsWorld, entityId: EntityId, slo
 export const getInventorySlotQuantity = (ecs: EcsWorld, entityId: EntityId, slotIndex: number) =>
   ecs.inventoryQuantity[getSlotOffset(entityId, slotIndex)];
 
-export const getInventorySlotKind = (ecs: EcsWorld, entityId: EntityId, slotIndex: number): ResourceKind | null => {
+export const getInventorySlotKind = (ecs: EcsWorld, entityId: EntityId, slotIndex: number): ItemKind | null => {
   const kindIndex = getInventorySlotKindIndex(ecs, entityId, slotIndex);
-  return kindIndex === 0 ? null : resourceKindFromIndex(kindIndex);
+  return kindIndex === 0 ? null : itemKindFromIndex(kindIndex);
 };
 
 export const clearInventorySlot = (ecs: EcsWorld, entityId: EntityId, slotIndex: number) => {
@@ -41,13 +41,13 @@ export const setInventorySlotQuantity = (ecs: EcsWorld, entityId: EntityId, slot
   ecs.inventoryQuantity[offset] = quantity;
 };
 
-export const addToInventory = (ecs: EcsWorld, entityId: EntityId, kind: ResourceKind, amount: number) => {
+export const addToInventory = (ecs: EcsWorld, entityId: EntityId, kind: ItemKind, amount: number) => {
   if (amount <= 0) {
     return 0;
   }
 
   let remaining = amount;
-  const kindIndex = resourceKindToIndex(kind);
+  const kindIndex = itemKindToIndex(kind);
   const base = entityId * INVENTORY_SLOT_COUNT;
 
   const fillSlot = (slotIndex: number, allowEmpty: boolean) => {
@@ -95,8 +95,8 @@ export const addToInventory = (ecs: EcsWorld, entityId: EntityId, kind: Resource
   return amount - remaining;
 };
 
-export const getTotalOfKind = (ecs: EcsWorld, entityId: EntityId, kind: ResourceKind) => {
-  const kindIndex = resourceKindToIndex(kind);
+export const getTotalOfKind = (ecs: EcsWorld, entityId: EntityId, kind: ItemKind) => {
+  const kindIndex = itemKindToIndex(kind);
   const base = entityId * INVENTORY_SLOT_COUNT;
   let total = 0;
 
@@ -110,8 +110,8 @@ export const getTotalOfKind = (ecs: EcsWorld, entityId: EntityId, kind: Resource
   return total;
 };
 
-export const getAvailableSpace = (ecs: EcsWorld, entityId: EntityId, kind: ResourceKind) => {
-  const kindIndex = resourceKindToIndex(kind);
+export const getAvailableSpace = (ecs: EcsWorld, entityId: EntityId, kind: ItemKind) => {
+  const kindIndex = itemKindToIndex(kind);
   const base = entityId * INVENTORY_SLOT_COUNT;
   let space = 0;
 
@@ -130,12 +130,12 @@ export const getAvailableSpace = (ecs: EcsWorld, entityId: EntityId, kind: Resou
   return space;
 };
 
-export const removeFromInventory = (ecs: EcsWorld, entityId: EntityId, kind: ResourceKind, amount: number) => {
+export const removeFromInventory = (ecs: EcsWorld, entityId: EntityId, kind: ItemKind, amount: number) => {
   if (amount <= 0) {
     return 0;
   }
 
-  const kindIndex = resourceKindToIndex(kind);
+  const kindIndex = itemKindToIndex(kind);
   const base = entityId * INVENTORY_SLOT_COUNT;
   let remaining = amount;
 

@@ -8,7 +8,8 @@ import { enemyKindFromIndex } from "../game/enemy-kinds";
 import { GROUND_ITEM_MASK } from "../game/ground-items";
 import { drawIsland, insetPoints } from "./render-helpers";
 import { isImageReady, itemImages, worldImages } from "./assets";
-import { resourceKindFromIndex, resourceNodeTypeFromIndex } from "../world/resource-kinds";
+import { itemKindFromIndex } from "../game/item-kinds";
+import { resourceNodeTypeFromIndex } from "../world/resource-node-types";
 
 const SEA_GRADIENT_TOP = "#2c7a7b";
 const SEA_GRADIENT_BOTTOM = "#0b2430";
@@ -80,7 +81,7 @@ const renderGroundItems = (ctx: CanvasRenderingContext2D, state: GameState) => {
   const time = state.time;
   const ecs = state.ecs;
   forEachEntity(ecs, GROUND_ITEM_MASK, (id) => {
-    const kind = resourceKindFromIndex(ecs.groundItemKind[id]);
+    const kind = itemKindFromIndex(ecs.groundItemKind[id]);
     const icon = getItemIcon(kind);
     if (icon) {
       ctx.drawImage(icon, ecs.position.x[id] - size / 2, ecs.position.y[id] - size / 2, size, size);

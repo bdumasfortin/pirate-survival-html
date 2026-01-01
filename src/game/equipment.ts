@@ -1,7 +1,7 @@
 import type { EcsWorld, EntityId } from "../core/ecs";
 import { EQUIPMENT_SLOT_COUNT } from "../core/ecs";
-import type { ResourceKind } from "../world/types";
-import { resourceKindFromIndex, resourceKindToIndex } from "../world/resource-kinds";
+import type { ItemKind } from "./item-kinds";
+import { itemKindFromIndex, itemKindToIndex } from "./item-kinds";
 
 export type EquipmentSlotType = "helmet" | "cloak" | "chest" | "legs" | "boots" | "ring";
 
@@ -25,7 +25,7 @@ const EQUIPMENT_SLOT_INDEX: Record<EquipmentSlotType, number> = {
 
 const getSlotOffset = (entityId: EntityId, slotIndex: number) => entityId * EQUIPMENT_SLOT_COUNT + slotIndex;
 
-export const getEquipmentSlotForItem = (kind: ResourceKind): EquipmentSlotType | null => {
+export const getEquipmentSlotForItem = (kind: ItemKind): EquipmentSlotType | null => {
   switch (kind) {
     case "crabhelmet":
       return "helmet";
@@ -45,14 +45,14 @@ export const getEquipmentSlotKindIndex = (ecs: EcsWorld, entityId: EntityId, slo
   return ecs.equipmentKind[offset];
 };
 
-export const getEquipmentSlotKind = (ecs: EcsWorld, entityId: EntityId, slotType: EquipmentSlotType): ResourceKind | null => {
+export const getEquipmentSlotKind = (ecs: EcsWorld, entityId: EntityId, slotType: EquipmentSlotType): ItemKind | null => {
   const kindIndex = getEquipmentSlotKindIndex(ecs, entityId, slotType);
-  return kindIndex === 0 ? null : resourceKindFromIndex(kindIndex);
+  return kindIndex === 0 ? null : itemKindFromIndex(kindIndex);
 };
 
-export const setEquipmentSlotKind = (ecs: EcsWorld, entityId: EntityId, slotType: EquipmentSlotType, kind: ResourceKind | null) => {
+export const setEquipmentSlotKind = (ecs: EcsWorld, entityId: EntityId, slotType: EquipmentSlotType, kind: ItemKind | null) => {
   const offset = getSlotOffset(entityId, getEquipmentSlotIndex(slotType));
-  ecs.equipmentKind[offset] = kind ? resourceKindToIndex(kind) : 0;
+  ecs.equipmentKind[offset] = kind ? itemKindToIndex(kind) : 0;
 };
 
 export const getEquippedItemCount = (ecs: EcsWorld, entityId: EntityId) => {

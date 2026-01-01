@@ -1,4 +1,4 @@
-import type { ResourceKind } from "../world/types";
+import type { ItemKind } from "../game/item-kinds";
 import type { EquipmentSlotType } from "../game/equipment";
 import crabUrl from "../assets/svg/crab.svg";
 import wolfUrl from "../assets/svg/wolf.svg";
@@ -53,7 +53,7 @@ export const equipmentPlaceholderImages: Record<EquipmentSlotType, HTMLImageElem
   ring: loadImage(placeholderRingUrl)
 };
 
-export const itemImages: Record<ResourceKind, HTMLImageElement> = {
+export const itemImages: Record<ItemKind, HTMLImageElement> = {
   wood: loadImage(itemWoodUrl),
   rock: loadImage(itemRockUrl),
   raft: loadImage(itemRaftUrl),

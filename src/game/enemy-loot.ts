@@ -1,13 +1,13 @@
 import type { EntityId } from "../core/ecs";
 import { nextFloat } from "../core/rng";
 import type { GameState } from "./state";
-import type { ResourceKind } from "../world/types";
+import type { ItemKind } from "./item-kinds";
 import { enemyKindFromIndex, type EnemyKind } from "./enemy-kinds";
 import { GROUND_ITEM_DROP_OFFSET } from "./ground-items-config";
 import { spawnGroundItem } from "./ground-items";
 
 type LootEntry = {
-  kind: ResourceKind;
+  kind: ItemKind;
   quantity: number;
   offsetScale?: number;
   bossOnly?: boolean;

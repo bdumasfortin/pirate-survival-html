@@ -40,6 +40,7 @@
 - `src/core/math.ts` shared math helpers (clamp/normalize).
 - `src/game/state.ts` top-level game state and initializers.
 - `src/game/rollback.ts` rollback snapshots and state restore helpers.
+- `src/game/item-kinds.ts` shared item kind enums + index helpers.
 - `src/game/inventory.ts` inventory data and stack handling.
 - `src/game/crafting.ts` recipe data and craft helpers.
 - `src/game/combat-config.ts` combat tuning values.
@@ -71,6 +72,7 @@
 - `src/net/snapshot.ts` snapshot serialization + base64 chunk helpers.
 - `src/world/types.ts` world domain types.
 - `src/world/world-config.ts` island/resource config data.
+- `src/world/resource-node-types.ts` resource node kind indices.
 - `src/world/world.ts` island creation + resource seeding.
 - `server/src/index.ts` relay server entry (rooms, rate limits, resync routing).
 
@@ -93,7 +95,7 @@
 9) Item use (LMB with berries)
 10) Drop (Q)
 11) Ground item pickup
-12) Crab behavior
+12) Enemy behavior
 13) Survival decay
 14) Render
 
