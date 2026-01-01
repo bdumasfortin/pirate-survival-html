@@ -205,6 +205,29 @@ button.primary {
   flex: 1;
 }
 
+.menu-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  font-size: 14px;
+}
+
+.menu-links a {
+  color: rgba(246, 231, 193, 0.8);
+  text-decoration: none;
+}
+
+.menu-links a:hover {
+  color: rgba(246, 231, 193, 1);
+  text-decoration: underline;
+}
+
+.menu-links__divider {
+  color: rgba(246, 231, 193, 0.5);
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;
