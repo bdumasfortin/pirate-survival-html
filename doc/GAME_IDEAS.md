@@ -32,7 +32,6 @@
 ## UI and UX
 - Crafting filters and categories.
 - Item tooltips with stats and flavor text.
-- Minimap and map screen.
 
 ## Audio and presentation
 - Ambient music and ocean SFX.

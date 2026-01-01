@@ -5,7 +5,7 @@ import { clamp, normalize } from "../core/math";
 import { nextFloat, nextRange } from "../core/rng";
 import { ComponentMask, destroyEntity, forEachEntity, isEntityAlive, type EntityId } from "../core/ecs";
 import { ENEMY_KIND_TO_INDEX } from "../game/enemy-kinds";
-import { isPointInPolygon } from "../world/island-geometry";
+import { closestPointOnPolygon, findContainingIsland, isPointInPolygon } from "../world/island-geometry";
 import {
   ATTACK_EFFECT_DURATION,
   CRAB_HIT_FLASH_DURATION,
@@ -64,7 +64,7 @@ const applyMonsterDamage = (state: GameState, playerIndex: number, playerId: Ent
   }
 };
 
-export const updateCrabs = (state: GameState, delta: number) => {
+export const updateEnemies = (state: GameState, delta: number) => {
   const ecs = state.ecs;
   const rng = state.rng;
   const livingPlayers: LivingPlayer[] = [];
@@ -114,6 +114,26 @@ export const updateCrabs = (state: GameState, delta: number) => {
       ecs.velocity.y[id] = Math.sin(ecs.enemyWanderAngle[id]) * ecs.enemySpeed[id] * WANDER_SPEED_SCALE;
       ecs.position.x[id] += ecs.velocity.x[id] * delta;
       ecs.position.y[id] += ecs.velocity.y[id] * delta;
+
+      const containingIsland = findContainingIsland(
+        { x: ecs.position.x[id], y: ecs.position.y[id] },
+        state.world.islands
+      );
+      if (containingIsland) {
+        const closest = closestPointOnPolygon(
+          { x: ecs.position.x[id], y: ecs.position.y[id] },
+          containingIsland.points
+        );
+        const dir = normalize(
+          closest.point.x - containingIsland.center.x,
+          closest.point.y - containingIsland.center.y
+        );
+        const offset = ecs.radius[id] + 2;
+        ecs.position.x[id] = closest.point.x + dir.x * offset;
+        ecs.position.y[id] = closest.point.y + dir.y * offset;
+        ecs.enemyWanderAngle[id] = Math.atan2(dir.y, dir.x);
+        ecs.enemyWanderTimer[id] = nextRange(rng, KRAKEN_STATS.wanderTimerMin, KRAKEN_STATS.wanderTimerMax);
+      }
 
       if (target) {
         const dx = target.x - ecs.position.x[id];
@@ -177,7 +197,7 @@ export const updateCrabs = (state: GameState, delta: number) => {
   });
 };
 
-export const updatePlayerAttack = (
+export const updatePlayerCombat = (
   state: GameState,
   playerIndex: number,
   playerId: EntityId,

@@ -54,7 +54,7 @@
 - `src/systems/gathering.ts` resource interaction + respawn.
 - `src/systems/ground-items.ts` ground item pickup.
 - `src/systems/crafting.ts` crafting menu toggle + recipe crafting.
-- `src/systems/crabs.ts` crab behavior + player attack.
+- `src/systems/enemies.ts` enemy behavior + player combat.
 - `src/systems/raft.ts` raft boarding + disembarking.
 - `src/systems/survival.ts` hunger decay + health loss.
 - `src/systems/use-selected-item.ts` item use + cooldown.

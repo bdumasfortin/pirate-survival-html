@@ -2,4 +2,5 @@
 
 Track confirmed bugs and gameplay issues here.
 
-- Kraken paths on island.
+- [ ] In multiplayer, one of the players stopped seeing the other one (could not reproduce)
+- [ ] In multiplayer, desync of monsters (could not reproduce)

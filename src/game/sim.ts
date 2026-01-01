@@ -5,7 +5,7 @@ import type { GameState } from "./state";
 import { updateMovement } from "../systems/movement";
 import { constrainPlayerToIslands } from "../systems/collisions";
 import { updateCrafting } from "../systems/crafting";
-import { updateCrabs, updatePlayerAttack } from "../systems/crabs";
+import { updateEnemies, updatePlayerCombat } from "../systems/enemies";
 import { updateInventorySelection } from "../systems/inventory-selection";
 import { gatherNearbyResource, updateResourceRespawns } from "../systems/gathering";
 import { updateRaft } from "../systems/raft";
@@ -87,7 +87,7 @@ export const simulateFrame = (state: GameState, inputs: InputState[], delta: num
       gatherNearbyResource(state, playerId, input);
       updateUseCooldown(state, playerId, delta);
       if (!state.crafting[index]?.isOpen) {
-        updatePlayerAttack(state, index, playerId, input, delta);
+        updatePlayerCombat(state, index, playerId, input, delta);
         useSelectedItem(state, playerId, input);
       }
       dropSelectedItem(state, playerId, input);
@@ -95,7 +95,7 @@ export const simulateFrame = (state: GameState, inputs: InputState[], delta: num
     }
   }
 
-  updateCrabs(state, delta);
+  updateEnemies(state, delta);
 
   for (let index = 0; index < state.playerIds.length; index += 1) {
     const playerId = state.playerIds[index];
