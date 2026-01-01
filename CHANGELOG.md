@@ -2,6 +2,10 @@
 
 All notable changes to this project are documented here.
 
+## [0.1.8] - 2026-01-01
+### Fixed
+- Server build wasn't working with node 24
+
 ## [0.1.6] - 2026-01-01
 ### Added
 - Copy join link button for multiplayer rooms

@@ -7,6 +7,8 @@
 
 The default port is `8787`.
 
+Keep `package.json` next to `server.js` if you run it from a folder that uses `"type": "module"`.
+
 ## Configuration
 - Set a custom port:
   `PORT=9000 node server.js`

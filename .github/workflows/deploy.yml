@@ -57,12 +57,13 @@ jobs:
           path: |
             server/dist/server.js
             server/dist/README.md
+            server/dist/package.json
       - name: Create GitHub release
         uses: ncipollo/release-action@v1
         with:
           tag: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }}
-          artifacts: server/dist/server.js,server/dist/README.md
+          artifacts: server/dist/server.js,server/dist/README.md,server/dist/package.json
           allowUpdates: true
           replacesArtifacts: true
           generateReleaseNotes: true

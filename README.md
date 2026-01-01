@@ -33,6 +33,7 @@ From `server/`:
 2) Run the bundled server: `npm run start:bundle`
 
 This outputs `server/dist/server.js` for easy distribution (Node required, no npm install needed on the host).
+For local runs inside the repo, `npm run start:bundle` uses `server/dist/server.cjs`.
 
 ### 2) Host a room (client)
 Open the game and use the Multiplayer tab in the start menu to create a room.
