@@ -194,6 +194,25 @@ const addPlayerToRoom = (room: Room, client: Client, index: number, isHost: bool
   room.lastActivity = now;
 };
 
+const assignHost = (room: Room) => {
+  let nextHost: RoomPlayer | null = null;
+  for (const player of room.players.values()) {
+    if (!nextHost || player.index < nextHost.index) {
+      nextHost = player;
+    }
+  }
+
+  if (!nextHost) {
+    room.hostId = "";
+    return;
+  }
+
+  room.hostId = nextHost.id;
+  for (const player of room.players.values()) {
+    player.isHost = player.id === room.hostId;
+  }
+};
+
 const removeClientFromRoom = (client: Client, reason = "left") => {
   if (!client.roomCode) {
     return;
@@ -209,14 +228,16 @@ const removeClientFromRoom = (client: Client, reason = "left") => {
   client.roomCode = null;
   touchRoom(room);
 
-  if (wasHost) {
-    closeRoom(room, "host-left");
-    return;
-  }
-
   if (room.players.size === 0) {
     rooms.delete(room.code);
     logRoom(room, "removed (empty)");
+    return;
+  }
+
+  if (wasHost) {
+    assignHost(room);
+    broadcastRoom(room, { type: "room-updated", players: buildPlayersList(room) });
+    logRoom(room, `host ${reason} (reassigned)`);
     return;
   }
 

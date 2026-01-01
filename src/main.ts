@@ -2,6 +2,7 @@ import "./style.css";
 import { createInputState, bindKeyboard, bindInventorySelection, bindMouse, bindCraftScroll, type InputState } from "./core/input";
 import { applyRemoteInputFrame, createInputSyncState, readPlayerInputFrame, trimInputSyncState, storeLocalInputFrame, type InputSyncState } from "./core/input-sync";
 import { applyInputFrame, InputBits, storeInputFrameData, type InputFrame } from "./core/input-buffer";
+import { isEntityAlive } from "./core/ecs";
 import { startLoop } from "./core/loop";
 import { hashGameStateSnapshot } from "./core/state-hash";
 import { createInitialState, type GameState } from "./game/state";
@@ -426,6 +427,7 @@ type ActiveGameRuntime = {
   pendingRollbackFrame: { value: number | null };
   remoteInputQueue: Array<{ playerIndex: number; frame: number; input: InputFrame }>;
   maxInputFrames: number[];
+  minRemoteInputFrames: number[];
 };
 
 type PendingResync = {
@@ -472,6 +474,72 @@ const resetStateHashTracking = () => {
   remoteStateHashes.clear();
   lastDesyncFrame = -1;
   lastHashSentFrame = -1;
+};
+
+const syncRoomPlayers = (roomState: RoomConnectionState, players: RoomPlayerInfo[]) => {
+  roomState.players = players;
+
+  if (activeSession) {
+    activeSession.players = players.map((player) => ({
+      id: player.id,
+      index: player.index,
+      isLocal: player.id === activeSession.localId
+    }));
+    const localInfo = players.find((player) => player.id === activeSession.localId);
+    if (localInfo) {
+      activeSession.localPlayerIndex = localInfo.index;
+      activeSession.isHost = localInfo.isHost;
+      roomState.role = localInfo.isHost ? "host" : "client";
+    }
+  }
+
+  if (!activeGame) {
+    return;
+  }
+
+  const ecs = activeGame.state.ecs;
+  const connected = new Set(players.map((player) => player.index));
+  if (activeGame.minRemoteInputFrames.length !== activeGame.state.playerIds.length) {
+    activeGame.minRemoteInputFrames = Array.from(
+      { length: activeGame.state.playerIds.length },
+      (_, index) => activeGame.minRemoteInputFrames[index] ?? 0
+    );
+  }
+  for (let index = 0; index < activeGame.state.playerIds.length; index += 1) {
+    const playerId = activeGame.state.playerIds[index];
+    if (playerId === undefined) {
+      continue;
+    }
+    const shouldBeAlive = connected.has(index);
+    const isAlive = isEntityAlive(ecs, playerId);
+    if (shouldBeAlive && !isAlive) {
+      ecs.alive[playerId] = 1;
+      const delayFrames = Math.max(0, roomState.inputDelayFrames);
+      if (index !== activeSession?.localPlayerIndex) {
+        activeGame.minRemoteInputFrames[index] = activeGame.clock.frame + delayFrames;
+      }
+      continue;
+    }
+    if (!shouldBeAlive && isAlive) {
+      ecs.alive[playerId] = 0;
+      if (activeGame.state.attackEffects[index]) {
+        activeGame.state.attackEffects[index] = null;
+      }
+    }
+  }
+};
+
+const getNextRoomPlayerIndex = (roomState: RoomConnectionState) => {
+  const used = new Set<number>();
+  for (const player of roomState.players) {
+    used.add(player.index);
+  }
+  for (let index = 0; index < roomState.playerCount; index += 1) {
+    if (!used.has(index)) {
+      return index;
+    }
+  }
+  return roomState.playerCount;
 };
 
 const pruneStateHashHistory = (currentFrame: number) => {
@@ -603,15 +671,22 @@ const applyResyncSnapshot = (pending: PendingResync) => {
     index: player.index,
     isLocal: player.id === activeSession.localId
   }));
-  activeSession.expectedPlayerCount = activeSession.players.length;
-  activeGame.inputSync.playerCount = activeSession.expectedPlayerCount;
+  const expectedPlayerCount = activeRoomState?.playerCount && activeRoomState.playerCount > 0
+    ? activeRoomState.playerCount
+    : Math.max(activeSession.expectedPlayerCount, pending.players.length);
+  activeSession.expectedPlayerCount = expectedPlayerCount;
+  activeGame.inputSync.playerCount = expectedPlayerCount;
   const resetFrame = pending.frame - 1;
-  activeGame.maxInputFrames.length = activeSession.expectedPlayerCount;
+  activeGame.maxInputFrames.length = expectedPlayerCount;
   for (let i = 0; i < activeGame.maxInputFrames.length; i += 1) {
     activeGame.maxInputFrames[i] = resetFrame;
   }
+  if (activeGame.minRemoteInputFrames.length !== expectedPlayerCount) {
+    const next = Array.from({ length: expectedPlayerCount }, (_, index) => activeGame.minRemoteInputFrames[index] ?? 0);
+    activeGame.minRemoteInputFrames = next;
+  }
   activeGame.predictedFrames.length = 0;
-  for (let i = 0; i < activeSession.expectedPlayerCount; i += 1) {
+  for (let i = 0; i < expectedPlayerCount; i += 1) {
     activeGame.predictedFrames.push(createEmptyInputFrame());
   }
   activeGame.pendingRollbackFrame.value = null;
@@ -625,9 +700,9 @@ const applyResyncSnapshot = (pending: PendingResync) => {
   activeGame.remoteInputQueue.length = 0;
   activeGame.clock.frame = pending.frame;
   setSessionFrame(activeSession, pending.frame);
-  if (activeGame.frameInputs.length !== activeSession.expectedPlayerCount) {
+  if (activeGame.frameInputs.length !== expectedPlayerCount) {
     activeGame.frameInputs.length = 0;
-    for (let i = 0; i < activeSession.expectedPlayerCount; i += 1) {
+    for (let i = 0; i < expectedPlayerCount; i += 1) {
       activeGame.frameInputs.push(createInputState());
     }
   }
@@ -641,9 +716,17 @@ const applyResyncSnapshot = (pending: PendingResync) => {
   pendingResync = null;
   setNetIndicator("", false);
   activeRoomState?.ui?.setStatus("Resync complete.");
+  if (activeRoomState) {
+    syncRoomPlayers(activeRoomState, pending.players);
+  }
 };
 
-const sendResyncSnapshot = (roomState: RoomConnectionState, requesterId: string, fromFrame: number) => {
+const sendResyncSnapshot = (
+  roomState: RoomConnectionState,
+  requesterId: string,
+  fromFrame: number,
+  options: { useLiveSnapshot?: boolean } = {}
+) => {
   if (!activeGame || !activeSession || !activeSession.isHost) {
     return;
   }
@@ -651,8 +734,10 @@ const sendResyncSnapshot = (roomState: RoomConnectionState, requesterId: string,
     return;
   }
   const requestedFrame = Math.max(0, Math.floor(fromFrame));
-  let snapshot = getRollbackSnapshot(activeGame.rollbackBuffer, requestedFrame);
   let snapshotFrame = requestedFrame;
+  let snapshot = options.useLiveSnapshot
+    ? null
+    : getRollbackSnapshot(activeGame.rollbackBuffer, requestedFrame);
   if (!snapshot) {
     snapshot = createGameStateSnapshot(activeGame.state);
     snapshotFrame = activeGame.clock.frame;
@@ -772,8 +857,12 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
     clock,
     pendingRollbackFrame,
     remoteInputQueue,
-    maxInputFrames: Array.from({ length: session.expectedPlayerCount }, () => -1)
+    maxInputFrames: Array.from({ length: session.expectedPlayerCount }, () => -1),
+    minRemoteInputFrames: Array.from({ length: session.expectedPlayerCount }, () => 0)
   };
+  if (activeRoomState) {
+    syncRoomPlayers(activeRoomState, activeRoomState.players);
+  }
 
   const enqueueRemoteInput = (playerIndex: number, remoteFrame: number, inputFrame: InputFrame) => {
     remoteInputQueue.push({ playerIndex, frame: remoteFrame, input: inputFrame });
@@ -836,6 +925,14 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
     }
 
     for (const entry of remoteInputQueue) {
+      const playerId = activeGame?.state.playerIds[entry.playerIndex];
+      if (playerId === undefined || !isEntityAlive(activeGame.state.ecs, playerId)) {
+        continue;
+      }
+      const minFrame = activeGame?.minRemoteInputFrames[entry.playerIndex] ?? 0;
+      if (entry.frame < minFrame) {
+        continue;
+      }
       const rollbackFrame = applyRemoteInputFrame(inputSync, entry.playerIndex, clock.frame, entry.frame, entry.input);
       updateMaxInputFrame(entry.playerIndex, entry.frame);
       if (rollbackFrame !== null) {
@@ -1125,11 +1222,12 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
       console.info(`[room] joined code=${message.code} players=${message.playerCount}`);
       return;
     }
-    case "room-updated":
-  roomState.players = message.players;
-  roomState.ui?.setRoomInfo(roomState.roomCode, message.players, roomState.playerCount);
-  roomState.ui?.setStartEnabled(roomState.role === "host");
-  return;
+    case "room-updated": {
+      syncRoomPlayers(roomState, message.players);
+      roomState.ui?.setRoomInfo(roomState.roomCode, message.players, roomState.playerCount);
+      roomState.ui?.setStartEnabled(roomState.role === "host");
+      return;
+    }
     case "start": {
       if (hasStarted) {
         return;
@@ -1225,6 +1323,27 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
     case "resync-request": {
       if (activeSession) {
         const isLocalRequester = message.requesterId === activeSession.localId;
+        if (message.reason === "late-join" && message.requesterId) {
+          const hasRequester = roomState.players.some((player) => player.id === message.requesterId);
+          if (!hasRequester) {
+            const assignedIndex = getNextRoomPlayerIndex(roomState);
+            const nextPlayers = [...roomState.players, {
+              id: message.requesterId,
+              index: assignedIndex,
+              isHost: false
+            }].sort((a, b) => a.index - b.index);
+            syncRoomPlayers(roomState, nextPlayers);
+            roomState.ui?.setRoomInfo(roomState.roomCode, nextPlayers, roomState.playerCount);
+          }
+          if (activeGame) {
+            const requester = roomState.players.find((player) => player.id === message.requesterId);
+            const requesterIndex = requester?.index ?? getNextRoomPlayerIndex(roomState);
+            if (requesterIndex >= 0 && requesterIndex < activeGame.minRemoteInputFrames.length) {
+              activeGame.minRemoteInputFrames[requesterIndex] = activeGame.clock.frame +
+                Math.max(0, roomState.inputDelayFrames);
+            }
+          }
+        }
         if (!activeSession.isHost || isLocalRequester) {
           pauseSession(activeSession, message.reason);
           const label = message.reason === "late-join"
@@ -1237,7 +1356,11 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
         }
         console.info(`[room] resync requested reason=${message.reason} requester=${message.requesterId}`);
         if (activeSession.isHost && message.requesterId && !isLocalRequester) {
-          sendResyncSnapshot(roomState, message.requesterId, message.fromFrame);
+          const useLiveSnapshot = message.reason === "late-join";
+          const requestedFrame = useLiveSnapshot && activeGame
+            ? activeGame.clock.frame
+            : message.fromFrame;
+          sendResyncSnapshot(roomState, message.requesterId, requestedFrame, { useLiveSnapshot });
         } else if (isLocalRequester) {
           pendingResync = null;
           resyncRequestFrame = message.fromFrame;

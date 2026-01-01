@@ -55,13 +55,14 @@ export const simulateFrame = (state: GameState, inputs: InputState[], delta: num
     if (!input) {
       continue;
     }
-
-    if (isEntityAlive(ecs, playerId)) {
-      const playerX = ecs.position.x[playerId];
-      const playerY = ecs.position.y[playerId];
-      updateMouseWorldPosition(input, playerX, playerY);
-      updateAimAngle(state, playerId, input, playerX, playerY);
+    if (!isEntityAlive(ecs, playerId)) {
+      continue;
     }
+
+    const playerX = ecs.position.x[playerId];
+    const playerY = ecs.position.y[playerId];
+    updateMouseWorldPosition(input, playerX, playerY);
+    updateAimAngle(state, playerId, input, playerX, playerY);
 
     updateInventorySelection(state, playerId, input);
 
@@ -83,6 +84,9 @@ export const simulateFrame = (state: GameState, inputs: InputState[], delta: num
     if (!input) {
       continue;
     }
+    if (!isEntityAlive(ecs, playerId)) {
+      continue;
+    }
 
     if (!ecs.playerIsDead[playerId]) {
       gatherNearbyResource(state, playerId, input);
@@ -100,6 +104,9 @@ export const simulateFrame = (state: GameState, inputs: InputState[], delta: num
 
   for (let index = 0; index < state.playerIds.length; index += 1) {
     const playerId = state.playerIds[index];
+    if (!isEntityAlive(ecs, playerId)) {
+      continue;
+    }
     updateSurvival(state, index, playerId, delta);
   }
 
