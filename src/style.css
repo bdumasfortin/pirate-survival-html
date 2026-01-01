@@ -139,7 +139,8 @@ canvas {
 }
 
 .menu-field input,
-#server-url {
+#server-url,
+#player-name {
   background: rgba(8, 14, 18, 0.7);
   border: 1px solid rgba(246, 231, 193, 0.2);
   border-radius: 12px;
@@ -150,7 +151,8 @@ canvas {
 }
 
 .menu-field input::placeholder,
-#server-url::placeholder {
+#server-url::placeholder,
+#player-name::placeholder {
   color: rgba(246, 231, 193, 0.4);
 }
 

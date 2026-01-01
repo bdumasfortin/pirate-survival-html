@@ -1,7 +1,7 @@
 # TO DO
 
 ## Now
-- [ ] 
+- [ ] Add player names
 
 ## Later
 - [ ] Add test tools

@@ -17,11 +17,12 @@ export type RoomPlayerInfo = {
   id: string;
   index: number;
   isHost: boolean;
+  name: string;
 };
 
 export type RoomClientMessage =
-  | { type: "create-room"; playerCount?: number; seed?: string; inputDelayFrames?: number }
-  | { type: "join-room"; code: string }
+  | { type: "create-room"; playerName: string; playerCount?: number; seed?: string; inputDelayFrames?: number }
+  | { type: "join-room"; code: string; playerName: string }
   | { type: "leave-room" }
   | { type: "start-room" }
   | { type: "resync-state"; requesterId: string; frame: number; seed: string; players: RoomPlayerInfo[]; snapshotId: string; totalBytes: number; chunkSize: number }

@@ -11,6 +11,7 @@ import { simulateFrame } from "./game/sim";
 import { runDeterminismCheck } from "./dev/determinism";
 import { render } from "./render/renderer";
 import { setHudRoomCode, setHudSeed } from "./render/ui";
+import { setPlayerNameLabels } from "./render/world";
 import { createClientSession, createHostSession, finalizeSessionStart, pauseSession, resumeSessionFromFrame, setSessionFrame, type SessionState } from "./net/session";
 import { decodeInputPacket, encodeInputPacket, type InputPacket } from "./net/input-wire";
 import { decodeBase64, deserializeGameStateSnapshot, encodeBase64, serializeGameStateSnapshot } from "./net/snapshot";
@@ -54,6 +55,7 @@ const multiCreateButton = document.getElementById("multi-create") as HTMLButtonE
 const multiJoinButton = document.getElementById("multi-join") as HTMLButtonElement | null;
 const soloPanel = document.getElementById("solo-panel") as HTMLElement | null;
 const multiPanel = document.getElementById("multi-panel") as HTMLElement | null;
+const playerNameInput = document.getElementById("player-name") as HTMLInputElement | null;
 const serverUrlInput = document.getElementById("server-url") as HTMLInputElement | null;
 const roomCodeInput = document.getElementById("room-code") as HTMLInputElement | null;
 const createRoomButton = document.getElementById("create-room") as HTMLButtonElement | null;
@@ -371,6 +373,8 @@ const RESYNC_TIMEOUT_MS = 6000;
 const RESYNC_MAX_RETRIES = 10;
 const RESYNC_CHUNK_SEND_INTERVAL_MS = 16;
 const RESYNC_CHUNKS_PER_TICK = 4;
+const PLAYER_NAME_STORAGE_KEY = "pirate_player_name";
+const MAX_PLAYER_NAME_LENGTH = 16;
 const PLAYER_COUNT = 1;
 const WS_SERVER_URL = URL_PARAMS.get("ws") ??
   (window.location.protocol === "https:"
@@ -378,6 +382,26 @@ const WS_SERVER_URL = URL_PARAMS.get("ws") ??
     : `ws://${window.location.hostname}:8787`);
 const WS_ROOM_CODE = URL_PARAMS.get("room");
 const WS_ROLE = (URL_PARAMS.get("role") ?? (WS_ROOM_CODE ? "client" : "host")).toLowerCase();
+const sanitizePlayerName = (value: string) => value.trim().slice(0, MAX_PLAYER_NAME_LENGTH);
+const readStoredPlayerName = () => {
+  try {
+    return localStorage.getItem(PLAYER_NAME_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+};
+const storePlayerName = (value: string) => {
+  try {
+    if (!value) {
+      localStorage.removeItem(PLAYER_NAME_STORAGE_KEY);
+      return;
+    }
+    localStorage.setItem(PLAYER_NAME_STORAGE_KEY, value);
+  } catch {
+    // Ignore storage errors (private mode, etc).
+  }
+};
+const getPlayerNameValue = () => sanitizePlayerName(playerNameInput?.value ?? readStoredPlayerName());
 let activeRoomState: RoomConnectionState | null = null;
 let activeRoomSocket: WebSocket | null = null;
 let activeSession: SessionState | null = null;
@@ -527,6 +551,14 @@ const syncRoomPlayers = (roomState: RoomConnectionState, players: RoomPlayerInfo
       }
     }
   }
+
+  const labels = Array.from({ length: activeGame.state.playerIds.length }, () => "");
+  for (const player of players) {
+    if (player.index >= 0 && player.index < labels.length) {
+      labels[player.index] = player.name;
+    }
+  }
+  setPlayerNameLabels(labels);
 };
 
 const getNextRoomPlayerIndex = (roomState: RoomConnectionState) => {
@@ -806,6 +838,7 @@ type NetworkStartOptions = {
   serverUrl?: string;
   inputDelayFrames?: number;
   ui?: RoomUiState | null;
+  playerName?: string;
 };
 
 const startGame = async (seed: string, options: StartGameOptions = {}) => {
@@ -1055,6 +1088,7 @@ const startNetworkHost = (seed: string, options: NetworkStartOptions = {}) => {
   const playerCount = 2;
   const inputDelayFrames = options.inputDelayFrames ?? REQUESTED_INPUT_DELAY_FRAMES;
   const serverUrl = options.serverUrl ?? WS_SERVER_URL;
+  const playerName = sanitizePlayerName(options.playerName ?? getPlayerNameValue());
   const ui = options.ui ?? null;
 
   ui?.setStatus("Connecting to room server...");
@@ -1097,6 +1131,7 @@ const startNetworkHost = (seed: string, options: NetworkStartOptions = {}) => {
   socket.addEventListener("open", () => {
     sendRoomMessage(socket, {
       type: "create-room",
+      playerName,
       playerCount,
       seed,
       inputDelayFrames
@@ -1129,6 +1164,7 @@ const startNetworkHost = (seed: string, options: NetworkStartOptions = {}) => {
 const startNetworkClient = (roomCode: string, options: NetworkStartOptions = {}) => {
   const serverUrl = options.serverUrl ?? WS_SERVER_URL;
   const inputDelayFrames = options.inputDelayFrames ?? REQUESTED_INPUT_DELAY_FRAMES;
+  const playerName = sanitizePlayerName(options.playerName ?? getPlayerNameValue());
   const ui = options.ui ?? null;
 
   ui?.setStatus("Connecting to room server...");
@@ -1174,7 +1210,7 @@ const startNetworkClient = (roomCode: string, options: NetworkStartOptions = {})
   activeRoomSocket = socket;
 
   socket.addEventListener("open", () => {
-    sendRoomMessage(socket, { type: "join-room", code: normalizedCode });
+    sendRoomMessage(socket, { type: "join-room", code: normalizedCode, playerName });
   });
 
   socket.addEventListener("close", () => {
@@ -1330,7 +1366,8 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
             const nextPlayers = [...roomState.players, {
               id: message.requesterId,
               index: assignedIndex,
-              isHost: false
+              isHost: false,
+              name: ""
             }].sort((a, b) => a.index - b.index);
             syncRoomPlayers(roomState, nextPlayers);
             roomState.ui?.setRoomInfo(roomState.roomCode, nextPlayers, roomState.playerCount);
@@ -1410,6 +1447,18 @@ const initMenu = () => {
     return;
   }
 
+  let multiplayerActionsEnabled = true;
+  const updateMultiplayerActions = () => {
+    const nameValid = getPlayerNameValue().length > 0;
+    const enabled = multiplayerActionsEnabled && nameValid;
+    if (createRoomButton) {
+      createRoomButton.disabled = !enabled;
+    }
+    if (joinRoomButton) {
+      joinRoomButton.disabled = !enabled;
+    }
+  };
+
   const roomUi: RoomUiState | null = roomStatus && roomCodeDisplay && roomPlayerCount && createRoomButton && joinRoomButton && startRoomButton
     ? {
       setStatus: (text, isError = false) => {
@@ -1426,8 +1475,8 @@ const initMenu = () => {
         startRoomButton.disabled = !enabled;
       },
       setActionsEnabled: (enabled) => {
-        createRoomButton.disabled = !enabled;
-        joinRoomButton.disabled = !enabled;
+        multiplayerActionsEnabled = enabled;
+        updateMultiplayerActions();
         if (multiCreateButton) {
           multiCreateButton.disabled = !enabled;
         }
@@ -1445,6 +1494,9 @@ const initMenu = () => {
         }
         if (roomCodeInput) {
           roomCodeInput.disabled = !enabled;
+        }
+        if (playerNameInput) {
+          playerNameInput.disabled = !enabled;
         }
         if (seedInputMulti) {
           seedInputMulti.disabled = !enabled;
@@ -1499,7 +1551,22 @@ const initMenu = () => {
   if (roomCodeInput && WS_ROOM_CODE) {
     roomCodeInput.value = WS_ROOM_CODE;
   }
+  if (playerNameInput) {
+    const storedName = sanitizePlayerName(readStoredPlayerName());
+    if (storedName) {
+      playerNameInput.value = storedName;
+    }
+    playerNameInput.addEventListener("input", () => {
+      const sanitized = sanitizePlayerName(playerNameInput.value);
+      if (playerNameInput.value !== sanitized) {
+        playerNameInput.value = sanitized;
+      }
+      storePlayerName(sanitized);
+      updateMultiplayerActions();
+    });
+  }
   roomUi?.setRoomInfo(null, [], 0);
+  updateMultiplayerActions();
 
   randomSeedButton.addEventListener("click", () => {
     const seed = generateRandomSeed();
@@ -1516,6 +1583,17 @@ const initMenu = () => {
       seedInputMulti.select();
     }
   });
+
+  const ensurePlayerName = () => {
+    const playerName = getPlayerNameValue();
+    if (!playerName) {
+      roomUi?.setStatus("Enter player name.", true);
+      playerNameInput?.focus();
+      return null;
+    }
+    storePlayerName(playerName);
+    return playerName;
+  };
 
   const handleStart = () => {
     const seed = getSeedValue(seedInput);
@@ -1538,6 +1616,10 @@ const initMenu = () => {
   });
 
   createRoomButton?.addEventListener("click", () => {
+    const playerName = ensurePlayerName();
+    if (!playerName) {
+      return;
+    }
     const seed = getSeedValue(seedInputMulti ?? seedInput);
     const serverUrl = serverUrlInput?.value.trim() || WS_SERVER_URL;
     setMode("multi");
@@ -1545,11 +1627,16 @@ const initMenu = () => {
     startNetworkHost(seed, {
       serverUrl,
       inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
-      ui: roomUi
+      ui: roomUi,
+      playerName
     });
   });
 
   joinRoomButton?.addEventListener("click", () => {
+    const playerName = ensurePlayerName();
+    if (!playerName) {
+      return;
+    }
     const serverUrl = serverUrlInput?.value.trim() || WS_SERVER_URL;
     const code = roomCodeInput?.value.trim() ?? "";
     setMode("multi");
@@ -1557,7 +1644,8 @@ const initMenu = () => {
     startNetworkClient(code, {
       serverUrl,
       inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
-      ui: roomUi
+      ui: roomUi,
+      playerName
     });
   });
 
@@ -1576,21 +1664,31 @@ const initMenu = () => {
   if (NETWORK_MODE === "ws") {
     setMode("multi");
     if (WS_ROLE === "client" && WS_ROOM_CODE) {
+      const playerName = ensurePlayerName();
+      if (!playerName) {
+        return;
+      }
       setMultiplayerMode("join");
       startNetworkClient(WS_ROOM_CODE, {
         serverUrl: WS_SERVER_URL,
         inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
-        ui: roomUi
+        ui: roomUi,
+        playerName
       });
       return;
     }
     if (WS_ROLE === "host") {
+      const playerName = ensurePlayerName();
+      if (!playerName) {
+        return;
+      }
       const seed = getSeedValue(seedInputMulti ?? seedInput);
       setMultiplayerMode("create");
       startNetworkHost(seed, {
         serverUrl: WS_SERVER_URL,
         inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
-        ui: roomUi
+        ui: roomUi,
+        playerName
       });
       return;
     }

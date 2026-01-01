@@ -68,6 +68,12 @@ export const simulateFrame = (state: GameState, inputs: InputState[], delta: num
 
     if (!ecs.playerIsDead[playerId]) {
       updateMovement(state, playerId, input, delta);
+      if (!input.mouseWorld) {
+        const speed = Math.hypot(ecs.velocity.x[playerId], ecs.velocity.y[playerId]);
+        if (speed > 0.01) {
+          ecs.playerAimAngle[playerId] = ecs.playerMoveAngle[playerId];
+        }
+      }
       constrainPlayerToIslands(state, playerId);
       updateCrafting(state, index, playerId, input);
       if (!state.crafting[index]?.isOpen) {
