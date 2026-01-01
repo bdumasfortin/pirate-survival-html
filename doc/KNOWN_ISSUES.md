@@ -2,5 +2,4 @@
 
 Track confirmed bugs and gameplay issues here.
 
-- [ ] In multiplayer, one of the players stopped seeing the other one (could not reproduce)
-- [ ] In multiplayer, desync of monsters (could not reproduce)
+- [ ] Multiplayer can stutter during/after late-join resyncs, especially with low input delay (workaround: set `inputDelay=4`).
