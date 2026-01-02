@@ -126,7 +126,6 @@ export const bindKeyboard = (state: InputState) => {
   });
   window.addEventListener("keyup", (event) => setKey(event.code, false));
   window.addEventListener("blur", resetInputState);
-  window.addEventListener("contextmenu", resetInputState);
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       resetInputState();
