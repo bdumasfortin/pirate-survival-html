@@ -30,15 +30,25 @@
           </div>
 
           <div id="multi-panel" class="menu-panel hidden">
+
             <label for="player-name">Player name</label>
             <input id="player-name" type="text" placeholder="Your name" maxlength="16" autocomplete="off" />
-
-            <label for="server-url">Server URL</label>
-            <input id="server-url" type="text" placeholder="ws://localhost:8787" autocomplete="off" />
 
             <div class="mode-toggle">
               <button id="multi-create" type="button" class="mode-btn active">Host Room</button>
               <button id="multi-join" type="button" class="mode-btn">Join Room</button>
+            </div>
+
+            <label for="server-url">Server URL</label>
+            <input id="server-url" type="text" placeholder="ws://localhost:8787" autocomplete="off" />
+
+            <div class="server-build-link create-only">
+              <span>Hosting your own server? </span>
+              <a
+                href="https://github.com/bdumasfortin/pirate-survival-html/releases/latest"
+                target="_blank"
+                rel="noopener"
+              >Get the server build</a>
             </div>
 
             <div class="menu-row">
@@ -68,13 +78,7 @@
             </div>
 
             <button id="copy-join-link" type="button" class="copy-link" disabled>Copy join link</button>
-            <a
-              class="server-build-link"
-              href="https://github.com/bdumasfortin/pirate-survival-html/releases/latest"
-              target="_blank"
-              rel="noopener"
-            >Download latest server build</a>
-
+            
             <button id="start-room" type="button" class="primary create-only" disabled>Start Room</button>
           </div>
 

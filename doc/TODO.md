@@ -1,18 +1,19 @@
 # TO DO
 
-- [ ] Add a timeout for room creation (and other API calls)
-- [ ] Campfire
-- [ ] Cooking
-- [ ] Day/Night cycle
-- [ ] Rankings and milestones (days survived, bosses slain, rare loot).
-- [ ] Crafting revamp
-- [ ] Visual revamp
-- [ ] Boss abilities
+- [ ] Fix right click breaking movement
+- [ ] Fix heavy stutter issues in multiplayer
+- [ ] Pause game when in esc menu (singleplayer only)
+- [ ] Resources respawns
+- [ ] Creature respawns
+- [ ] Make bigger island
+- [ ] Mapping system / Minimap
+- [ ] Settle on the game style (short/mid/longer survival, Roguelike, etc.)
 - [ ] Find a name for the game
 - [ ] End game goal
+- [ ] Milestones (days survived, bosses slain, rare loot).
+- [ ] Crafting revamp
+- [ ] Visual revamp
 - [ ] SFX/Ambiance
-- [ ] Base building
 - [ ] Code standards and refactoring 
 - [ ] Add testing tools
-- [ ] Host server on firebase/EC2 ?
-- [ ] Add bug reporting via github issues
+- [ ] See selected weapons/tools in the hands of the character

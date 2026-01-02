@@ -123,7 +123,6 @@ canvas {
 
 .menu-card label {
   display: block;
-  margin-bottom: 8px;
   font-size: 18px;
 }
 
@@ -211,16 +210,22 @@ button.primary {
 }
 
 .server-build-link {
-  display: inline-flex;
+  display: flex;
   justify-content: center;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
   width: 100%;
   font-size: 14px;
   color: rgba(246, 231, 193, 0.8);
+}
+
+.server-build-link a {
+  color: rgba(246, 231, 193, 0.9);
   text-decoration: none;
 }
 
-.server-build-link:hover {
+.server-build-link a:hover {
   color: rgba(246, 231, 193, 1);
   text-decoration: underline;
 }
