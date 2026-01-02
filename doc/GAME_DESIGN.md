@@ -1,4 +1,4 @@
-# Pirate Survival - Game Wiki
+# SailorQuest - Game Wiki
 
 ## Game overview
 - Whimsical pirate survival game about a stranded pirate exploring a procedural archipelago.

@@ -1,4 +1,8 @@
-# Pirate Survival Prototype
+# SailorQuest
+
+## Live
+- Game: `https://sailorquest.com`
+- Relay server: `wss://server.sailorquest.com`
 
 ## Run locally
 1) Install dependencies:
@@ -77,10 +81,10 @@ If you want to host from home, you need to make the relay server reachable from 
 5) Share the room code and the relay URL with your friend.
 
 Host URL example:
-`http://localhost:5173/?net=ws&role=host&ws=ws://YOUR_PUBLIC_IP:8787`
+`https://sailorquest.com/?net=ws&role=host&ws=wss://server.sailorquest.com`
 
 Friend URL example:
-`http://<your-game-host>/?net=ws&role=client&ws=ws://YOUR_PUBLIC_IP:8787&room=ABCDE`
+`https://sailorquest.com/?net=ws&role=client&ws=wss://server.sailorquest.com&room=ABCDE`
 
 Notes:
 - `YOUR_PUBLIC_IP` can be your ISP public IP or a dynamic DNS hostname.
