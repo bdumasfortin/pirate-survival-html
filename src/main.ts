@@ -1,4 +1,3 @@
-import "./style.css";
 import { createInputState, bindKeyboard, bindInventorySelection, bindMouse, bindCraftScroll, type InputState } from "./core/input";
 import { applyRemoteInputFrame, createInputSyncState, readPlayerInputFrame, trimInputSyncState, storeLocalInputFrame, type InputSyncState } from "./core/input-sync";
 import { applyInputFrame, InputBits, storeInputFrameData, type InputFrame } from "./core/input-buffer";
@@ -55,6 +54,8 @@ const multiCreateButton = document.getElementById("multi-create") as HTMLButtonE
 const multiJoinButton = document.getElementById("multi-join") as HTMLButtonElement | null;
 const soloPanel = document.getElementById("solo-panel") as HTMLElement | null;
 const multiPanel = document.getElementById("multi-panel") as HTMLElement | null;
+const roomForm = document.getElementById("room-form") as HTMLElement | null;
+const roomScreen = document.getElementById("room-screen") as HTMLElement | null;
 const playerNameInput = document.getElementById("player-name") as HTMLInputElement | null;
 const serverUrlInput = document.getElementById("server-url") as HTMLInputElement | null;
 const roomCodeInput = document.getElementById("room-code") as HTMLInputElement | null;
@@ -62,7 +63,10 @@ const createRoomButton = document.getElementById("create-room") as HTMLButtonEle
 const joinRoomButton = document.getElementById("join-room") as HTMLButtonElement | null;
 const copyJoinLinkButton = document.getElementById("copy-join-link") as HTMLButtonElement | null;
 const startRoomButton = document.getElementById("start-room") as HTMLButtonElement | null;
+const leaveRoomButton = document.getElementById("leave-room") as HTMLButtonElement | null;
 const roomStatus = document.getElementById("room-status") as HTMLElement | null;
+const roomStatusForm = document.getElementById("room-status-form") as HTMLElement | null;
+const roomStatusFormBox = roomStatusForm?.closest(".status-box") as HTMLElement | null;
 const roomCodeDisplay = document.getElementById("room-code-display") as HTMLElement | null;
 const roomPlayerCount = document.getElementById("room-player-count") as HTMLElement | null;
 const netIndicator = document.getElementById("net-indicator") as HTMLElement | null;
@@ -462,7 +466,7 @@ const MAX_PLAYER_NAME_LENGTH = 16;
 const PLAYER_COUNT = 1;
 const WS_SERVER_URL = URL_PARAMS.get("ws") ??
   (window.location.protocol === "https:"
-    ? `wss://${window.location.hostname}:8787`
+    ? "wss://server.sailorquest.com"
     : `ws://${window.location.hostname}:8787`);
 const WS_ROOM_CODE = URL_PARAMS.get("room");
 const WS_ROLE = (URL_PARAMS.get("role") ?? (WS_ROOM_CODE ? "client" : "host")).toLowerCase();
@@ -542,6 +546,7 @@ let resyncSendState: ResyncSendState | null = null;
 let resyncSendTimer: number | null = null;
 let lastResyncFrame = -1;
 let lastHashSentFrame = -1;
+let setRoomScreen: ((step: "form" | "room") => void) | null = null;
 
 type RoomConnectionState = {
   role: "host" | "client";
@@ -664,6 +669,15 @@ const resetStateHashTracking = () => {
 
 const syncRoomPlayers = (roomState: RoomConnectionState, players: RoomPlayerInfo[]) => {
   roomState.players = players;
+
+  const localId = roomState.localPlayerId;
+  if (localId) {
+    const localInfo = players.find((player) => player.id === localId);
+    if (localInfo) {
+      roomState.localPlayerIndex = localInfo.index;
+      roomState.role = localInfo.isHost ? "host" : "client";
+    }
+  }
 
   if (activeSession) {
     activeSession.players = players.map((player) => ({
@@ -1247,7 +1261,7 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
 };
 
 const startNetworkHost = (seed: string, options: NetworkStartOptions = {}) => {
-  const playerCount = 2;
+  const playerCount = 4;
   const inputDelayFrames = options.inputDelayFrames ?? REQUESTED_INPUT_DELAY_FRAMES;
   const serverUrl = options.serverUrl ?? WS_SERVER_URL;
   const playerName = sanitizePlayerName(options.playerName ?? getPlayerNameValue());
@@ -1318,6 +1332,7 @@ const startNetworkHost = (seed: string, options: NetworkStartOptions = {}) => {
 
   socket.addEventListener("close", () => {
     clearRoomTimeouts(roomState);
+    setRoomScreen?.("form");
     if (!roomState.suppressCloseStatus) {
       roomState.ui?.setStatus("Disconnected from server.", true);
     }
@@ -1412,6 +1427,7 @@ const startNetworkClient = (roomCode: string, options: NetworkStartOptions = {})
 
   socket.addEventListener("close", () => {
     clearRoomTimeouts(roomState);
+    setRoomScreen?.("form");
     if (!roomState.suppressCloseStatus) {
       roomState.ui?.setStatus("Disconnected from server.", true);
     }
@@ -1431,6 +1447,7 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
     case "room-created": {
       clearRoomTimeouts(roomState);
       roomState.pendingAction = null;
+      setRoomScreen?.("room");
       roomState.roomCode = message.code;
       roomState.roomId = message.roomId;
       roomState.playerCount = message.playerCount;
@@ -1448,6 +1465,7 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
     case "room-joined": {
       clearRoomTimeouts(roomState);
       roomState.pendingAction = null;
+      setRoomScreen?.("room");
       roomState.roomCode = message.code;
       roomState.roomId = message.roomId;
       roomState.playerCount = message.playerCount;
@@ -1484,6 +1502,7 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
       return;
     }
     case "room-closed":
+      setRoomScreen?.("form");
       roomState.ui?.setStatus(`Room closed: ${message.reason}`, true);
       roomState.ui?.setActionsEnabled(true);
       console.warn(`[room] closed: ${message.reason}`);
@@ -1556,6 +1575,7 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
     case "error":
       clearRoomTimeouts(roomState);
       roomState.pendingAction = null;
+      setRoomScreen?.("form");
       roomState.ui?.setStatus(formatRoomError(roomState, message), true);
       roomState.ui?.setActionsEnabled(true);
       console.warn(`[room] error ${message.code}: ${message.message}`);
@@ -1686,6 +1706,7 @@ const initMenu = () => {
       },
       setStartEnabled: (enabled) => {
         startRoomButton.disabled = !enabled;
+        startRoomButton.classList.toggle("hidden", !enabled);
       },
       setActionsEnabled: (enabled) => {
         multiplayerActionsEnabled = enabled;
@@ -1725,6 +1746,25 @@ const initMenu = () => {
   let multiplayerMode: "create" | "join" = "create";
   const createOnlyElements = multiPanel?.querySelectorAll<HTMLElement>(".create-only") ?? [];
   const joinOnlyElements = multiPanel?.querySelectorAll<HTMLElement>(".join-only") ?? [];
+  const setFormStatus = (text: string, isError = false) => {
+    if (!roomStatusForm) {
+      return;
+    }
+    roomStatusForm.textContent = text || "";
+    roomStatusForm.classList.toggle("error", isError);
+    roomStatusFormBox?.classList.toggle("hidden", !text);
+  };
+  const setRoomStep = (step: "form" | "room") => {
+    if (!roomForm || !roomScreen) {
+      return;
+    }
+    roomForm.classList.toggle("hidden", step !== "form");
+    roomScreen.classList.toggle("hidden", step !== "room");
+    if (step === "form") {
+      setFormStatus("", false);
+    }
+  };
+  setRoomScreen = setRoomStep;
 
   const setMultiplayerMode = (mode: "create" | "join") => {
     multiplayerMode = mode;
@@ -1736,6 +1776,7 @@ const initMenu = () => {
     });
     multiCreateButton?.classList.toggle("active", mode === "create");
     multiJoinButton?.classList.toggle("active", mode === "join");
+    setFormStatus("", false);
   };
 
   const setMode = (mode: "solo" | "multi") => {
@@ -1749,6 +1790,7 @@ const initMenu = () => {
     modeMultiButton?.classList.toggle("active", mode === "multi");
     if (mode === "multi") {
       setMultiplayerMode(multiplayerMode);
+      setRoomStep("form");
     }
   };
 
@@ -1790,6 +1832,7 @@ const initMenu = () => {
       }
       storePlayerName(sanitized);
       updateMultiplayerActions();
+      setFormStatus("", false);
     });
   }
   roomUi?.setRoomInfo(null, [], 0);
@@ -1815,7 +1858,7 @@ const initMenu = () => {
   const ensurePlayerName = () => {
     const playerName = getPlayerNameValue();
     if (!playerName) {
-      roomUi?.setStatus("Enter player name.", true);
+      setFormStatus("Enter player name.", true);
       playerNameInput?.focus();
       return null;
     }
@@ -1848,6 +1891,7 @@ const initMenu = () => {
     if (!playerName) {
       return;
     }
+    setRoomStep("room");
     const seed = getSeedValue(seedInputMulti ?? seedInput);
     const serverUrl = getServerUrlValue();
     setMode("multi");
@@ -1867,9 +1911,15 @@ const initMenu = () => {
     }
     const serverUrl = getServerUrlValue();
     const code = roomCodeInput?.value.trim() ?? "";
+    const normalizedCode = normalizeRoomCode(code);
+    if (!isValidRoomCode(normalizedCode)) {
+      setFormStatus("Invalid room code.", true);
+      return;
+    }
+    setRoomStep("room");
     setMode("multi");
     setMultiplayerMode("join");
-    startNetworkClient(code, {
+    startNetworkClient(normalizedCode, {
       serverUrl,
       inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
       ui: roomUi,
@@ -1887,6 +1937,20 @@ const initMenu = () => {
     sendRoomMessage(activeRoomSocket, { type: "start-room" });
     activeRoomState.hasSentStart = true;
     roomUi?.setStatus("Starting match...");
+  });
+
+  leaveRoomButton?.addEventListener("click", () => {
+    if (activeRoomSocket && activeRoomSocket.readyState === WebSocket.OPEN) {
+      sendRoomMessage(activeRoomSocket, { type: "leave-room" });
+      activeRoomSocket.close();
+    } else if (activeRoomSocket) {
+      activeRoomSocket.close();
+    }
+    activeRoomState = null;
+    setRoomScreen?.("form");
+    roomUi?.setActionsEnabled(true);
+    roomUi?.setStartEnabled(false);
+    setHudRoomCode(null);
   });
 
   copyJoinLinkButton?.addEventListener("click", async () => {

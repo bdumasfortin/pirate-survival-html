@@ -121,9 +121,18 @@ canvas {
   display: none;
 }
 
+.room-step {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.room-step.hidden {
+  display: none;
+}
+
 .menu-card label {
   display: block;
-  margin-bottom: 8px;
   font-size: 18px;
 }
 
@@ -196,6 +205,22 @@ button.primary {
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3);
 }
 
+button.secondary {
+  width: 100%;
+  background: rgba(12, 22, 26, 0.7);
+  border-color: rgba(246, 231, 193, 0.2);
+}
+
+button.danger {
+  background: rgba(164, 60, 60, 0.25);
+  border-color: rgba(218, 88, 88, 0.6);
+  color: #f9dede;
+}
+
+button.danger:hover {
+  box-shadow: 0 8px 18px rgba(120, 20, 20, 0.25);
+}
+
 .menu-actions {
   display: flex;
   gap: 12px;
@@ -211,16 +236,22 @@ button.primary {
 }
 
 .server-build-link {
-  display: inline-flex;
+  display: flex;
   justify-content: center;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
   width: 100%;
   font-size: 14px;
   color: rgba(246, 231, 193, 0.8);
+}
+
+.server-build-link a {
+  color: rgba(246, 231, 193, 0.9);
   text-decoration: none;
 }
 
-.server-build-link:hover {
+.server-build-link a:hover {
   color: rgba(246, 231, 193, 1);
   text-decoration: underline;
 }

@@ -7,7 +7,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <link href="https://fonts.googleapis.com/css2?family=Zain:wght@300&display=swap" rel="stylesheet" />
-    <title>Yarrrrrrr</title>
+    <link rel="stylesheet" href="/src/style.css" />
+    <title>SailorQuest</title>
   </head>
   <body>
     <div id="app">
@@ -15,6 +16,7 @@
       <div id="net-indicator" class="net-indicator hidden">Resyncing...</div>
       <div id="seed-menu" class="overlay">
         <div class="menu-card">
+          <div class="menu-title">SailorQuest</div>
           <div class="mode-toggle">
             <button id="mode-solo" type="button" class="mode-btn active">Solo</button>
             <button id="mode-multi" type="button" class="mode-btn">Multiplayer</button>
@@ -26,56 +28,67 @@
               <input id="seed-input" type="text" placeholder="Enter seed" autocomplete="off" />
               <button id="seed-random" type="button">Random</button>
             </div>
-            <button id="start-game" type="button" class="primary">Start Game</button>
+            <button id="start-game" type="button" class="primary">Let's go!</button>
           </div>
 
           <div id="multi-panel" class="menu-panel hidden">
-            <label for="player-name">Player name</label>
-            <input id="player-name" type="text" placeholder="Your name" maxlength="16" autocomplete="off" />
+            <div id="room-form" class="room-step">
+              <label for="player-name">Player name</label>
+              <input id="player-name" type="text" placeholder="Your name" maxlength="16" autocomplete="off" />
 
-            <label for="server-url">Server URL</label>
-            <input id="server-url" type="text" placeholder="ws://localhost:8787" autocomplete="off" />
+              <div class="mode-toggle">
+                <button id="multi-create" type="button" class="mode-btn active">Host Room</button>
+                <button id="multi-join" type="button" class="mode-btn">Join Room</button>
+              </div>
 
-            <div class="mode-toggle">
-              <button id="multi-create" type="button" class="mode-btn active">Host Room</button>
-              <button id="multi-join" type="button" class="mode-btn">Join Room</button>
-            </div>
+              <label for="server-url">Server URL</label>
+              <input id="server-url" type="text" placeholder="ws://localhost:8787" autocomplete="off" />
 
-            <div class="menu-row">
-              <div class="menu-field join-only">
-                <label for="room-code">Room code</label>
-                <input id="room-code" type="text" placeholder="ABCDE" maxlength="5" autocomplete="off" />
+              <div class="server-build-link create-only">
+                <span>Hosting your own server? </span>
+                <a
+                  href="https://github.com/bdumasfortin/pirate-survival-html/releases/latest"
+                  target="_blank"
+                  rel="noopener"
+                >Get the server build</a>
+              </div>
+
+              <div class="menu-row">
+                <div class="menu-field join-only">
+                  <label for="room-code">Room code</label>
+                  <input id="room-code" type="text" placeholder="ABCDE" maxlength="5" autocomplete="off" />
+                </div>
+              </div>
+
+              <label for="seed-input-mp" class="create-only">Host seed (optional)</label>
+              <div class="seed-row create-only">
+                <input id="seed-input-mp" type="text" placeholder="Enter seed" autocomplete="off" />
+                <button id="seed-random-mp" type="button">Random</button>
+              </div>
+
+              <div class="menu-actions">
+                <button id="create-room" type="button" class="create-only">Create Room</button>
+                <button id="join-room" type="button" class="join-only hidden">Join Room</button>
+              </div>
+
+              <div class="status-box hidden">
+                <div class="status-text" id="room-status-form">Status: idle</div>
               </div>
             </div>
 
-            <label for="seed-input-mp" class="create-only">Host seed (optional)</label>
-            <div class="seed-row create-only">
-              <input id="seed-input-mp" type="text" placeholder="Enter seed" autocomplete="off" />
-              <button id="seed-random-mp" type="button">Random</button>
-            </div>
-
-            <div class="menu-actions">
-              <button id="create-room" type="button" class="create-only">Create Room</button>
-              <button id="join-room" type="button" class="join-only hidden">Join Room</button>
-            </div>
-
-            <div class="status-box">
-              <div class="status-text" id="room-status">Status: idle</div>
-              <div class="status-info">
-                <span>Room: <strong id="room-code-display">--</strong></span>
-                <span>Players: <strong id="room-player-count">0/0</strong></span>
+            <div id="room-screen" class="room-step hidden">
+              <button id="leave-room" type="button" class="secondary danger">Leave Room</button>
+              <div class="status-box">
+                <div class="status-text" id="room-status">Status: idle</div>
+                <div class="status-info">
+                  <span>Room: <strong id="room-code-display">--</strong></span>
+                  <span>Players: <strong id="room-player-count">0/0</strong></span>
+                </div>
               </div>
+              <button id="copy-join-link" type="button" class="copy-link" disabled>Copy join link</button>
+
+              <button id="start-room" type="button" class="primary hidden" disabled>Let's go!</button>
             </div>
-
-            <button id="copy-join-link" type="button" class="copy-link" disabled>Copy join link</button>
-            <a
-              class="server-build-link"
-              href="https://github.com/bdumasfortin/pirate-survival-html/releases/latest"
-              target="_blank"
-              rel="noopener"
-            >Download latest server build</a>
-
-            <button id="start-room" type="button" class="primary create-only" disabled>Start Room</button>
           </div>
 
           <div class="menu-links">

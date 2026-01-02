@@ -5,7 +5,7 @@ This defines the wire messages and room model for the relay-only server.
 ## Room model
 - Room code: 5 chars, uppercase, alphabet `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`.
 - Code matching is case-insensitive, server stores uppercase.
-- Player count: fixed to 2 (server ignores `create-room.playerCount`).
+- Player count: fixed to 4 (server ignores `create-room.playerCount`).
 - Host: room creator, index 0. Host selects seed and triggers start (no auto-start).
 - Player names: clients provide `playerName`, server stores and relays it with player lists.
 - Late join: server sends `start` to the new client and broadcasts `resync-request` (reason: `late-join`).

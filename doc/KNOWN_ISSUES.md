@@ -2,4 +2,5 @@
 
 Track confirmed bugs and gameplay issues here.
 
-- [ ] Multiplayer can stutter during/after late-join resyncs, especially with low input delay (workaround: set `inputDelay=4`).
+- [ ] Right click cancels current movement
+- [ ] Heavy lag/stutter issues in multiplayer, inconstent, way more present on a distant server
