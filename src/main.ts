@@ -466,7 +466,7 @@ const MAX_PLAYER_NAME_LENGTH = 16;
 const PLAYER_COUNT = 1;
 const WS_SERVER_URL = URL_PARAMS.get("ws") ??
   (window.location.protocol === "https:"
-    ? `wss://${window.location.hostname}:8787`
+    ? "wss://server.sailorquest.com"
     : `ws://${window.location.hostname}:8787`);
 const WS_ROOM_CODE = URL_PARAMS.get("room");
 const WS_ROLE = (URL_PARAMS.get("role") ?? (WS_ROOM_CODE ? "client" : "host")).toLowerCase();
