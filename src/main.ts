@@ -1,4 +1,3 @@
-import "./style.css";
 import { createInputState, bindKeyboard, bindInventorySelection, bindMouse, bindCraftScroll, type InputState } from "./core/input";
 import { applyRemoteInputFrame, createInputSyncState, readPlayerInputFrame, trimInputSyncState, storeLocalInputFrame, type InputSyncState } from "./core/input-sync";
 import { applyInputFrame, InputBits, storeInputFrameData, type InputFrame } from "./core/input-buffer";
