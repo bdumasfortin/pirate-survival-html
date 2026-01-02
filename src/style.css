@@ -121,6 +121,16 @@ canvas {
   display: none;
 }
 
+.room-step {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.room-step.hidden {
+  display: none;
+}
+
 .menu-card label {
   display: block;
   font-size: 18px;
@@ -193,6 +203,22 @@ button.primary {
   background: rgba(240, 213, 139, 0.18);
   border-color: rgba(240, 213, 139, 0.6);
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3);
+}
+
+button.secondary {
+  width: 100%;
+  background: rgba(12, 22, 26, 0.7);
+  border-color: rgba(246, 231, 193, 0.2);
+}
+
+button.danger {
+  background: rgba(164, 60, 60, 0.25);
+  border-color: rgba(218, 88, 88, 0.6);
+  color: #f9dede;
+}
+
+button.danger:hover {
+  box-shadow: 0 8px 18px rgba(120, 20, 20, 0.25);
 }
 
 .menu-actions {
