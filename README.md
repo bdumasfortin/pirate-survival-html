@@ -46,7 +46,7 @@ Optional params:
 - `inputDelay=4` to override the input delay (frames).
 
 Notes:
-- Rooms are fixed to 2 players for now.
+- Rooms are fixed to 4 players for now.
 - Player name is required for host/join and is stored in browser storage.
 - After creating a room, share the code shown in the UI. The host must click "Start Room" to begin.
 

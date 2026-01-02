@@ -32,7 +32,7 @@
 - Inventory upgrades (bags, chests).
 
 ## Co-op and meta
-- Expand multiplayer beyond 2 players (3-4 players, reconnects).
+- Expand multiplayer beyond 4 players (larger lobbies, reconnects).
 - Shared bases and crafting stations.
 - Base building.
 - Collectible devil fruits (unique abilities, puzzles/rarity-based unlocks).

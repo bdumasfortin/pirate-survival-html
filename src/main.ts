@@ -1262,7 +1262,7 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
 };
 
 const startNetworkHost = (seed: string, options: NetworkStartOptions = {}) => {
-  const playerCount = 2;
+  const playerCount = 4;
   const inputDelayFrames = options.inputDelayFrames ?? REQUESTED_INPUT_DELAY_FRAMES;
   const serverUrl = options.serverUrl ?? WS_SERVER_URL;
   const playerName = sanitizePlayerName(options.playerName ?? getPlayerNameValue());

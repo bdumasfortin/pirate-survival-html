@@ -2,7 +2,7 @@
 
 ## Game overview
 - Whimsical pirate survival game about a stranded pirate exploring a procedural archipelago.
-- Single-player and 2-player co-op (relay server); no PvP.
+- Single-player and 4-player co-op (relay server); no PvP.
 - Focus on gathering, crafting, exploration, and PvE.
 
 ## Controls
@@ -80,7 +80,7 @@
 ## Multiplayer
 - Relay-only WebSocket server with room codes.
 - Host creates a room and shares the code; host must start the match.
-- Rooms are fixed to 2 players for now.
+- Rooms are fixed to 4 players for now.
 - Player names are required when hosting/joining and persist in browser storage.
 
 ## UI and visuals
