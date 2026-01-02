@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  base: "/pirate-survival-html/",
+  base: "/",
   server: {
     port: 5173
   },
