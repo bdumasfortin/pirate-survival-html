@@ -8,7 +8,7 @@ import type { Recipe } from "../game/crafting";
 import { getNearestGatherableResource } from "../systems/gathering";
 import { DAMAGE_FLASH_DURATION } from "../game/combat-config";
 import { RAFT_INTERACTION_DISTANCE } from "../game/raft-config";
-import { EntityTag, INVENTORY_SLOT_COUNT, isEntityAlive } from "../core/ecs";
+import { ComponentMask, EntityTag, INVENTORY_SLOT_COUNT, forEachEntity, isEntityAlive } from "../core/ecs";
 import { getDayCycleInfo } from "../game/day-night";
 import { getMapLayout, getWorldBounds, isMapOverlayEnabled } from "../game/map-overlay";
 import { resourceNodeTypeFromIndex } from "../world/resource-node-types";
@@ -46,6 +46,8 @@ import {
   getInventorySlotKind,
   getInventorySlotQuantity
 } from "../game/inventory";
+import { propKindFromIndex } from "../game/prop-kinds";
+import { getStructurePreviewRadius } from "../game/structure-items";
 
 const itemColors: Record<ItemKind, string> = {
   wood: "#a06a3b",
@@ -323,6 +325,28 @@ const renderInteractionPrompt = (ctx: CanvasRenderingContext2D, state: GameState
   drawActionPrompt(ctx, text, barStackHeight);
 };
 
+const findNearestRaft = (state: GameState, x: number, y: number) => {
+  const ecs = state.ecs;
+  const propMask = ComponentMask.Prop | ComponentMask.Position;
+  let closestDistance = Number.POSITIVE_INFINITY;
+  let closestId: number | null = null;
+
+  forEachEntity(ecs, propMask, (id) => {
+    if (propKindFromIndex(ecs.propKind[id]) !== "raft") {
+      return;
+    }
+    const dx = x - ecs.position.x[id];
+    const dy = y - ecs.position.y[id];
+    const distance = Math.hypot(dx, dy);
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestId = id;
+    }
+  });
+
+  return closestId !== null ? { id: closestId, distance: closestDistance } : null;
+};
+
 const renderRaftPrompt = (ctx: CanvasRenderingContext2D, state: GameState) => {
   const playerId = getLocalPlayerId(state);
   const ecs = state.ecs;
@@ -336,20 +360,29 @@ const renderRaftPrompt = (ctx: CanvasRenderingContext2D, state: GameState) => {
     return false;
   }
 
-  const selectedIndex = getInventorySelectedIndex(ecs, playerId);
-  const slotKind = getInventorySlotKind(ecs, playerId, selectedIndex);
-  const slotQuantity = getInventorySlotQuantity(ecs, playerId, selectedIndex);
-  if (slotKind !== "raft" || slotQuantity <= 0) {
-    return false;
-  }
-
   const position = { x: ecs.position.x[playerId], y: ecs.position.y[playerId] };
-  const closest = findClosestIslandEdge(position, state.world.islands);
-  if (!closest || closest.distance > RAFT_INTERACTION_DISTANCE) {
+  if (ecs.playerIsOnRaft[playerId]) {
+    const closest = findClosestIslandEdge(position, state.world.islands);
+    if (!closest || closest.distance > RAFT_INTERACTION_DISTANCE) {
+      return false;
+    }
+
+    const text = "E to disembark";
+    const barStackHeight = getBarStackHeight(state, playerId);
+    drawActionPrompt(ctx, text, barStackHeight);
+    return true;
+  }
+
+  const nearest = findNearestRaft(state, position.x, position.y);
+  if (!nearest) {
+    return false;
+  }
+  const raftRadius = ecs.radius[nearest.id] || getStructurePreviewRadius("raft");
+  if (nearest.distance > raftRadius + RAFT_INTERACTION_DISTANCE) {
     return false;
   }
 
-  const text = ecs.playerIsOnRaft[playerId] ? "LMB to disembark" : "LMB to board";
+  const text = "E to board";
   const barStackHeight = getBarStackHeight(state, playerId);
   drawActionPrompt(ctx, text, barStackHeight);
   return true;

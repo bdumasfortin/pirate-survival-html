@@ -1,14 +1,16 @@
 import type { ItemKind } from "../game/item-kinds";
 import type { PropKind } from "../game/prop-kinds";
 import type { EquipmentSlotType } from "../game/equipment";
-import crabUrl from "../assets/svg/crab.svg";
-import wolfUrl from "../assets/svg/wolf.svg";
-import krakenUrl from "../assets/svg/kraken.svg";
+import crabUrl from "../assets/png/entities/crab.png";
+import wolfUrl from "../assets/png/entities/wolf.png";
+import krakenUrl from "../assets/png/entities/kraken.png";
 import pirateUrl from "../assets/svg/pirate.svg";
-import bushUrl from "../assets/svg/bush.svg";
-import palmtreeUrl from "../assets/svg/palmtree.svg";
-import rockUrl from "../assets/svg/rock.svg";
-import raftUrl from "../assets/svg/raft.svg";
+import bushUrl from "../assets/png/environment/bush.png";
+import bushEmptyUrl from "../assets/png/environment/bush-empty.png";
+import palmtreeUrl from "../assets/png/environment/palm-tree.png";
+import pebbleUrl from "../assets/png/environment/pebble.png";
+import raftUrl from "../assets/png/vehicules/raft.png";
+import cutlassUrl from "../assets/png/tools/cutlass.png";
 import itemWoodUrl from "../assets/svg/items/item-wood.svg";
 import itemRockUrl from "../assets/svg/items/item-rock.svg";
 import itemRaftUrl from "../assets/svg/items/item-raft.svg";
@@ -41,9 +43,11 @@ export const worldImages = {
   kraken: loadImage(krakenUrl),
   pirate: loadImage(pirateUrl),
   bush: loadImage(bushUrl),
+  bushEmpty: loadImage(bushEmptyUrl),
   palmtree: loadImage(palmtreeUrl),
-  rock: loadImage(rockUrl),
-  raft: loadImage(raftUrl)
+  rock: loadImage(pebbleUrl),
+  raft: loadImage(raftUrl),
+  cutlass: loadImage(cutlassUrl)
 };
 
 export const equipmentPlaceholderImages: Record<EquipmentSlotType, HTMLImageElement> = {
@@ -69,5 +73,6 @@ export const itemImages: Record<ItemKind, HTMLImageElement> = {
 };
 
 export const propImages: Record<PropKind, HTMLImageElement> = {
-  strawhat: loadImage(strawhatUrl)
+  strawhat: loadImage(strawhatUrl),
+  raft: worldImages.raft
 };

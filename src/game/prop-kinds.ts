@@ -1,11 +1,13 @@
-export type PropKind = "strawhat";
+export type PropKind = "strawhat" | "raft";
 
 export const PROP_KIND_TO_INDEX: Record<PropKind, number> = {
-  strawhat: 1
+  strawhat: 1,
+  raft: 2
 };
 
 const PROP_KIND_BY_INDEX: PropKind[] = [
-  "strawhat"
+  "strawhat",
+  "raft"
 ];
 
 export const propKindToIndex = (kind: PropKind) => PROP_KIND_TO_INDEX[kind];

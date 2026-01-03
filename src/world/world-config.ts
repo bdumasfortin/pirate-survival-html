@@ -16,6 +16,7 @@ const ISLAND_SIZE_SCALE = 3;
 export const BASE_ISLAND_RADIUS = (BASE_ISLAND_RADIUS_MIN + BASE_ISLAND_RADIUS_MAX) / 2;
 export const BOSS_ISLAND_RADIUS = BASE_ISLAND_RADIUS;
 export const BEACH_ISLAND_RADIUS = BOSS_ISLAND_RADIUS;
+export const SPAWN_ZONE_RADIUS = BASE_ISLAND_RADIUS * 0.5;
 
 export const WORLD_GEN_CONFIG = {
   islandCount: 55,
@@ -73,7 +74,7 @@ export const RESOURCE_NODE_CONFIGS: ResourceNodeConfig[] = [
   {
     nodeType: "tree",
     kind: "wood",
-    radius: 20,
+    radius: 40,
     count: 7,
     yield: { min: 3, max: 5 },
     respawnTime: 0
@@ -81,8 +82,8 @@ export const RESOURCE_NODE_CONFIGS: ResourceNodeConfig[] = [
   {
     nodeType: "rock",
     kind: "rock",
-    radius: 8,
-    count: 14,
+    radius: 4.5,
+    count: 8,
     yield: { min: 1, max: 1 },
     respawnTime: 0
   },

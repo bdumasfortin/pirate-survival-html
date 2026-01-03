@@ -3,31 +3,43 @@ import type { Vec2 } from "../core/types";
 import type { Island, IslandType, ResourceNodeType } from "../world/types";
 import { CAMERA_ZOOM } from "./ui-config";
 import { GROUND_ITEM_RENDER_SIZE } from "../game/ground-items-config";
-import { CRAB_HIT_FLASH_DURATION } from "../game/combat-config";
+import { ATTACK_EFFECT_DURATION, CRAB_HIT_FLASH_DURATION, PLAYER_ATTACK_COOLDOWN } from "../game/combat-config";
 import { ComponentMask, forEachEntity, isEntityAlive } from "../core/ecs";
 import { enemyKindFromIndex } from "../game/enemy-kinds";
 import { GROUND_ITEM_MASK } from "../game/ground-items";
 import { drawIsland, insetPoints } from "./render-helpers";
 import { isImageReady, itemImages, propImages, worldImages } from "./assets";
-import { itemKindFromIndex } from "../game/item-kinds";
+import { getInventorySelectedIndex, getInventorySlotKind, getInventorySlotQuantity } from "../game/inventory";
+import { itemKindFromIndex, type ItemKind } from "../game/item-kinds";
+import { getStructurePreviewRadius, getStructurePropKind, getStructureSurface, isStructureItem } from "../game/structure-items";
 import { resourceNodeTypeFromIndex } from "../world/resource-node-types";
 import { propKindFromIndex } from "../game/prop-kinds";
 import { UI_FONT } from "./ui-config";
+import { findContainingIsland } from "../world/island-geometry";
+import { SPAWN_ZONE_RADIUS } from "../world/world-config";
 
 const SEA_GRADIENT_TOP = "#2c7a7b";
 const SEA_GRADIENT_BOTTOM = "#0b2430";
 const ISLAND_INSET_SCALE = 0.82;
 const RESOURCE_IMAGE_SCALE = 1.4;
-const BUSH_BARREN_COLOR = "#4a3a59";
-const BUSH_BARREN_ALPHA = 0.5;
 const GROUND_ITEM_GLOW_COLOR = "#ffffff";
 const GROUND_ITEM_SPARKLE_COUNT = 5;
 const GROUND_ITEM_SPARKLE_RADIUS = 1.4;
 const GROUND_ITEM_SPARKLE_ORBIT = 10;
 const GROUND_ITEM_SPARKLE_SPEED = 1.8;
 const PROP_RENDER_SIZE = 24;
-const ATTACK_EFFECT_COLOR = "rgba(255, 233, 180, 0.4)";
 const PLAYER_COLOR = "#222222";
+const PLAYER_PIVOT_Y = 0.264;
+const CUTLASS_LENGTH_SCALE = 2.5;
+const CUTLASS_HAND_OFFSET_X = 0;
+const CUTLASS_HAND_OFFSET_Y = 0.8;
+const CUTLASS_PIVOT_X = 0.18;
+const CUTLASS_PIVOT_Y = 0.6;
+const CUTLASS_BASE_ROTATION = 0.1;
+const CUTLASS_SLASH_ARC = 1.4;
+const STRUCTURE_PREVIEW_ALPHA = 0.55;
+const STRUCTURE_PREVIEW_INVALID_TINT = "rgba(210, 70, 70, 0.7)";
+const STRUCTURE_PREVIEW_DISTANCE = 6;
 const PLAYER_NAME_COLOR = "#f6f2e7";
 const PLAYER_NAME_STROKE = "rgba(0, 0, 0, 0.65)";
 const PLAYER_NAME_OFFSET = 12;
@@ -38,6 +50,7 @@ const PLAYER_NAME_RADIUS = 4;
 const PLAYER_NAME_LOWER_OFFSET = 4;
 const PLAYER_NAME_TEXT_OFFSET = 2;
 const CULL_PADDING = 120;
+const SPAWN_ZONE_COLOR = "#b88b65";
 
 let playerNameLabels: string[] = [];
 const labelMetricsCache = new Map<string, { width: number; height: number }>();
@@ -142,12 +155,116 @@ const enemyColors: Record<string, string> = {
   kraken: "#2f8aa0"
 };
 
-const { crab: crabImage, wolf: wolfImage, kraken: krakenImage, pirate: pirateImage, bush: bushImage, palmtree: palmtreeImage, rock: rockImage, raft: raftImage } =
-  worldImages;
+const {
+  crab: crabImage,
+  wolf: wolfImage,
+  kraken: krakenImage,
+  pirate: pirateImage,
+  bush: bushImage,
+  bushEmpty: bushEmptyImage,
+  palmtree: palmtreeImage,
+  rock: rockImage,
+  raft: raftImage,
+  cutlass: cutlassImage
+} = worldImages;
 
 const getItemIcon = (kind: keyof typeof itemImages) => {
   const image = itemImages[kind];
   return isImageReady(image) ? image : null;
+};
+
+const hasSelectedSword = (state: GameState, playerId: number) => {
+  const ecs = state.ecs;
+  const selectedIndex = getInventorySelectedIndex(ecs, playerId);
+  const slotKind = getInventorySlotKind(ecs, playerId, selectedIndex);
+  const slotQuantity = getInventorySlotQuantity(ecs, playerId, selectedIndex);
+  return slotKind === "sword" && slotQuantity > 0;
+};
+
+const isStructurePlacementValid = (state: GameState, playerId: number, kind: ItemKind, x: number, y: number, radius: number) => {
+  const ecs = state.ecs;
+  if (ecs.playerIsOnRaft[playerId]) {
+    return false;
+  }
+  const isOnLand = Boolean(findContainingIsland({ x, y }, state.world.islands));
+  const surface = getStructureSurface(kind);
+  if (surface === "land" && !isOnLand) {
+    return false;
+  }
+  if (surface === "water" && isOnLand) {
+    return false;
+  }
+
+  for (const otherId of state.playerIds) {
+    if (otherId === playerId || !isEntityAlive(ecs, otherId)) {
+      continue;
+    }
+    const dx = x - ecs.position.x[otherId];
+    const dy = y - ecs.position.y[otherId];
+    if (Math.hypot(dx, dy) < radius + ecs.radius[otherId]) {
+      return false;
+    }
+  }
+
+  let blocked = false;
+  const blockingMask = ComponentMask.Position | ComponentMask.Radius;
+  const blockingBits = ComponentMask.Resource | ComponentMask.Prop | ComponentMask.Enemy;
+  forEachEntity(ecs, blockingMask, (id) => {
+    if (blocked) {
+      return;
+    }
+    if ((ecs.mask[id] & blockingBits) === 0) {
+      return;
+    }
+    const dx = x - ecs.position.x[id];
+    const dy = y - ecs.position.y[id];
+    if (Math.hypot(dx, dy) < radius + ecs.radius[id]) {
+      blocked = true;
+    }
+  });
+
+  return !blocked;
+};
+
+const renderStructurePreview = (ctx: CanvasRenderingContext2D, state: GameState, playerId: number) => {
+  const ecs = state.ecs;
+  const selectedIndex = getInventorySelectedIndex(ecs, playerId);
+  const slotKind = getInventorySlotKind(ecs, playerId, selectedIndex);
+  const slotQuantity = getInventorySlotQuantity(ecs, playerId, selectedIndex);
+  if (!slotKind || slotQuantity <= 0 || !isStructureItem(slotKind)) {
+    return;
+  }
+
+  const previewRadius = getStructurePreviewRadius(slotKind);
+  const aimAngle = ecs.playerAimAngle[playerId];
+  const distance = ecs.radius[playerId] + previewRadius + STRUCTURE_PREVIEW_DISTANCE;
+  const previewX = ecs.position.x[playerId] + Math.cos(aimAngle) * distance;
+  const previewY = ecs.position.y[playerId] + Math.sin(aimAngle) * distance;
+  const placeable = isStructurePlacementValid(state, playerId, slotKind, previewX, previewY, previewRadius);
+  const propKind = getStructurePropKind(slotKind);
+  const propImage = propKind ? propImages[propKind] : null;
+  const icon = propImage && isImageReady(propImage) ? propImage : getItemIcon(slotKind);
+  const size = previewRadius * 2;
+  const aspect = icon && icon.naturalHeight > 0 ? icon.naturalWidth / icon.naturalHeight : 1;
+  const drawWidth = propKind === "raft" ? size * aspect : size;
+  const drawHeight = size;
+
+  ctx.save();
+  ctx.globalAlpha = STRUCTURE_PREVIEW_ALPHA;
+  if (icon) {
+    ctx.drawImage(icon, previewX - drawWidth / 2, previewY - drawHeight / 2, drawWidth, drawHeight);
+    if (!placeable) {
+      ctx.globalCompositeOperation = "source-atop";
+      ctx.fillStyle = STRUCTURE_PREVIEW_INVALID_TINT;
+      ctx.fillRect(previewX - drawWidth / 2, previewY - drawHeight / 2, drawWidth, drawHeight);
+    }
+  } else {
+    ctx.beginPath();
+    ctx.arc(previewX, previewY, previewRadius, 0, Math.PI * 2);
+    ctx.fillStyle = placeable ? "rgba(255, 255, 255, 0.4)" : STRUCTURE_PREVIEW_INVALID_TINT;
+    ctx.fill();
+  }
+  ctx.restore();
 };
 
 const renderBackground = (ctx: CanvasRenderingContext2D) => {
@@ -176,6 +293,22 @@ const renderIslands = (ctx: CanvasRenderingContext2D, state: GameState, view: Vi
       drawIsland(ctx, inner);
     }
   });
+};
+
+const renderSpawnZone = (ctx: CanvasRenderingContext2D, state: GameState, view: ViewBounds) => {
+  const spawnIsland = state.world.islands[0];
+  if (!spawnIsland) {
+    return;
+  }
+  const { x, y } = spawnIsland.center;
+  if (!isCircleInView(x, y, SPAWN_ZONE_RADIUS, view)) {
+    return;
+  }
+
+  ctx.beginPath();
+  ctx.arc(x, y, SPAWN_ZONE_RADIUS, 0, Math.PI * 2);
+  ctx.fillStyle = SPAWN_ZONE_COLOR;
+  ctx.fill();
 };
 
 const renderGroundItems = (ctx: CanvasRenderingContext2D, state: GameState, view: ViewBounds) => {
@@ -218,10 +351,13 @@ const renderGroundItems = (ctx: CanvasRenderingContext2D, state: GameState, view
   });
 };
 
-const renderResources = (ctx: CanvasRenderingContext2D, state: GameState, view: ViewBounds) => {
+type ResourceLayer = "all" | "trees" | "bushes" | "non-trees";
+
+const renderResources = (ctx: CanvasRenderingContext2D, state: GameState, view: ViewBounds, layer: ResourceLayer = "all") => {
   const ecs = state.ecs;
   const resourceMask = ComponentMask.Resource | ComponentMask.Position | ComponentMask.Radius;
   const bushReady = isImageReady(bushImage);
+  const bushEmptyReady = isImageReady(bushEmptyImage);
   const treeReady = isImageReady(palmtreeImage);
   const rockReady = isImageReady(rockImage);
   forEachEntity(ecs, resourceMask, (id) => {
@@ -237,14 +373,24 @@ const renderResources = (ctx: CanvasRenderingContext2D, state: GameState, view: 
     const isRock = nodeType === "rock";
     const barren = ecs.resourceRemaining[id] === 0;
 
+    if (layer === "trees" && !isTree) {
+      return;
+    }
+    if (layer === "bushes" && !isBush) {
+      return;
+    }
+    if (layer === "non-trees" && isTree) {
+      return;
+    }
+
     if (isBush && bushReady) {
       const size = ecs.radius[id] * 2 * RESOURCE_IMAGE_SCALE;
+      const image = barren && bushEmptyReady ? bushEmptyImage : bushImage;
 
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(ecs.resourceRotation[id]);
-      ctx.globalAlpha = barren ? BUSH_BARREN_ALPHA : 1;
-      ctx.drawImage(bushImage, -size / 2, -size / 2, size, size);
+      ctx.drawImage(image, -size / 2, -size / 2, size, size);
       ctx.restore();
       return;
     }
@@ -262,16 +408,18 @@ const renderResources = (ctx: CanvasRenderingContext2D, state: GameState, view: 
 
     if (isRock && rockReady) {
       const size = ecs.radius[id] * 2 * RESOURCE_IMAGE_SCALE;
+      const width = size * 1.2;
+      const height = size * 0.8;
 
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(ecs.resourceRotation[id]);
-      ctx.drawImage(rockImage, -size / 2, -size / 2, size, size);
+      ctx.drawImage(rockImage, -width / 2, -height / 2, width, height);
       ctx.restore();
       return;
     }
 
-    const color = nodeType === "bush" && barren ? BUSH_BARREN_COLOR : nodeColors[nodeType];
+    const color = nodeColors[nodeType];
     ctx.beginPath();
     ctx.arc(x, y, ecs.radius[id], 0, Math.PI * 2);
     ctx.fillStyle = color;
@@ -285,20 +433,39 @@ const renderProps = (ctx: CanvasRenderingContext2D, state: GameState, view: View
   forEachEntity(ecs, propMask, (id) => {
     const x = ecs.position.x[id];
     const y = ecs.position.y[id];
-    const cullRadius = PROP_RENDER_SIZE / 2;
+    const kind = propKindFromIndex(ecs.propKind[id]);
+    const radius = ecs.radius[id] || PROP_RENDER_SIZE / 2;
+    const image = propImages[kind];
+    let cullRadius = radius > 0 ? radius : PROP_RENDER_SIZE / 2;
+    if (kind === "raft" && image && isImageReady(image)) {
+      const size = radius * 2;
+      const aspect = image.naturalHeight > 0 ? image.naturalWidth / image.naturalHeight : 1;
+      const width = size * aspect;
+      cullRadius = Math.max(width, size) / 2;
+    }
     if (!isCircleInView(x, y, cullRadius, view)) {
       return;
     }
-    const kind = propKindFromIndex(ecs.propKind[id]);
-    const image = propImages[kind];
     if (image && isImageReady(image)) {
-      ctx.drawImage(
-        image,
-        x - PROP_RENDER_SIZE / 2,
-        y - PROP_RENDER_SIZE / 2,
-        PROP_RENDER_SIZE,
-        PROP_RENDER_SIZE
-      );
+      if (kind === "raft") {
+        const size = radius * 2;
+        const aspect = image.naturalHeight > 0 ? image.naturalWidth / image.naturalHeight : 1;
+        const width = size * aspect;
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(ecs.resourceRotation[id]);
+        ctx.drawImage(image, -width / 2, -size / 2, width, size);
+        ctx.restore();
+      } else {
+        ctx.drawImage(
+          image,
+          x - PROP_RENDER_SIZE / 2,
+          y - PROP_RENDER_SIZE / 2,
+          PROP_RENDER_SIZE,
+          PROP_RENDER_SIZE
+        );
+      }
       return;
     }
 
@@ -335,12 +502,13 @@ const renderEnemies = (ctx: CanvasRenderingContext2D, state: GameState, view: Vi
 
     if (canDrawImage) {
       const size = radius * 2;
+      const isKraken = kind === "kraken";
       const velX = ecs.velocity.x[id];
       const velY = ecs.velocity.y[id];
       const speed = Math.hypot(velX, velY);
       const angle = speed > 0.01 ? Math.atan2(velY, velX) : 0;
       const rotation = kind === "wolf"
-        ? angle - Math.PI / 2
+        ? angle + Math.PI
         : kind === "kraken"
           ? 0
           : angle;
@@ -348,7 +516,13 @@ const renderEnemies = (ctx: CanvasRenderingContext2D, state: GameState, view: Vi
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(rotation);
-      ctx.drawImage(image, -size / 2, -size / 2, size, size);
+      if (isKraken || kind === "wolf") {
+        const aspect = image.height > 0 ? image.width / image.height : 1;
+        const width = size * aspect;
+        ctx.drawImage(image, -width / 2, -size / 2, width, size);
+      } else {
+        ctx.drawImage(image, -size / 2, -size / 2, size, size);
+      }
       ctx.restore();
     } else {
       const baseColor = enemyColors[kind] ?? "#d0674b";
@@ -368,40 +542,11 @@ const renderEnemies = (ctx: CanvasRenderingContext2D, state: GameState, view: Vi
   });
 };
 
-const renderAttackEffect = (ctx: CanvasRenderingContext2D, effect: NonNullable<GameState["attackEffects"][number]>) => {
-  const alpha = effect.duration > 0 ? effect.timer / effect.duration : 0;
-  const radius = effect.radius + (1 - alpha) * 4;
-  const startAngle = effect.angle - effect.spread / 2;
-  const endAngle = effect.angle + effect.spread / 2;
-
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.fillStyle = ATTACK_EFFECT_COLOR;
-  ctx.beginPath();
-  ctx.moveTo(effect.origin.x, effect.origin.y);
-  ctx.arc(effect.origin.x, effect.origin.y, radius, startAngle, endAngle);
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
-};
-
-const renderAttackEffects = (ctx: CanvasRenderingContext2D, state: GameState, view: ViewBounds) => {
-  for (const effect of state.attackEffects) {
-    if (!effect) {
-      continue;
-    }
-    const maxRadius = effect.radius + 4;
-    if (!isCircleInView(effect.origin.x, effect.origin.y, maxRadius, view)) {
-      continue;
-    }
-    renderAttackEffect(ctx, effect);
-  }
-};
-
 const renderEntities = (ctx: CanvasRenderingContext2D, state: GameState, view: ViewBounds) => {
   const ecs = state.ecs;
   const raftReady = isImageReady(raftImage);
   const pirateReady = isImageReady(pirateImage);
+  const cutlassReady = isImageReady(cutlassImage);
 
   for (let index = 0; index < state.playerIds.length; index += 1) {
     const playerId = state.playerIds[index];
@@ -418,27 +563,56 @@ const renderEntities = (ctx: CanvasRenderingContext2D, state: GameState, view: V
 
     if (ecs.playerIsOnRaft[playerId] && raftReady) {
       const raftSize = radius * 3;
+      const aspect = raftImage.naturalHeight > 0 ? raftImage.naturalWidth / raftImage.naturalHeight : 1;
+      const raftWidth = raftSize * aspect;
 
       ctx.save();
       ctx.translate(x, y);
-      ctx.rotate(ecs.playerMoveAngle[playerId] + Math.PI / 2);
-      ctx.drawImage(raftImage, -raftSize / 2, -raftSize / 2, raftSize, raftSize);
+      ctx.rotate(ecs.playerMoveAngle[playerId]);
+      ctx.drawImage(raftImage, -raftWidth / 2, -raftSize / 2, raftWidth, raftSize);
+      ctx.restore();
+    }
+
+    if (cutlassReady && hasSelectedSword(state, playerId)) {
+      const aimAngle = ecs.playerAimAngle[playerId];
+      const attackElapsed = PLAYER_ATTACK_COOLDOWN - ecs.playerAttackTimer[playerId];
+      const slashDuration = Math.min(ATTACK_EFFECT_DURATION, PLAYER_ATTACK_COOLDOWN);
+      const slashT = slashDuration > 0 ? Math.max(0, Math.min(1, attackElapsed / slashDuration)) : 0;
+      const slashAngle = slashT > 0 && slashT < 1 ? (slashT - 0.5) * CUTLASS_SLASH_ARC : 0;
+      const aspect = cutlassImage.naturalHeight > 0 ? cutlassImage.naturalWidth / cutlassImage.naturalHeight : 1;
+      const width = radius * CUTLASS_LENGTH_SCALE;
+      const height = width / aspect;
+      const pivotX = width * CUTLASS_PIVOT_X;
+      const pivotY = height * CUTLASS_PIVOT_Y;
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(aimAngle);
+      ctx.translate(radius * CUTLASS_HAND_OFFSET_X, radius * CUTLASS_HAND_OFFSET_Y);
+      ctx.rotate(CUTLASS_BASE_ROTATION + slashAngle);
+      ctx.scale(1, -1);
+      ctx.drawImage(cutlassImage, -pivotX, -pivotY, width, height);
       ctx.restore();
     }
 
     if (pirateReady) {
       const size = radius * 2.4;
+      const pivotYOffset = size * PLAYER_PIVOT_Y;
 
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(ecs.playerAimAngle[playerId] - Math.PI / 2);
-      ctx.drawImage(pirateImage, -size / 2, -size / 2, size, size);
+      ctx.drawImage(pirateImage, -size / 2, -size / 2 - pivotYOffset, size, size);
       ctx.restore();
     } else {
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fillStyle = PLAYER_COLOR;
       ctx.fill();
+    }
+
+    if (index === state.localPlayerIndex) {
+      renderStructurePreview(ctx, state, playerId);
     }
 
     const label = playerNameLabels[index];
@@ -482,12 +656,14 @@ export const renderWorld = (ctx: CanvasRenderingContext2D, state: GameState) => 
   ctx.translate(-cameraX, -cameraY);
 
   renderIslands(ctx, state, view);
-  renderResources(ctx, state, view);
+  renderSpawnZone(ctx, state, view);
+  renderResources(ctx, state, view, "non-trees");
   renderProps(ctx, state, view);
   renderGroundItems(ctx, state, view);
   renderEnemies(ctx, state, view);
-  renderAttackEffects(ctx, state, view);
   renderEntities(ctx, state, view);
+  renderResources(ctx, state, view, "bushes");
+  renderResources(ctx, state, view, "trees");
 
   ctx.restore();
 };

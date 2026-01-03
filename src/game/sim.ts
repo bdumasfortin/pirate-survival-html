@@ -4,7 +4,7 @@ import { isEntityAlive, type EntityId } from "../core/ecs";
 import { CAMERA_ZOOM } from "./config";
 import type { GameState } from "./state";
 import { updateMovement } from "../systems/movement";
-import { constrainPlayerToIslands } from "../systems/collisions";
+import { constrainPlayerToIslands, constrainPlayerToResources } from "../systems/collisions";
 import { updateCrafting } from "../systems/crafting";
 import { updateEnemies } from "../systems/enemies";
 import { updatePlayerCombat } from "../systems/player-combat";
@@ -15,6 +15,7 @@ import { updateSurvival } from "../systems/survival";
 import { dropSelectedItem } from "../systems/drop-selected-item";
 import { pickupGroundItems } from "../systems/ground-items";
 import { updateUseCooldown, useSelectedItem } from "../systems/use-selected-item";
+import { updateStructurePlacement } from "../systems/structures";
 
 const updateMouseWorldPosition = (input: InputState, playerX: number, playerY: number) => {
   if (!input.mouseScreen) {
@@ -111,6 +112,7 @@ export const simulateFrame = (state: GameState, inputs: InputState[], delta: num
         }
       }
       constrainPlayerToIslands(state, playerId);
+      constrainPlayerToResources(state, playerId);
       updateCrafting(state, index, playerId, input);
       if (!state.crafting[index]?.isOpen) {
         updateRaft(state, index, playerId, input);
@@ -135,6 +137,7 @@ export const simulateFrame = (state: GameState, inputs: InputState[], delta: num
       updateUseCooldown(state, playerId, delta);
       if (!state.crafting[index]?.isOpen) {
         updatePlayerCombat(state, index, playerId, input, delta);
+        updateStructurePlacement(state, index, playerId, input);
         useSelectedItem(state, playerId, input);
       }
       dropSelectedItem(state, playerId, input);

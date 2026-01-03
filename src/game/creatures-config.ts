@@ -58,7 +58,7 @@ export const CRAB_BOSS_STATS: CreatureStats = {
   maxHealth: 260,
   damage: 35,
   speed: 38,
-  aggroRange: 140,
+  aggroRange: 280,
   attackRange: 60,
   attackCooldown: 1.4,
   wanderTimerMin: 1.8,

@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here.
 
+## [0.1.11] - 2026-01-03
+### Added
+- Safe spawn zone
+- New building system (raft now uses it)
+- Cutlass is now held by character and animated
+- Added collisions to trees/bushes
+
+### Changed
+- Complete visual revamp of entities/resources
+- E to board raft
+
 ## [0.1.10] - 2026-01-03
 ### Added
 - T to toggle a new debug panel

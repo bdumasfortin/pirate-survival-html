@@ -1,15 +1,20 @@
 # SailorQuest - Game Wiki
 
 ## Game overview
-- Whimsical pirate survival game about a stranded pirate exploring a procedural archipelago.
+- Pirate survival game about a stranded pirate exploring a procedural archipelago.
 - Single-player and 4-player co-op (relay server); no PvP.
 - Focus on gathering, crafting, exploration, and PvE.
+- Semi-linear progression (inspired on Valheim/V Rising)
+- Ability system inspired by One Piece's devil fruits
+
+## Design principles
+- Favor mystery and self-discovery: avoid over-explaining, keep instructions minimal, and design systems that encourage players to explore and learn on their own.
 
 ## Controls
 - Move: WASD
 - Aim: mouse cursor
-- Use / attack / board: LMB
-- Gather: E
+- Attack: LMB (when weapon selected)
+- Gather / board / disembark / interact: E
 - Inventory slot: 1-9 or mouse wheel
 - Drop item: Q
 - Crafting menu: C (or Escape to close)
@@ -41,7 +46,7 @@
 
 ## Combat
 - Sword attack via LMB when sword is selected.
-- Attack aims toward the cursor and shows a cone effect.
+- Attack aims toward the cursor.
 - Enemies have hit flash feedback.
 
 ## Inventory and items
@@ -59,6 +64,11 @@
 - Select recipe with 1-9 or mouse wheel; click Craft to craft.
 - Recipes: raft, sword.
 
+## Building
+- Structure items appear as a ghost preview in front of the player when selected.
+- Valid placement shows a translucent preview; invalid placement turns red.
+- Placement uses LMB and consumes the item.
+
 ## Resources
 - Trees: multi-yield wood, then disappear.
 - Rocks: single pickup.
@@ -70,9 +80,10 @@
 - Krakens: drops kraken ring.
 - Food restores hunger.
 
-## Raft
-- Craftable raft used to traverse water.
-- Board/disembark near shore using LMB while raft is selected.
+## Raft / Ships
+- Raft is now a placeable structure item (water-only).
+- Use LMB to place the raft when selected in the inventory.
+- Board/disembark with E when close to the raft or shoreline.
 
 ## Props
 - Decorative world props (non-pickup items).
@@ -82,13 +93,3 @@
 - Host creates a room and shares the code; host must start the match.
 - Rooms are fixed to 4 players for now.
 - Player names are required when hosting/joining and persist in browser storage.
-
-## UI and visuals
-- Hotbar with item icons and stack counts.
-- Health, hunger, and armor bars above the hotbar.
-- Action prompts and hints.
-- Map overlay toggled with M.
-- Debug overlay toggled with T.
-- Day/night tint with a day counter title at midnight.
-- Build version and active seed shown top-right.
-- SVG sprites for player, enemies, resources, and items.
