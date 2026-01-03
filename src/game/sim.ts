@@ -1,4 +1,5 @@
-import type { InputState } from "../core/input";
+import { consumeTeleport, type InputState } from "../core/input";
+import { isMapOverlayEnabled, mapScreenToWorld } from "./map-overlay";
 import { isEntityAlive, type EntityId } from "../core/ecs";
 import { CAMERA_ZOOM } from "./config";
 import type { GameState } from "./state";
@@ -39,6 +40,39 @@ const updateAimAngle = (state: GameState, playerId: EntityId, input: InputState,
   }
 };
 
+const applyDevTeleport = (state: GameState, playerId: EntityId, input: InputState) => {
+  if (!import.meta.env.DEV) {
+    return;
+  }
+  if (state.playerIds.length !== 1) {
+    return;
+  }
+  if (!consumeTeleport(input)) {
+    return;
+  }
+  if (!isMapOverlayEnabled() || !input.mouseScreen) {
+    return;
+  }
+
+  const target = mapScreenToWorld(
+    state.world,
+    input.mouseScreen.x,
+    input.mouseScreen.y,
+    window.innerWidth,
+    window.innerHeight
+  );
+  if (!target) {
+    return;
+  }
+
+  state.ecs.position.x[playerId] = target.x;
+  state.ecs.position.y[playerId] = target.y;
+  state.ecs.prevPosition.x[playerId] = target.x;
+  state.ecs.prevPosition.y[playerId] = target.y;
+  state.ecs.velocity.x[playerId] = 0;
+  state.ecs.velocity.y[playerId] = 0;
+};
+
 const clearQueuedUse = (input: InputState) => {
   if (input.useQueued) {
     input.useQueued = false;
@@ -63,6 +97,7 @@ export const simulateFrame = (state: GameState, inputs: InputState[], delta: num
     const playerX = ecs.position.x[playerId];
     const playerY = ecs.position.y[playerId];
     updateMouseWorldPosition(input, playerX, playerY);
+    applyDevTeleport(state, playerId, input);
     updateAimAngle(state, playerId, input, playerX, playerY);
 
     updateInventorySelection(state, playerId, input);

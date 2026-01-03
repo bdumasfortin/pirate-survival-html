@@ -13,6 +13,7 @@ export type InputState = {
   closeCraftQueued: boolean;
   debugToggleQueued: boolean;
   mapToggleQueued: boolean;
+  teleportQueued: boolean;
   craftIndexQueued: number | null;
   craftScrollQueued: number;
   inventoryIndexQueued: number | null;
@@ -33,6 +34,7 @@ export const createInputState = (): InputState => ({
   closeCraftQueued: false,
   debugToggleQueued: false,
   mapToggleQueued: false,
+  teleportQueued: false,
   craftIndexQueued: null,
   craftScrollQueued: 0,
   inventoryIndexQueued: null,
@@ -85,6 +87,11 @@ export const bindKeyboard = (state: InputState) => {
           state.mapToggleQueued = true;
         }
         break;
+      case "KeyP":
+        if (value) {
+          state.teleportQueued = true;
+        }
+        break;
       case "Escape":
         if (value) {
           state.closeCraftQueued = true;
@@ -109,6 +116,7 @@ export const bindKeyboard = (state: InputState) => {
     state.closeCraftQueued = false;
     state.debugToggleQueued = false;
     state.mapToggleQueued = false;
+    state.teleportQueued = false;
     state.craftIndexQueued = null;
     state.craftScrollQueued = 0;
     state.inventoryIndexQueued = null;
@@ -256,6 +264,15 @@ export const consumeMapToggle = (state: InputState) => {
   }
 
   state.mapToggleQueued = false;
+  return true;
+};
+
+export const consumeTeleport = (state: InputState) => {
+  if (!state.teleportQueued) {
+    return false;
+  }
+
+  state.teleportQueued = false;
   return true;
 };
 

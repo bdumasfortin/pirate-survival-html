@@ -7,6 +7,8 @@ import { resourceNodeTypeToIndex } from "./resource-node-types";
 import type { Island, IslandType, WorldState, YieldRange } from "./types";
 import type { IslandSpec } from "./world-config";
 import {
+  BASE_ISLAND_RADIUS,
+  BOSS_ISLAND_RADIUS,
   ISLAND_SHAPE_CONFIG,
   ISLAND_TYPE_WEIGHTS,
   RESOURCE_NODE_CONFIGS_BY_TYPE,
@@ -51,24 +53,61 @@ const smoothPoints = (points: Vec2[], passes: number) => {
 const createIsland = (spec: IslandSpec): Island => {
   const { center, baseRadius, seed, type } = spec;
   const rng = createRng(seed);
-  const { pointCount, waveA, waveB, ampA: ampRatioA, ampB: ampRatioB, jitter: jitterRatio, minRadius, smoothingPasses } =
-    ISLAND_SHAPE_CONFIG;
+  const {
+    pointCountMin,
+    pointCountMax,
+    waveAMin,
+    waveAMax,
+    waveBMin,
+    waveBMax,
+    ampAMin,
+    ampAMax,
+    ampBMin,
+    ampBMax,
+    jitterMin,
+    jitterMax,
+    minRadiusRatio,
+    smoothingPassesMin,
+    smoothingPassesMax,
+    leanMin,
+    leanMax
+  } = ISLAND_SHAPE_CONFIG;
+  const pointCount = Math.round(randomBetween(rng, pointCountMin, pointCountMax));
+  let waveA = Math.max(1, Math.round(randomBetween(rng, waveAMin, waveAMax)));
+  let waveB = Math.max(2, Math.round(randomBetween(rng, waveBMin, waveBMax)));
+  if (waveB === waveA) {
+    waveB += 1;
+  }
+  const ampA = baseRadius * randomBetween(rng, ampAMin, ampAMax);
+  const ampB = baseRadius * randomBetween(rng, ampBMin, ampBMax);
+  const jitter = baseRadius * randomBetween(rng, jitterMin, jitterMax);
+  const minRadius = baseRadius * minRadiusRatio;
+  const smoothingPasses = Math.round(randomBetween(rng, smoothingPassesMin, smoothingPassesMax));
+  const lean = randomBetween(rng, leanMin, leanMax);
+  const axisAngle = rng() * Math.PI * 2;
+  const axisCos = Math.cos(axisAngle);
+  const axisSin = Math.sin(axisAngle);
   const points: Vec2[] = [];
   const phaseA = rng() * Math.PI * 2;
   const phaseB = rng() * Math.PI * 2;
-  const ampA = baseRadius * ampRatioA;
-  const ampB = baseRadius * ampRatioB;
-  const jitter = baseRadius * jitterRatio;
 
   for (let i = 0; i < pointCount; i += 1) {
     const t = (i / pointCount) * Math.PI * 2;
     const wave = Math.sin(t * waveA + phaseA) * ampA + Math.sin(t * waveB + phaseB) * ampB;
     const noise = (rng() * 2 - 1) * jitter;
     const radius = Math.max(minRadius, baseRadius + wave + noise);
+    let x = Math.cos(t) * radius;
+    let y = Math.sin(t) * radius;
+    const rx = x * axisCos + y * axisSin;
+    const ry = -x * axisSin + y * axisCos;
+    const scaledX = rx * lean;
+    const scaledY = ry / lean;
+    x = scaledX * axisCos - scaledY * axisSin;
+    y = scaledX * axisSin + scaledY * axisCos;
 
     points.push({
-      x: center.x + Math.cos(t) * radius,
-      y: center.y + Math.sin(t) * radius
+      x: center.x + x,
+      y: center.y + y
     });
   }
 
@@ -115,10 +154,39 @@ const spawnResourcesForIsland = (ecs: EcsWorld, island: Island, seed: number) =>
   const rng = createRng(seed);
 
   const configs = RESOURCE_NODE_CONFIGS_BY_TYPE[island.type];
+  const islandRadius = getIslandRadius(island);
+  const areaScale = Math.pow(islandRadius / BASE_ISLAND_RADIUS, 2);
+  const scaledCounts = configs.map((config) => Math.max(1, Math.round(config.count * areaScale)));
+  const totalCount = scaledCounts.reduce((sum, count) => sum + count, 0);
+  const islandArea = Math.PI * islandRadius * islandRadius;
+  const meanSpacing = totalCount > 0 ? Math.sqrt(islandArea / totalCount) : 0;
+  const placed: Vec2[] = [];
 
-  for (const config of configs) {
-    for (let i = 0; i < config.count; i += 1) {
-      const position = getRandomPointInIsland(island, rng);
+  const isFarEnough = (position: Vec2, minSpacing: number) => {
+    const minDistSq = minSpacing * minSpacing;
+    for (const other of placed) {
+      const dx = position.x - other.x;
+      const dy = position.y - other.y;
+      if (dx * dx + dy * dy < minDistSq) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  for (let configIndex = 0; configIndex < configs.length; configIndex += 1) {
+    const config = configs[configIndex];
+    const count = scaledCounts[configIndex] ?? config.count;
+    const minSpacing = Math.max(config.radius * 2.2, meanSpacing * 0.6);
+    for (let i = 0; i < count; i += 1) {
+      let position = getRandomPointInIsland(island, rng);
+      for (let attempt = 0; attempt < RESOURCE_PLACEMENT_CONFIG.attempts; attempt += 1) {
+        if (isFarEnough(position, minSpacing)) {
+          break;
+        }
+        position = getRandomPointInIsland(island, rng);
+      }
+      placed.push(position);
       const remaining = rollYield(rng, config.yield);
       const id = createEntity(ecs, RESOURCE_MASK, EntityTag.Resource);
       ecs.position.x[id] = position.x;
@@ -136,7 +204,11 @@ const spawnResourcesForIsland = (ecs: EcsWorld, island: Island, seed: number) =>
   }
 };
 
-const getMaxRadiusRatio = () => 1 + ISLAND_SHAPE_CONFIG.ampA + ISLAND_SHAPE_CONFIG.ampB + ISLAND_SHAPE_CONFIG.jitter;
+const getMaxRadiusRatio = () => {
+  const amplitudeMax = ISLAND_SHAPE_CONFIG.ampAMax + ISLAND_SHAPE_CONFIG.ampBMax + ISLAND_SHAPE_CONFIG.jitterMax;
+  const stretchMax = Math.max(ISLAND_SHAPE_CONFIG.leanMax, 1 / ISLAND_SHAPE_CONFIG.leanMin);
+  return (1 + amplitudeMax) * stretchMax;
+};
 
 const isIslandSeparated = (candidate: IslandSpec, existing: IslandSpec[], padding: number) => {
   const maxRadiusRatio = getMaxRadiusRatio();
@@ -230,7 +302,7 @@ const createIslandSpecs = (seed: number): IslandSpec[] => {
   };
 
   if (islandCount > 1) {
-    const bossRadius = randomBetween(rng, radiusMin, radiusMax);
+    const bossRadius = BOSS_ISLAND_RADIUS;
     const bossSeed = Math.floor(rng() * 1_000_000_000) + seed + 113;
     placeIsland(bossRadius, bossSeed, "wolfBoss");
   }

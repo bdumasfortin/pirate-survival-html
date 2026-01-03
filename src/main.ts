@@ -9,7 +9,8 @@ import { createGameStateSnapshot, createRollbackBuffer, getRollbackSnapshot, res
 import { simulateFrame } from "./game/sim";
 import { runDeterminismCheck } from "./dev/determinism";
 import { render } from "./render/renderer";
-import { setHudRoomCode, setHudSeed, toggleDebugOverlay, toggleMapOverlay } from "./render/ui";
+import { setHudRoomCode, setHudSeed, toggleDebugOverlay } from "./render/ui";
+import { toggleMapOverlay } from "./game/map-overlay";
 import { setPlayerNameLabels } from "./render/world";
 import { createClientSession, createHostSession, finalizeSessionStart, pauseSession, resumeSessionFromFrame, setSessionFrame, type SessionState } from "./net/session";
 import { decodeInputPacket, encodeInputPacket, type InputPacket } from "./net/input-wire";

@@ -10,7 +10,7 @@ import { DAMAGE_FLASH_DURATION } from "../game/combat-config";
 import { RAFT_INTERACTION_DISTANCE } from "../game/raft-config";
 import { EntityTag, INVENTORY_SLOT_COUNT, isEntityAlive } from "../core/ecs";
 import { getDayCycleInfo } from "../game/day-night";
-import type { WorldState } from "../world/types";
+import { getMapLayout, getWorldBounds, isMapOverlayEnabled } from "../game/map-overlay";
 import { resourceNodeTypeFromIndex } from "../world/resource-node-types";
 import { equipmentPlaceholderImages, isImageReady, itemImages } from "./assets";
 import { drawRoundedRect } from "./render-helpers";
@@ -74,8 +74,6 @@ let debugOverlayEnabled = false;
 let debugFps = 0;
 let debugFrames = 0;
 let debugLastSample = performance.now();
-let mapOverlayEnabled = false;
-const mapBoundsCache = new WeakMap<WorldState, { minX: number; minY: number; maxX: number; maxY: number }>();
 
 export const toggleDebugOverlay = () => {
   debugOverlayEnabled = !debugOverlayEnabled;
@@ -83,14 +81,6 @@ export const toggleDebugOverlay = () => {
 
 export const setDebugOverlayEnabled = (enabled: boolean) => {
   debugOverlayEnabled = enabled;
-};
-
-export const toggleMapOverlay = () => {
-  mapOverlayEnabled = !mapOverlayEnabled;
-};
-
-export const setMapOverlayEnabled = (enabled: boolean) => {
-  mapOverlayEnabled = enabled;
 };
 
 export const setHudSeed = (seed: string) => {
@@ -571,48 +561,12 @@ const renderBuildVersion = (ctx: CanvasRenderingContext2D) => {
   ctx.restore();
 };
 
-const getWorldBounds = (world: WorldState) => {
-  const cached = mapBoundsCache.get(world);
-  if (cached) {
-    return cached;
-  }
-  let minX = Number.POSITIVE_INFINITY;
-  let minY = Number.POSITIVE_INFINITY;
-  let maxX = Number.NEGATIVE_INFINITY;
-  let maxY = Number.NEGATIVE_INFINITY;
-
-  for (const island of world.islands) {
-    for (const point of island.points) {
-      minX = Math.min(minX, point.x);
-      minY = Math.min(minY, point.y);
-      maxX = Math.max(maxX, point.x);
-      maxY = Math.max(maxY, point.y);
-    }
-  }
-
-  if (world.islands.length === 0) {
-    minX = 0;
-    minY = 0;
-    maxX = 0;
-    maxY = 0;
-  }
-
-  const bounds = { minX, minY, maxX, maxY };
-  mapBoundsCache.set(world, bounds);
-  return bounds;
-};
-
 const renderMapOverlay = (ctx: CanvasRenderingContext2D, state: GameState) => {
-  if (!mapOverlayEnabled) {
+  if (!isMapOverlayEnabled()) {
     return;
   }
 
-  const mapSize = 360;
-  const padding = 18;
-  const panelX = (window.innerWidth - mapSize) / 2;
-  const panelY = (window.innerHeight - mapSize) / 2;
-  const panelWidth = mapSize;
-  const panelHeight = mapSize;
+  const { panelX, panelY, panelWidth, panelHeight, padding } = getMapLayout(window.innerWidth, window.innerHeight);
 
   ctx.save();
   ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
