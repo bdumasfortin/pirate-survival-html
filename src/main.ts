@@ -10,7 +10,7 @@ import { simulateFrame } from "./game/sim";
 import { runDeterminismCheck } from "./dev/determinism";
 import { render } from "./render/renderer";
 import { setHudRoomCode, setHudSeed, toggleDebugOverlay } from "./render/ui";
-import { toggleMapOverlay } from "./game/map-overlay";
+import { closeMapOverlay, isMapOverlayEnabled, toggleMapOverlay } from "./game/map-overlay";
 import { setPlayerNameLabels } from "./render/world";
 import { createClientSession, createHostSession, finalizeSessionStart, pauseSession, resumeSessionFromFrame, setSessionFrame, type SessionState } from "./net/session";
 import { decodeInputPacket, encodeInputPacket, type InputPacket } from "./net/input-wire";
@@ -1673,6 +1673,11 @@ const initMenu = () => {
       return;
     }
     if (!hasStarted || !activeGame || !activeSession) {
+      return;
+    }
+    if (isMapOverlayEnabled()) {
+      closeMapOverlay();
+      event.preventDefault();
       return;
     }
     const craftingOpen = activeGame.state.crafting[activeSession.localPlayerIndex]?.isOpen ?? false;

@@ -20,6 +20,10 @@ export const setMapOverlayEnabled = (enabled: boolean) => {
 
 export const isMapOverlayEnabled = () => mapOverlayEnabled;
 
+export const closeMapOverlay = () => {
+  mapOverlayEnabled = false;
+};
+
 export const getMapLayout = (innerWidth: number, innerHeight: number) => {
   const panelX = (innerWidth - MAP_SIZE) / 2;
   const panelY = (innerHeight - MAP_SIZE) / 2;
