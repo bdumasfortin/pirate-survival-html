@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here.
 
-## [0.1.10] - 2026-01-02
+## [0.1.10] - 2026-01-03
 ### Added
 - T to toggle a new debug panel
 - Day/Night cycle
