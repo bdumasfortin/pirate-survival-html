@@ -1,13 +1,14 @@
 import type { GameState } from "../game/state";
 import type { Vec2 } from "../core/types";
 import type { Island } from "../world/types";
-import { isEntityAlive, type EntityId } from "../core/ecs";
+import { ComponentMask, forEachEntity, isEntityAlive, type EntityId } from "../core/ecs";
 import {
   closestPointOnPolygon,
   findClosestIslandEdge,
   findContainingIsland,
   isPointInIsland
 } from "../world/island-geometry";
+import { resourceNodeTypeFromIndex } from "../world/resource-node-types";
 
 const trySlide = (position: Vec2, prev: Vec2, island: Island) => {
   const slideX = { x: position.x, y: prev.y };
@@ -88,4 +89,46 @@ export const constrainPlayerToIslands = (state: GameState, playerId: EntityId) =
 
   ecs.position.x[playerId] = closest.point.x + (toCenter.x / length) * (radius + buffer);
   ecs.position.y[playerId] = closest.point.y + (toCenter.y / length) * (radius + buffer);
+};
+
+export const constrainPlayerToResources = (state: GameState, playerId: EntityId) => {
+  const ecs = state.ecs;
+  if (!isEntityAlive(ecs, playerId)) {
+    return;
+  }
+
+  if (ecs.playerIsOnRaft[playerId]) {
+    return;
+  }
+
+  let playerX = ecs.position.x[playerId];
+  let playerY = ecs.position.y[playerId];
+  const playerRadius = ecs.radius[playerId];
+  const resourceMask = ComponentMask.Resource | ComponentMask.Position | ComponentMask.Radius;
+
+  const treeCollisionScale = 0.35;
+  const bushCollisionScale = 0.2;
+
+  forEachEntity(ecs, resourceMask, (id) => {
+    const nodeType = resourceNodeTypeFromIndex(ecs.resourceNodeType[id]);
+    if (nodeType !== "tree" && nodeType !== "bush") {
+      return;
+    }
+
+    const dx = playerX - ecs.position.x[id];
+    const dy = playerY - ecs.position.y[id];
+    const distance = Math.hypot(dx, dy);
+    const collisionScale = nodeType === "tree" ? treeCollisionScale : bushCollisionScale;
+    const minDistance = playerRadius + ecs.radius[id] * collisionScale;
+
+    if (distance >= minDistance || distance <= 0.0001) {
+      return;
+    }
+
+    const push = (minDistance - distance) / distance;
+    playerX += dx * push;
+    playerY += dy * push;
+    ecs.position.x[playerId] = playerX;
+    ecs.position.y[playerId] = playerY;
+  });
 };

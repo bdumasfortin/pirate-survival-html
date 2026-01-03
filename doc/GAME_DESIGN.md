@@ -1,9 +1,14 @@
 # SailorQuest - Game Wiki
 
 ## Game overview
-- Whimsical pirate survival game about a stranded pirate exploring a procedural archipelago.
+- Pirate survival game about a stranded pirate exploring a procedural archipelago.
 - Single-player and 4-player co-op (relay server); no PvP.
 - Focus on gathering, crafting, exploration, and PvE.
+- Semi-linear progression (inspired on Valheim/V Rising)
+- Ability system inspired by One Piece's devil fruits
+
+## Design principles
+- Favor mystery and self-discovery: avoid over-explaining, keep instructions minimal, and design systems that encourage players to explore and learn on their own.
 
 ## Controls
 - Move: WASD
@@ -70,9 +75,8 @@
 - Krakens: drops kraken ring.
 - Food restores hunger.
 
-## Raft
-- Craftable raft used to traverse water.
-- Board/disembark near shore using LMB while raft is selected.
+## Raft / Ships
+- Craftable vessels used to traverse water.
 
 ## Props
 - Decorative world props (non-pickup items).
@@ -82,13 +86,3 @@
 - Host creates a room and shares the code; host must start the match.
 - Rooms are fixed to 4 players for now.
 - Player names are required when hosting/joining and persist in browser storage.
-
-## UI and visuals
-- Hotbar with item icons and stack counts.
-- Health, hunger, and armor bars above the hotbar.
-- Action prompts and hints.
-- Map overlay toggled with M.
-- Debug overlay toggled with T.
-- Day/night tint with a day counter title at midnight.
-- Build version and active seed shown top-right.
-- SVG sprites for player, enemies, resources, and items.

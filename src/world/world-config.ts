@@ -73,7 +73,7 @@ export const RESOURCE_NODE_CONFIGS: ResourceNodeConfig[] = [
   {
     nodeType: "tree",
     kind: "wood",
-    radius: 20,
+    radius: 40,
     count: 7,
     yield: { min: 3, max: 5 },
     respawnTime: 0

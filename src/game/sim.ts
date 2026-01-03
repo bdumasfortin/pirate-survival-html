@@ -4,7 +4,7 @@ import { isEntityAlive, type EntityId } from "../core/ecs";
 import { CAMERA_ZOOM } from "./config";
 import type { GameState } from "./state";
 import { updateMovement } from "../systems/movement";
-import { constrainPlayerToIslands } from "../systems/collisions";
+import { constrainPlayerToIslands, constrainPlayerToResources } from "../systems/collisions";
 import { updateCrafting } from "../systems/crafting";
 import { updateEnemies } from "../systems/enemies";
 import { updatePlayerCombat } from "../systems/player-combat";
@@ -111,6 +111,7 @@ export const simulateFrame = (state: GameState, inputs: InputState[], delta: num
         }
       }
       constrainPlayerToIslands(state, playerId);
+      constrainPlayerToResources(state, playerId);
       updateCrafting(state, index, playerId, input);
       if (!state.crafting[index]?.isOpen) {
         updateRaft(state, index, playerId, input);

@@ -18,8 +18,6 @@ const SEA_GRADIENT_TOP = "#2c7a7b";
 const SEA_GRADIENT_BOTTOM = "#0b2430";
 const ISLAND_INSET_SCALE = 0.82;
 const RESOURCE_IMAGE_SCALE = 1.4;
-const BUSH_BARREN_COLOR = "#4a3a59";
-const BUSH_BARREN_ALPHA = 0.5;
 const GROUND_ITEM_GLOW_COLOR = "#ffffff";
 const GROUND_ITEM_SPARKLE_COUNT = 5;
 const GROUND_ITEM_SPARKLE_RADIUS = 1.4;
@@ -28,6 +26,7 @@ const GROUND_ITEM_SPARKLE_SPEED = 1.8;
 const PROP_RENDER_SIZE = 24;
 const ATTACK_EFFECT_COLOR = "rgba(255, 233, 180, 0.4)";
 const PLAYER_COLOR = "#222222";
+const PLAYER_PIVOT_Y = 0.264;
 const PLAYER_NAME_COLOR = "#f6f2e7";
 const PLAYER_NAME_STROKE = "rgba(0, 0, 0, 0.65)";
 const PLAYER_NAME_OFFSET = 12;
@@ -142,8 +141,17 @@ const enemyColors: Record<string, string> = {
   kraken: "#2f8aa0"
 };
 
-const { crab: crabImage, wolf: wolfImage, kraken: krakenImage, pirate: pirateImage, bush: bushImage, palmtree: palmtreeImage, rock: rockImage, raft: raftImage } =
-  worldImages;
+const {
+  crab: crabImage,
+  wolf: wolfImage,
+  kraken: krakenImage,
+  pirate: pirateImage,
+  bush: bushImage,
+  bushEmpty: bushEmptyImage,
+  palmtree: palmtreeImage,
+  rock: rockImage,
+  raft: raftImage
+} = worldImages;
 
 const getItemIcon = (kind: keyof typeof itemImages) => {
   const image = itemImages[kind];
@@ -218,10 +226,13 @@ const renderGroundItems = (ctx: CanvasRenderingContext2D, state: GameState, view
   });
 };
 
-const renderResources = (ctx: CanvasRenderingContext2D, state: GameState, view: ViewBounds) => {
+type ResourceLayer = "all" | "trees" | "bushes" | "non-trees";
+
+const renderResources = (ctx: CanvasRenderingContext2D, state: GameState, view: ViewBounds, layer: ResourceLayer = "all") => {
   const ecs = state.ecs;
   const resourceMask = ComponentMask.Resource | ComponentMask.Position | ComponentMask.Radius;
   const bushReady = isImageReady(bushImage);
+  const bushEmptyReady = isImageReady(bushEmptyImage);
   const treeReady = isImageReady(palmtreeImage);
   const rockReady = isImageReady(rockImage);
   forEachEntity(ecs, resourceMask, (id) => {
@@ -237,14 +248,24 @@ const renderResources = (ctx: CanvasRenderingContext2D, state: GameState, view: 
     const isRock = nodeType === "rock";
     const barren = ecs.resourceRemaining[id] === 0;
 
+    if (layer === "trees" && !isTree) {
+      return;
+    }
+    if (layer === "bushes" && !isBush) {
+      return;
+    }
+    if (layer === "non-trees" && isTree) {
+      return;
+    }
+
     if (isBush && bushReady) {
       const size = ecs.radius[id] * 2 * RESOURCE_IMAGE_SCALE;
+      const image = barren && bushEmptyReady ? bushEmptyImage : bushImage;
 
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(ecs.resourceRotation[id]);
-      ctx.globalAlpha = barren ? BUSH_BARREN_ALPHA : 1;
-      ctx.drawImage(bushImage, -size / 2, -size / 2, size, size);
+      ctx.drawImage(image, -size / 2, -size / 2, size, size);
       ctx.restore();
       return;
     }
@@ -271,7 +292,7 @@ const renderResources = (ctx: CanvasRenderingContext2D, state: GameState, view: 
       return;
     }
 
-    const color = nodeType === "bush" && barren ? BUSH_BARREN_COLOR : nodeColors[nodeType];
+    const color = nodeColors[nodeType];
     ctx.beginPath();
     ctx.arc(x, y, ecs.radius[id], 0, Math.PI * 2);
     ctx.fillStyle = color;
@@ -335,6 +356,7 @@ const renderEnemies = (ctx: CanvasRenderingContext2D, state: GameState, view: Vi
 
     if (canDrawImage) {
       const size = radius * 2;
+      const isKraken = kind === "kraken";
       const velX = ecs.velocity.x[id];
       const velY = ecs.velocity.y[id];
       const speed = Math.hypot(velX, velY);
@@ -348,7 +370,13 @@ const renderEnemies = (ctx: CanvasRenderingContext2D, state: GameState, view: Vi
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(rotation);
-      ctx.drawImage(image, -size / 2, -size / 2, size, size);
+      if (isKraken) {
+        const aspect = image.height > 0 ? image.width / image.height : 1;
+        const width = size * aspect;
+        ctx.drawImage(image, -width / 2, -size / 2, width, size);
+      } else {
+        ctx.drawImage(image, -size / 2, -size / 2, size, size);
+      }
       ctx.restore();
     } else {
       const baseColor = enemyColors[kind] ?? "#d0674b";
@@ -428,11 +456,12 @@ const renderEntities = (ctx: CanvasRenderingContext2D, state: GameState, view: V
 
     if (pirateReady) {
       const size = radius * 2.4;
+      const pivotYOffset = size * PLAYER_PIVOT_Y;
 
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(ecs.playerAimAngle[playerId] - Math.PI / 2);
-      ctx.drawImage(pirateImage, -size / 2, -size / 2, size, size);
+      ctx.drawImage(pirateImage, -size / 2, -size / 2 - pivotYOffset, size, size);
       ctx.restore();
     } else {
       ctx.beginPath();
@@ -482,12 +511,14 @@ export const renderWorld = (ctx: CanvasRenderingContext2D, state: GameState) => 
   ctx.translate(-cameraX, -cameraY);
 
   renderIslands(ctx, state, view);
-  renderResources(ctx, state, view);
+  renderResources(ctx, state, view, "non-trees");
   renderProps(ctx, state, view);
   renderGroundItems(ctx, state, view);
   renderEnemies(ctx, state, view);
   renderAttackEffects(ctx, state, view);
   renderEntities(ctx, state, view);
+  renderResources(ctx, state, view, "bushes");
+  renderResources(ctx, state, view, "trees");
 
   ctx.restore();
 };
