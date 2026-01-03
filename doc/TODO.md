@@ -1,6 +1,5 @@
 # TO DO
 
-- [ ] Work on creatures pathing
 - [ ] Raft revamp, find a better way to embark/disembark 
 - [ ] Establish some milestones (days survived, bosses slain, rare loot).
 - [ ] Crafting revamp
