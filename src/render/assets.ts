@@ -4,7 +4,7 @@ import type { EquipmentSlotType } from "../game/equipment";
 import crabUrl from "../assets/png/entities/crab.png";
 import wolfUrl from "../assets/png/entities/wolf.png";
 import krakenUrl from "../assets/png/entities/kraken.png";
-import pirateUrl from "../assets/png/entities/pirate.png";
+import pirateUrl from "../assets/svg/pirate.svg";
 import bushUrl from "../assets/png/environment/bush.png";
 import bushEmptyUrl from "../assets/png/environment/bush-empty.png";
 import palmtreeUrl from "../assets/png/environment/palm-tree.png";

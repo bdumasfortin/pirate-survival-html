@@ -1,11 +1,9 @@
 # TO DO
 
-- [ ] Equippable cutlass, animated
 - [ ] Pick-upable wood on the ground
 - [ ] Axe to chop wood from trees
 - [ ] Softer transition between beach land colors
 - [ ] Shore vs deep water color change
-- [ ] Raft revamp, find a better way to embark/disembark 
 - [ ] Establish some milestones (days survived, bosses slain, rare loot).
 - [ ] Crafting revamp
 - [ ] SFX/Ambiance
