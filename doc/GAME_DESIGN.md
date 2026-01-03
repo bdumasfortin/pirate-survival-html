@@ -13,8 +13,8 @@
 ## Controls
 - Move: WASD
 - Aim: mouse cursor
-- Use / attack / board: LMB
-- Gather: E
+- Attack: LMB (when weapon selected)
+- Gather / board / disembark / interact: E
 - Inventory slot: 1-9 or mouse wheel
 - Drop item: Q
 - Crafting menu: C (or Escape to close)
@@ -46,7 +46,7 @@
 
 ## Combat
 - Sword attack via LMB when sword is selected.
-- Attack aims toward the cursor and shows a cone effect.
+- Attack aims toward the cursor.
 - Enemies have hit flash feedback.
 
 ## Inventory and items
@@ -64,6 +64,11 @@
 - Select recipe with 1-9 or mouse wheel; click Craft to craft.
 - Recipes: raft, sword.
 
+## Building
+- Structure items appear as a ghost preview in front of the player when selected.
+- Valid placement shows a translucent preview; invalid placement turns red.
+- Placement uses LMB and consumes the item.
+
 ## Resources
 - Trees: multi-yield wood, then disappear.
 - Rocks: single pickup.
@@ -76,7 +81,9 @@
 - Food restores hunger.
 
 ## Raft / Ships
-- Craftable vessels used to traverse water.
+- Raft is now a placeable structure item (water-only).
+- Use LMB to place the raft when selected in the inventory.
+- Board/disembark with E when close to the raft or shoreline.
 
 ## Props
 - Decorative world props (non-pickup items).
