@@ -9,6 +9,7 @@ import { getNearestGatherableResource } from "../systems/gathering";
 import { DAMAGE_FLASH_DURATION } from "../game/combat-config";
 import { RAFT_INTERACTION_DISTANCE } from "../game/raft-config";
 import { EntityTag, INVENTORY_SLOT_COUNT, isEntityAlive } from "../core/ecs";
+import { getDayCycleInfo } from "../game/day-night";
 import type { WorldState } from "../world/types";
 import { resourceNodeTypeFromIndex } from "../world/resource-node-types";
 import { equipmentPlaceholderImages, isImageReady, itemImages } from "./assets";
@@ -732,6 +733,7 @@ const renderDebugOverlay = (ctx: CanvasRenderingContext2D, state: GameState) => 
   }
 
   updateDebugFps();
+  const dayInfo = getDayCycleInfo(state.time);
 
   const playerId = getLocalPlayerId(state);
   const ecs = state.ecs;
@@ -744,6 +746,7 @@ const renderDebugOverlay = (ctx: CanvasRenderingContext2D, state: GameState) => 
   const lines = [
     `FPS: ${debugFps}`,
     `Time: ${state.time.toFixed(2)}s`,
+    `Day: ${dayInfo.day}  ${String(dayInfo.hours).padStart(2, "0")}:${String(dayInfo.minutes).padStart(2, "0")}`,
     `Players: ${counts.players}/${state.playerIds.length} alive (local ${state.localPlayerIndex})`,
     `Islands: ${state.world.islands.length}`,
     `Entities: ${counts.total} (next ${ecs.nextId})`,
@@ -802,7 +805,8 @@ const renderHints = (ctx: CanvasRenderingContext2D) => {
   const { innerWidth, innerHeight } = window;
   const lines = [
     "Q to drop item",
-    "C to open crafting menu"
+    "C to open crafting menu",
+    "M to toggle map"
   ];
   const fontSize = 14;
   const lineHeight = fontSize + 6;
