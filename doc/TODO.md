@@ -1,7 +1,5 @@
 # TO DO
 
-- [ ] Fix right click breaking movement
-- [ ] Fix heavy stutter issues in multiplayer
 - [ ] Pause game when in esc menu (singleplayer only)
 - [ ] Resources respawns
 - [ ] Creature respawns
