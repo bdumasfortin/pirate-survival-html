@@ -8,15 +8,16 @@
 ## Controls
 - Move: WASD
 - Aim: mouse cursor
-- Use / attack / craft / board: LMB
+- Use / attack / board: LMB
 - Gather: E
 - Inventory slot: 1-9 or mouse wheel
 - Drop item: Q
 - Crafting menu: C (or Escape to close)
+- Craft: click the Craft button in the crafting panel
 
 ## World
 - Deterministic procedural islands generated from a seed.
-- 100 islands placed with separation so they do not touch.
+- 55 islands placed with separation so they do not touch.
 - Island types:
   - Standard: grass + sand, crabs, trees, rocks, berry bushes.
   - Forest: darker grass + sand, wolves, trees, rocks, berry bushes.
@@ -54,8 +55,8 @@
 - Current equipment items: crab helmet, wolf cloak, kraken ring.
 
 ## Crafting
-- Column crafting menu with item icons and ingredient list.
-- Select recipe with 1-9 or mouse wheel; LMB crafts.
+- Single-row crafting menu centered on screen with ingredient list below.
+- Select recipe with 1-9 or mouse wheel; click Craft to craft.
 - Recipes: raft, sword.
 
 ## Resources
@@ -75,7 +76,6 @@
 
 ## Props
 - Decorative world props (non-pickup items).
-- A straw hat spawns near the edge of the spawn island.
 
 ## Multiplayer
 - Relay-only WebSocket server with room codes.
@@ -87,5 +87,8 @@
 - Hotbar with item icons and stack counts.
 - Health, hunger, and armor bars above the hotbar.
 - Action prompts and hints.
+- Map overlay toggled with M.
+- Debug overlay toggled with T.
+- Day/night tint with a day counter title at midnight.
 - Build version and active seed shown top-right.
 - SVG sprites for player, enemies, resources, and items.
