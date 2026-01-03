@@ -73,5 +73,6 @@ export const itemImages: Record<ItemKind, HTMLImageElement> = {
 };
 
 export const propImages: Record<PropKind, HTMLImageElement> = {
-  strawhat: loadImage(strawhatUrl)
+  strawhat: loadImage(strawhatUrl),
+  raft: worldImages.raft
 };

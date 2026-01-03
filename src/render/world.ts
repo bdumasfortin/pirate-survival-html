@@ -10,10 +10,12 @@ import { GROUND_ITEM_MASK } from "../game/ground-items";
 import { drawIsland, insetPoints } from "./render-helpers";
 import { isImageReady, itemImages, propImages, worldImages } from "./assets";
 import { getInventorySelectedIndex, getInventorySlotKind, getInventorySlotQuantity } from "../game/inventory";
-import { itemKindFromIndex } from "../game/item-kinds";
+import { itemKindFromIndex, type ItemKind } from "../game/item-kinds";
+import { getStructurePreviewRadius, getStructurePropKind, getStructureSurface, isStructureItem } from "../game/structure-items";
 import { resourceNodeTypeFromIndex } from "../world/resource-node-types";
 import { propKindFromIndex } from "../game/prop-kinds";
 import { UI_FONT } from "./ui-config";
+import { findContainingIsland } from "../world/island-geometry";
 
 const SEA_GRADIENT_TOP = "#2c7a7b";
 const SEA_GRADIENT_BOTTOM = "#0b2430";
@@ -25,7 +27,6 @@ const GROUND_ITEM_SPARKLE_RADIUS = 1.4;
 const GROUND_ITEM_SPARKLE_ORBIT = 10;
 const GROUND_ITEM_SPARKLE_SPEED = 1.8;
 const PROP_RENDER_SIZE = 24;
-const ATTACK_EFFECT_COLOR = "rgba(255, 233, 180, 0.4)";
 const PLAYER_COLOR = "#222222";
 const PLAYER_PIVOT_Y = 0.264;
 const CUTLASS_LENGTH_SCALE = 2.5;
@@ -35,6 +36,9 @@ const CUTLASS_PIVOT_X = 0.18;
 const CUTLASS_PIVOT_Y = 0.6;
 const CUTLASS_BASE_ROTATION = 0.1;
 const CUTLASS_SLASH_ARC = 1.4;
+const STRUCTURE_PREVIEW_ALPHA = 0.55;
+const STRUCTURE_PREVIEW_INVALID_TINT = "rgba(210, 70, 70, 0.7)";
+const STRUCTURE_PREVIEW_DISTANCE = 6;
 const PLAYER_NAME_COLOR = "#f6f2e7";
 const PLAYER_NAME_STROKE = "rgba(0, 0, 0, 0.65)";
 const PLAYER_NAME_OFFSET = 12;
@@ -173,6 +177,92 @@ const hasSelectedSword = (state: GameState, playerId: number) => {
   const slotKind = getInventorySlotKind(ecs, playerId, selectedIndex);
   const slotQuantity = getInventorySlotQuantity(ecs, playerId, selectedIndex);
   return slotKind === "sword" && slotQuantity > 0;
+};
+
+const isStructurePlacementValid = (state: GameState, playerId: number, kind: ItemKind, x: number, y: number, radius: number) => {
+  const ecs = state.ecs;
+  if (ecs.playerIsOnRaft[playerId]) {
+    return false;
+  }
+  const isOnLand = Boolean(findContainingIsland({ x, y }, state.world.islands));
+  const surface = getStructureSurface(kind);
+  if (surface === "land" && !isOnLand) {
+    return false;
+  }
+  if (surface === "water" && isOnLand) {
+    return false;
+  }
+
+  for (const otherId of state.playerIds) {
+    if (otherId === playerId || !isEntityAlive(ecs, otherId)) {
+      continue;
+    }
+    const dx = x - ecs.position.x[otherId];
+    const dy = y - ecs.position.y[otherId];
+    if (Math.hypot(dx, dy) < radius + ecs.radius[otherId]) {
+      return false;
+    }
+  }
+
+  let blocked = false;
+  const blockingMask = ComponentMask.Position | ComponentMask.Radius;
+  const blockingBits = ComponentMask.Resource | ComponentMask.Prop | ComponentMask.Enemy;
+  forEachEntity(ecs, blockingMask, (id) => {
+    if (blocked) {
+      return;
+    }
+    if ((ecs.mask[id] & blockingBits) === 0) {
+      return;
+    }
+    const dx = x - ecs.position.x[id];
+    const dy = y - ecs.position.y[id];
+    if (Math.hypot(dx, dy) < radius + ecs.radius[id]) {
+      blocked = true;
+    }
+  });
+
+  return !blocked;
+};
+
+const renderStructurePreview = (ctx: CanvasRenderingContext2D, state: GameState, playerId: number) => {
+  const ecs = state.ecs;
+  const selectedIndex = getInventorySelectedIndex(ecs, playerId);
+  const slotKind = getInventorySlotKind(ecs, playerId, selectedIndex);
+  const slotQuantity = getInventorySlotQuantity(ecs, playerId, selectedIndex);
+  if (!slotKind || slotQuantity <= 0 || !isStructureItem(slotKind)) {
+    return;
+  }
+
+  const previewRadius = getStructurePreviewRadius(slotKind);
+  const aimAngle = ecs.playerAimAngle[playerId];
+  const distance = ecs.radius[playerId] + previewRadius + STRUCTURE_PREVIEW_DISTANCE;
+  const previewX = ecs.position.x[playerId] + Math.cos(aimAngle) * distance;
+  const previewY = ecs.position.y[playerId] + Math.sin(aimAngle) * distance;
+  const placeable = isStructurePlacementValid(state, playerId, slotKind, previewX, previewY, previewRadius);
+  const propKind = getStructurePropKind(slotKind);
+  const propImage = propKind ? propImages[propKind] : null;
+  const icon = propImage && isImageReady(propImage) ? propImage : getItemIcon(slotKind);
+  const size = previewRadius * 2;
+  const aspect = icon && icon.naturalHeight > 0 ? icon.naturalWidth / icon.naturalHeight : 1;
+  const drawWidth = propKind === "raft" ? size * aspect : size;
+  const drawHeight = size;
+
+  ctx.save();
+  ctx.globalAlpha = STRUCTURE_PREVIEW_ALPHA;
+  if (icon) {
+    ctx.drawImage(icon, previewX - drawWidth / 2, previewY - drawHeight / 2, drawWidth, drawHeight);
+    if (!placeable) {
+      ctx.globalCompositeOperation = "source-atop";
+      ctx.fillStyle = STRUCTURE_PREVIEW_INVALID_TINT;
+      ctx.fillRect(previewX - drawWidth / 2, previewY - drawHeight / 2, drawWidth, drawHeight);
+    }
+  } else {
+    ctx.beginPath();
+    ctx.arc(previewX, previewY, previewRadius, 0, Math.PI * 2);
+    ctx.fillStyle = placeable ? "rgba(255, 255, 255, 0.4)" : STRUCTURE_PREVIEW_INVALID_TINT;
+    ctx.fill();
+  }
+  ctx.restore();
 };
 
 const renderBackground = (ctx: CanvasRenderingContext2D) => {
@@ -325,20 +415,39 @@ const renderProps = (ctx: CanvasRenderingContext2D, state: GameState, view: View
   forEachEntity(ecs, propMask, (id) => {
     const x = ecs.position.x[id];
     const y = ecs.position.y[id];
-    const cullRadius = PROP_RENDER_SIZE / 2;
+    const kind = propKindFromIndex(ecs.propKind[id]);
+    const radius = ecs.radius[id] || PROP_RENDER_SIZE / 2;
+    const image = propImages[kind];
+    let cullRadius = radius > 0 ? radius : PROP_RENDER_SIZE / 2;
+    if (kind === "raft" && image && isImageReady(image)) {
+      const size = radius * 2;
+      const aspect = image.naturalHeight > 0 ? image.naturalWidth / image.naturalHeight : 1;
+      const width = size * aspect;
+      cullRadius = Math.max(width, size) / 2;
+    }
     if (!isCircleInView(x, y, cullRadius, view)) {
       return;
     }
-    const kind = propKindFromIndex(ecs.propKind[id]);
-    const image = propImages[kind];
     if (image && isImageReady(image)) {
-      ctx.drawImage(
-        image,
-        x - PROP_RENDER_SIZE / 2,
-        y - PROP_RENDER_SIZE / 2,
-        PROP_RENDER_SIZE,
-        PROP_RENDER_SIZE
-      );
+      if (kind === "raft") {
+        const size = radius * 2;
+        const aspect = image.naturalHeight > 0 ? image.naturalWidth / image.naturalHeight : 1;
+        const width = size * aspect;
+
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(ecs.resourceRotation[id]);
+        ctx.drawImage(image, -width / 2, -size / 2, width, size);
+        ctx.restore();
+      } else {
+        ctx.drawImage(
+          image,
+          x - PROP_RENDER_SIZE / 2,
+          y - PROP_RENDER_SIZE / 2,
+          PROP_RENDER_SIZE,
+          PROP_RENDER_SIZE
+        );
+      }
       return;
     }
 
@@ -415,36 +524,6 @@ const renderEnemies = (ctx: CanvasRenderingContext2D, state: GameState, view: Vi
   });
 };
 
-const renderAttackEffect = (ctx: CanvasRenderingContext2D, effect: NonNullable<GameState["attackEffects"][number]>) => {
-  const alpha = effect.duration > 0 ? effect.timer / effect.duration : 0;
-  const radius = effect.radius + (1 - alpha) * 4;
-  const startAngle = effect.angle - effect.spread / 2;
-  const endAngle = effect.angle + effect.spread / 2;
-
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.fillStyle = ATTACK_EFFECT_COLOR;
-  ctx.beginPath();
-  ctx.moveTo(effect.origin.x, effect.origin.y);
-  ctx.arc(effect.origin.x, effect.origin.y, radius, startAngle, endAngle);
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
-};
-
-const renderAttackEffects = (ctx: CanvasRenderingContext2D, state: GameState, view: ViewBounds) => {
-  for (const effect of state.attackEffects) {
-    if (!effect) {
-      continue;
-    }
-    const maxRadius = effect.radius + 4;
-    if (!isCircleInView(effect.origin.x, effect.origin.y, maxRadius, view)) {
-      continue;
-    }
-    renderAttackEffect(ctx, effect);
-  }
-};
-
 const renderEntities = (ctx: CanvasRenderingContext2D, state: GameState, view: ViewBounds) => {
   const ecs = state.ecs;
   const raftReady = isImageReady(raftImage);
@@ -512,6 +591,10 @@ const renderEntities = (ctx: CanvasRenderingContext2D, state: GameState, view: V
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fillStyle = PLAYER_COLOR;
       ctx.fill();
+    }
+
+    if (index === state.localPlayerIndex) {
+      renderStructurePreview(ctx, state, playerId);
     }
 
     const label = playerNameLabels[index];

@@ -15,6 +15,7 @@ import { updateSurvival } from "../systems/survival";
 import { dropSelectedItem } from "../systems/drop-selected-item";
 import { pickupGroundItems } from "../systems/ground-items";
 import { updateUseCooldown, useSelectedItem } from "../systems/use-selected-item";
+import { updateStructurePlacement } from "../systems/structures";
 
 const updateMouseWorldPosition = (input: InputState, playerX: number, playerY: number) => {
   if (!input.mouseScreen) {
@@ -136,6 +137,7 @@ export const simulateFrame = (state: GameState, inputs: InputState[], delta: num
       updateUseCooldown(state, playerId, delta);
       if (!state.crafting[index]?.isOpen) {
         updatePlayerCombat(state, index, playerId, input, delta);
+        updateStructurePlacement(state, index, playerId, input);
         useSelectedItem(state, playerId, input);
       }
       dropSelectedItem(state, playerId, input);

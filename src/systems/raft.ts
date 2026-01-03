@@ -1,9 +1,34 @@
 import type { InputState } from "../core/input";
 import type { GameState } from "../game/state";
-import { isEntityAlive, type EntityId } from "../core/ecs";
-import { getInventorySelectedIndex, getInventorySlotKind, getInventorySlotQuantity } from "../game/inventory";
+import { ComponentMask, destroyEntity, forEachEntity, isEntityAlive, type EntityId } from "../core/ecs";
 import { RAFT_INTERACTION_DISTANCE, RAFT_SHORE_BUFFER } from "../game/raft-config";
+import { getStructurePreviewRadius } from "../game/structure-items";
+import { spawnProp } from "../game/props";
+import { propKindFromIndex } from "../game/prop-kinds";
 import { findClosestIslandEdge } from "../world/island-geometry";
+
+const PROP_MASK = ComponentMask.Prop | ComponentMask.Position;
+
+const findNearestRaft = (state: GameState, x: number, y: number) => {
+  const ecs = state.ecs;
+  let closestId: EntityId | null = null;
+  let closestDistance = Number.POSITIVE_INFINITY;
+
+  forEachEntity(ecs, PROP_MASK, (id) => {
+    if (propKindFromIndex(ecs.propKind[id]) !== "raft") {
+      return;
+    }
+    const dx = x - ecs.position.x[id];
+    const dy = y - ecs.position.y[id];
+    const distance = Math.hypot(dx, dy);
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestId = id;
+    }
+  });
+
+  return closestId !== null ? { id: closestId, distance: closestDistance } : null;
+};
 
 export const updateRaft = (state: GameState, playerIndex: number, playerId: EntityId, input: InputState) => {
   const crafting = state.crafting[playerIndex];
@@ -11,18 +36,9 @@ export const updateRaft = (state: GameState, playerIndex: number, playerId: Enti
     return;
   }
 
-  if (!input.useQueued) {
+  if (!input.interactQueued) {
     return;
   }
-
-  const selectedIndex = getInventorySelectedIndex(state.ecs, playerId);
-  const slotKind = getInventorySlotKind(state.ecs, playerId, selectedIndex);
-  const slotQuantity = getInventorySlotQuantity(state.ecs, playerId, selectedIndex);
-  if (slotKind !== "raft" || slotQuantity <= 0) {
-    return;
-  }
-
-  input.useQueued = false;
 
   const ecs = state.ecs;
   if (!isEntityAlive(ecs, playerId)) {
@@ -32,12 +48,13 @@ export const updateRaft = (state: GameState, playerIndex: number, playerId: Enti
   const islands = state.world.islands;
   const position = { x: ecs.position.x[playerId], y: ecs.position.y[playerId] };
   const radius = ecs.radius[playerId];
-  const closest = findClosestIslandEdge(position, islands);
-  if (!closest || closest.distance > RAFT_INTERACTION_DISTANCE) {
-    return;
-  }
 
   if (ecs.playerIsOnRaft[playerId]) {
+    const closest = findClosestIslandEdge(position, islands);
+    if (!closest || closest.distance > RAFT_INTERACTION_DISTANCE) {
+      return;
+    }
+    input.interactQueued = false;
     ecs.playerIsOnRaft[playerId] = 0;
     const toLand = {
       x: closest.island.center.x - closest.point.x,
@@ -48,17 +65,37 @@ export const updateRaft = (state: GameState, playerIndex: number, playerId: Enti
 
     ecs.position.x[playerId] = closest.point.x + (toLand.x / length) * offset;
     ecs.position.y[playerId] = closest.point.y + (toLand.y / length) * offset;
+    ecs.prevPosition.x[playerId] = ecs.position.x[playerId];
+    ecs.prevPosition.y[playerId] = ecs.position.y[playerId];
+
+    const toWater = {
+      x: closest.point.x - closest.island.center.x,
+      y: closest.point.y - closest.island.center.y
+    };
+    const raftOffset = radius + RAFT_SHORE_BUFFER;
+    const raftX = closest.point.x + (toWater.x / length) * raftOffset;
+    const raftY = closest.point.y + (toWater.y / length) * raftOffset;
+    const raftRadius = getStructurePreviewRadius("raft");
+    spawnProp(ecs, "raft", { x: raftX, y: raftY }, { radius: raftRadius, rotation: ecs.playerAimAngle[playerId] });
     return;
   }
 
-  ecs.playerIsOnRaft[playerId] = 1;
-  const toWater = {
-    x: closest.point.x - closest.island.center.x,
-    y: closest.point.y - closest.island.center.y
-  };
-  const length = Math.hypot(toWater.x, toWater.y) || 1;
-  const offset = radius + RAFT_SHORE_BUFFER;
+  const nearest = findNearestRaft(state, position.x, position.y);
+  if (!nearest) {
+    return;
+  }
+  const raftRadius = ecs.radius[nearest.id] || getStructurePreviewRadius("raft");
+  if (nearest.distance > raftRadius + RAFT_INTERACTION_DISTANCE) {
+    return;
+  }
 
-  ecs.position.x[playerId] = closest.point.x + (toWater.x / length) * offset;
-  ecs.position.y[playerId] = closest.point.y + (toWater.y / length) * offset;
+  input.interactQueued = false;
+  const raftX = ecs.position.x[nearest.id];
+  const raftY = ecs.position.y[nearest.id];
+  destroyEntity(ecs, nearest.id);
+  ecs.playerIsOnRaft[playerId] = 1;
+  ecs.position.x[playerId] = raftX;
+  ecs.position.y[playerId] = raftY;
+  ecs.prevPosition.x[playerId] = ecs.position.x[playerId];
+  ecs.prevPosition.y[playerId] = ecs.position.y[playerId];
 };
