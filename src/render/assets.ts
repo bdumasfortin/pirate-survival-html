@@ -2,13 +2,13 @@ import type { ItemKind } from "../game/item-kinds";
 import type { PropKind } from "../game/prop-kinds";
 import type { EquipmentSlotType } from "../game/equipment";
 import crabUrl from "../assets/png/entities/crab.png";
-import wolfUrl from "../assets/svg/wolf.svg";
+import wolfUrl from "../assets/png/entities/wolf.png";
 import krakenUrl from "../assets/png/entities/kraken.png";
 import pirateUrl from "../assets/png/entities/pirate.png";
 import bushUrl from "../assets/png/environment/bush.png";
 import bushEmptyUrl from "../assets/png/environment/bush-empty.png";
 import palmtreeUrl from "../assets/png/environment/palm-tree.png";
-import rockUrl from "../assets/svg/rock.svg";
+import pebbleUrl from "../assets/png/environment/pebble.png";
 import raftUrl from "../assets/svg/raft.svg";
 import itemWoodUrl from "../assets/svg/items/item-wood.svg";
 import itemRockUrl from "../assets/svg/items/item-rock.svg";
@@ -44,7 +44,7 @@ export const worldImages = {
   bush: loadImage(bushUrl),
   bushEmpty: loadImage(bushEmptyUrl),
   palmtree: loadImage(palmtreeUrl),
-  rock: loadImage(rockUrl),
+  rock: loadImage(pebbleUrl),
   raft: loadImage(raftUrl)
 };
 

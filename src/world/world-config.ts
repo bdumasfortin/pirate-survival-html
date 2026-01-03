@@ -81,8 +81,8 @@ export const RESOURCE_NODE_CONFIGS: ResourceNodeConfig[] = [
   {
     nodeType: "rock",
     kind: "rock",
-    radius: 8,
-    count: 14,
+    radius: 4.5,
+    count: 8,
     yield: { min: 1, max: 1 },
     respawnTime: 0
   },

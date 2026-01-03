@@ -283,11 +283,13 @@ const renderResources = (ctx: CanvasRenderingContext2D, state: GameState, view: 
 
     if (isRock && rockReady) {
       const size = ecs.radius[id] * 2 * RESOURCE_IMAGE_SCALE;
+      const width = size * 1.2;
+      const height = size * 0.8;
 
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(ecs.resourceRotation[id]);
-      ctx.drawImage(rockImage, -size / 2, -size / 2, size, size);
+      ctx.drawImage(rockImage, -width / 2, -height / 2, width, height);
       ctx.restore();
       return;
     }
@@ -362,7 +364,7 @@ const renderEnemies = (ctx: CanvasRenderingContext2D, state: GameState, view: Vi
       const speed = Math.hypot(velX, velY);
       const angle = speed > 0.01 ? Math.atan2(velY, velX) : 0;
       const rotation = kind === "wolf"
-        ? angle - Math.PI / 2
+        ? angle + Math.PI
         : kind === "kraken"
           ? 0
           : angle;
@@ -370,7 +372,7 @@ const renderEnemies = (ctx: CanvasRenderingContext2D, state: GameState, view: Vi
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(rotation);
-      if (isKraken) {
+      if (isKraken || kind === "wolf") {
         const aspect = image.height > 0 ? image.width / image.height : 1;
         const width = size * aspect;
         ctx.drawImage(image, -width / 2, -size / 2, width, size);

@@ -1,9 +1,11 @@
 # TO DO
 
+- [ ] Equippable cutlass, animated
+- [ ] Pick-upable wood on the ground
+- [ ] Axe to chop wood from trees
 - [ ] Raft revamp, find a better way to embark/disembark 
 - [ ] Establish some milestones (days survived, bosses slain, rare loot).
 - [ ] Crafting revamp
-- [ ] Visual revamp
 - [ ] SFX/Ambiance
 - [ ] Implement resources nodes respawning
 - [ ] Implement creature respawning
