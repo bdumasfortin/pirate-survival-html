@@ -466,11 +466,13 @@ const renderEntities = (ctx: CanvasRenderingContext2D, state: GameState, view: V
 
     if (ecs.playerIsOnRaft[playerId] && raftReady) {
       const raftSize = radius * 3;
+      const aspect = raftImage.naturalHeight > 0 ? raftImage.naturalWidth / raftImage.naturalHeight : 1;
+      const raftWidth = raftSize * aspect;
 
       ctx.save();
       ctx.translate(x, y);
-      ctx.rotate(ecs.playerMoveAngle[playerId] + Math.PI / 2);
-      ctx.drawImage(raftImage, -raftSize / 2, -raftSize / 2, raftSize, raftSize);
+      ctx.rotate(ecs.playerMoveAngle[playerId]);
+      ctx.drawImage(raftImage, -raftWidth / 2, -raftSize / 2, raftWidth, raftSize);
       ctx.restore();
     }
 

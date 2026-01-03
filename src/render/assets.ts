@@ -9,7 +9,7 @@ import bushUrl from "../assets/png/environment/bush.png";
 import bushEmptyUrl from "../assets/png/environment/bush-empty.png";
 import palmtreeUrl from "../assets/png/environment/palm-tree.png";
 import pebbleUrl from "../assets/png/environment/pebble.png";
-import raftUrl from "../assets/svg/raft.svg";
+import raftUrl from "../assets/png/vehicules/raft.png";
 import cutlassUrl from "../assets/png/tools/cutlass.png";
 import itemWoodUrl from "../assets/svg/items/item-wood.svg";
 import itemRockUrl from "../assets/svg/items/item-rock.svg";
