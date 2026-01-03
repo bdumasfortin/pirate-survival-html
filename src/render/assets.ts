@@ -10,6 +10,7 @@ import bushEmptyUrl from "../assets/png/environment/bush-empty.png";
 import palmtreeUrl from "../assets/png/environment/palm-tree.png";
 import pebbleUrl from "../assets/png/environment/pebble.png";
 import raftUrl from "../assets/svg/raft.svg";
+import cutlassUrl from "../assets/png/tools/cutlass.png";
 import itemWoodUrl from "../assets/svg/items/item-wood.svg";
 import itemRockUrl from "../assets/svg/items/item-rock.svg";
 import itemRaftUrl from "../assets/svg/items/item-raft.svg";
@@ -45,7 +46,8 @@ export const worldImages = {
   bushEmpty: loadImage(bushEmptyUrl),
   palmtree: loadImage(palmtreeUrl),
   rock: loadImage(pebbleUrl),
-  raft: loadImage(raftUrl)
+  raft: loadImage(raftUrl),
+  cutlass: loadImage(cutlassUrl)
 };
 
 export const equipmentPlaceholderImages: Record<EquipmentSlotType, HTMLImageElement> = {

@@ -3,12 +3,13 @@ import type { Vec2 } from "../core/types";
 import type { Island, IslandType, ResourceNodeType } from "../world/types";
 import { CAMERA_ZOOM } from "./ui-config";
 import { GROUND_ITEM_RENDER_SIZE } from "../game/ground-items-config";
-import { CRAB_HIT_FLASH_DURATION } from "../game/combat-config";
+import { ATTACK_EFFECT_DURATION, CRAB_HIT_FLASH_DURATION, PLAYER_ATTACK_COOLDOWN } from "../game/combat-config";
 import { ComponentMask, forEachEntity, isEntityAlive } from "../core/ecs";
 import { enemyKindFromIndex } from "../game/enemy-kinds";
 import { GROUND_ITEM_MASK } from "../game/ground-items";
 import { drawIsland, insetPoints } from "./render-helpers";
 import { isImageReady, itemImages, propImages, worldImages } from "./assets";
+import { getInventorySelectedIndex, getInventorySlotKind, getInventorySlotQuantity } from "../game/inventory";
 import { itemKindFromIndex } from "../game/item-kinds";
 import { resourceNodeTypeFromIndex } from "../world/resource-node-types";
 import { propKindFromIndex } from "../game/prop-kinds";
@@ -27,6 +28,13 @@ const PROP_RENDER_SIZE = 24;
 const ATTACK_EFFECT_COLOR = "rgba(255, 233, 180, 0.4)";
 const PLAYER_COLOR = "#222222";
 const PLAYER_PIVOT_Y = 0.264;
+const CUTLASS_LENGTH_SCALE = 2.5;
+const CUTLASS_HAND_OFFSET_X = 0;
+const CUTLASS_HAND_OFFSET_Y = 0.8;
+const CUTLASS_PIVOT_X = 0.18;
+const CUTLASS_PIVOT_Y = 0.6;
+const CUTLASS_BASE_ROTATION = 0.1;
+const CUTLASS_SLASH_ARC = 1.4;
 const PLAYER_NAME_COLOR = "#f6f2e7";
 const PLAYER_NAME_STROKE = "rgba(0, 0, 0, 0.65)";
 const PLAYER_NAME_OFFSET = 12;
@@ -150,12 +158,21 @@ const {
   bushEmpty: bushEmptyImage,
   palmtree: palmtreeImage,
   rock: rockImage,
-  raft: raftImage
+  raft: raftImage,
+  cutlass: cutlassImage
 } = worldImages;
 
 const getItemIcon = (kind: keyof typeof itemImages) => {
   const image = itemImages[kind];
   return isImageReady(image) ? image : null;
+};
+
+const hasSelectedSword = (state: GameState, playerId: number) => {
+  const ecs = state.ecs;
+  const selectedIndex = getInventorySelectedIndex(ecs, playerId);
+  const slotKind = getInventorySlotKind(ecs, playerId, selectedIndex);
+  const slotQuantity = getInventorySlotQuantity(ecs, playerId, selectedIndex);
+  return slotKind === "sword" && slotQuantity > 0;
 };
 
 const renderBackground = (ctx: CanvasRenderingContext2D) => {
@@ -432,6 +449,7 @@ const renderEntities = (ctx: CanvasRenderingContext2D, state: GameState, view: V
   const ecs = state.ecs;
   const raftReady = isImageReady(raftImage);
   const pirateReady = isImageReady(pirateImage);
+  const cutlassReady = isImageReady(cutlassImage);
 
   for (let index = 0; index < state.playerIds.length; index += 1) {
     const playerId = state.playerIds[index];
@@ -453,6 +471,28 @@ const renderEntities = (ctx: CanvasRenderingContext2D, state: GameState, view: V
       ctx.translate(x, y);
       ctx.rotate(ecs.playerMoveAngle[playerId] + Math.PI / 2);
       ctx.drawImage(raftImage, -raftSize / 2, -raftSize / 2, raftSize, raftSize);
+      ctx.restore();
+    }
+
+    if (cutlassReady && hasSelectedSword(state, playerId)) {
+      const aimAngle = ecs.playerAimAngle[playerId];
+      const attackElapsed = PLAYER_ATTACK_COOLDOWN - ecs.playerAttackTimer[playerId];
+      const slashDuration = Math.min(ATTACK_EFFECT_DURATION, PLAYER_ATTACK_COOLDOWN);
+      const slashT = slashDuration > 0 ? Math.max(0, Math.min(1, attackElapsed / slashDuration)) : 0;
+      const slashAngle = slashT > 0 && slashT < 1 ? (slashT - 0.5) * CUTLASS_SLASH_ARC : 0;
+      const aspect = cutlassImage.naturalHeight > 0 ? cutlassImage.naturalWidth / cutlassImage.naturalHeight : 1;
+      const width = radius * CUTLASS_LENGTH_SCALE;
+      const height = width / aspect;
+      const pivotX = width * CUTLASS_PIVOT_X;
+      const pivotY = height * CUTLASS_PIVOT_Y;
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(aimAngle);
+      ctx.translate(radius * CUTLASS_HAND_OFFSET_X, radius * CUTLASS_HAND_OFFSET_Y);
+      ctx.rotate(CUTLASS_BASE_ROTATION + slashAngle);
+      ctx.scale(1, -1);
+      ctx.drawImage(cutlassImage, -pivotX, -pivotY, width, height);
       ctx.restore();
     }
 
@@ -517,7 +557,6 @@ export const renderWorld = (ctx: CanvasRenderingContext2D, state: GameState) => 
   renderProps(ctx, state, view);
   renderGroundItems(ctx, state, view);
   renderEnemies(ctx, state, view);
-  renderAttackEffects(ctx, state, view);
   renderEntities(ctx, state, view);
   renderResources(ctx, state, view, "bushes");
   renderResources(ctx, state, view, "trees");
