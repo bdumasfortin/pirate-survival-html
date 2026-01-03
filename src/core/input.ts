@@ -8,6 +8,7 @@ export type InputState = {
   right: boolean;
   interactQueued: boolean;
   useQueued: boolean;
+  craftQueued: boolean;
   dropQueued: boolean;
   toggleCraftQueued: boolean;
   closeCraftQueued: boolean;
@@ -29,6 +30,7 @@ export const createInputState = (): InputState => ({
   right: false,
   interactQueued: false,
   useQueued: false,
+  craftQueued: false,
   dropQueued: false,
   toggleCraftQueued: false,
   closeCraftQueued: false,
@@ -111,6 +113,7 @@ export const bindKeyboard = (state: InputState) => {
   const resetQueuedInputs = () => {
     state.interactQueued = false;
     state.useQueued = false;
+    state.craftQueued = false;
     state.dropQueued = false;
     state.toggleCraftQueued = false;
     state.closeCraftQueued = false;
@@ -178,7 +181,7 @@ export const bindCraftScroll = (state: InputState, isActive: () => boolean) => {
   window.addEventListener("wheel", handleWheel, { passive: false });
 };
 
-export const bindMouse = (state: InputState) => {
+export const bindMouse = (state: InputState, shouldQueueCraft?: (x: number, y: number) => boolean) => {
   const updateMouseScreen = (x: number, y: number) => {
     if (!state.mouseScreen) {
       state.mouseScreen = { x, y };
@@ -198,8 +201,12 @@ export const bindMouse = (state: InputState) => {
 
   window.addEventListener("mousedown", (event) => {
     if (event.button === 0) {
-      state.useQueued = true;
       updateMouseScreen(event.clientX, event.clientY);
+      if (shouldQueueCraft?.(event.clientX, event.clientY)) {
+        state.craftQueued = true;
+        return;
+      }
+      state.useQueued = true;
     }
   });
 };
@@ -246,6 +253,15 @@ export const consumeCloseCraft = (state: InputState) => {
   }
 
   state.closeCraftQueued = false;
+  return true;
+};
+
+export const consumeCraft = (state: InputState) => {
+  if (!state.craftQueued) {
+    return false;
+  }
+
+  state.craftQueued = false;
   return true;
 };
 

@@ -9,6 +9,7 @@ import { createGameStateSnapshot, createRollbackBuffer, getRollbackSnapshot, res
 import { simulateFrame } from "./game/sim";
 import { runDeterminismCheck } from "./dev/determinism";
 import { render } from "./render/renderer";
+import { getCraftingLayout } from "./render/crafting-layout";
 import { setHudRoomCode, setHudSeed, toggleDebugOverlay } from "./render/ui";
 import { closeMapOverlay, isMapOverlayEnabled, toggleMapOverlay } from "./game/map-overlay";
 import { setPlayerNameLabels } from "./render/world";
@@ -1211,7 +1212,14 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
   };
 
   bindKeyboard(liveInput);
-  bindMouse(liveInput);
+  bindMouse(liveInput, (x, y) => {
+    const layout = getCraftingLayout(state, window.innerWidth, window.innerHeight);
+    if (!layout) {
+      return false;
+    }
+    const { button } = layout;
+    return x >= button.x && x <= button.x + button.width && y >= button.y && y <= button.y + button.height;
+  });
   bindCraftScroll(liveInput, () => state.crafting[state.localPlayerIndex]?.isOpen ?? false);
   bindInventorySelection(liveInput, () => {
     const localPlayerId = state.playerIds[state.localPlayerIndex];

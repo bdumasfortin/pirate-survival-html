@@ -13,6 +13,7 @@ import { getDayCycleInfo } from "../game/day-night";
 import { getMapLayout, getWorldBounds, isMapOverlayEnabled } from "../game/map-overlay";
 import { resourceNodeTypeFromIndex } from "../world/resource-node-types";
 import { equipmentPlaceholderImages, isImageReady, itemImages } from "./assets";
+import { getCraftingLayout } from "./crafting-layout";
 import { drawRoundedRect } from "./render-helpers";
 import {
   ACTION_PROMPT_FONT_SIZE,
@@ -20,7 +21,8 @@ import {
   ACTION_PROMPT_PADDING_Y,
   BAR_HEIGHT,
   BAR_WIDTH,
-  CRAFT_COLUMN_OFFSET,
+  CRAFT_BUTTON_RADIUS,
+  CRAFT_INGREDIENT_ROW_HEIGHT,
   CRAFT_PANEL_PADDING,
   CRAFT_PANEL_RADIUS,
   CRAFT_TILE_GAP,
@@ -402,43 +404,39 @@ const renderSurvivalBars = (ctx: CanvasRenderingContext2D, state: GameState) => 
 
 const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => {
   const crafting = state.crafting[state.localPlayerIndex];
-  if (!crafting?.isOpen) {
-    return;
-  }
-
-  if (recipes.length === 0) {
+  if (!crafting?.isOpen || recipes.length === 0) {
     return;
   }
 
   const { innerWidth, innerHeight } = window;
-  const columnCenterX = innerWidth / 2 + CRAFT_COLUMN_OFFSET;
-  const columnX = columnCenterX - CRAFT_TILE_SIZE / 2;
-  const totalHeight = recipes.length * CRAFT_TILE_SIZE + (recipes.length - 1) * CRAFT_TILE_GAP;
-  const startY = (innerHeight - totalHeight) / 2;
+  const layout = getCraftingLayout(state, innerWidth, innerHeight);
+  if (!layout) {
+    return;
+  }
+
+  const { rowX, rowY, rowWidth, panelX, panelY, panelWidth, panelHeight, button, selectedIndex } = layout;
   const playerId = getLocalPlayerId(state);
 
   ctx.save();
   ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
   ctx.shadowBlur = 12;
-  ctx.fillStyle = "rgba(12, 22, 26, 0.65)";
+  ctx.fillStyle = "#0c161a";
   drawRoundedRect(
     ctx,
-    columnX - CRAFT_PANEL_PADDING,
-    startY - CRAFT_PANEL_PADDING,
+    rowX - CRAFT_PANEL_PADDING,
+    rowY - CRAFT_PANEL_PADDING,
+    rowWidth + CRAFT_PANEL_PADDING * 2,
     CRAFT_TILE_SIZE + CRAFT_PANEL_PADDING * 2,
-    totalHeight + CRAFT_PANEL_PADDING * 2,
     CRAFT_PANEL_RADIUS
   );
   ctx.fill();
   ctx.restore();
 
-  const selectedIndex = Math.max(0, Math.min(crafting.selectedIndex, recipes.length - 1));
   const selectedRecipe: Recipe | undefined = recipes[selectedIndex];
-  const selectedY = startY + selectedIndex * (CRAFT_TILE_SIZE + CRAFT_TILE_GAP);
 
   recipes.forEach((recipe, index) => {
-    const x = columnX;
-    const y = startY + index * (CRAFT_TILE_SIZE + CRAFT_TILE_GAP);
+    const x = rowX + index * (CRAFT_TILE_SIZE + CRAFT_TILE_GAP);
+    const y = rowY;
     const selected = index === selectedIndex;
     const craftable = playerId !== undefined ? canCraft(state.ecs, playerId, recipe) : false;
 
@@ -479,64 +477,72 @@ const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => 
     }
   });
 
-  if (selectedRecipe && selectedRecipe.inputs.length > 0) {
-    const ingredientIconSize = 16;
-    const listPadding = 10;
-    const rowHeight = 22;
-    const listX = columnX + CRAFT_TILE_SIZE + CRAFT_PANEL_PADDING + 12;
-
-    ctx.save();
-    ctx.font = `bold 12px ${UI_FONT}`;
-    const maxRowWidth = selectedRecipe.inputs.reduce((maxWidth, input) => {
-      const amountText = `x${input.amount}`;
-      const textWidth = ctx.measureText(amountText).width;
-      return Math.max(maxWidth, ingredientIconSize + 6 + textWidth);
-    }, 0);
-
-    const listWidth = maxRowWidth + listPadding * 2;
-    const listHeight = selectedRecipe.inputs.length * rowHeight + listPadding * 2;
-    const listY = selectedY + (CRAFT_TILE_SIZE - listHeight) / 2;
-
-    ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
-    ctx.shadowBlur = 10;
-    ctx.fillStyle = "rgba(12, 22, 26, 0.65)";
-    drawRoundedRect(ctx, listX, listY, listWidth, listHeight, 12);
-    ctx.fill();
-
-    ctx.shadowBlur = 0;
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = "#f0d58b";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-
-    selectedRecipe.inputs.forEach((input, index) => {
-      const rowY = listY + listPadding + index * rowHeight + rowHeight / 2;
-      const iconX = listX + listPadding;
-      const iconY = rowY - ingredientIconSize / 2;
-      const ingredientIcon = getItemIcon(input.kind);
-
-      if (ingredientIcon) {
-        ctx.drawImage(ingredientIcon, iconX, iconY, ingredientIconSize, ingredientIconSize);
-      } else {
-        ctx.beginPath();
-        ctx.arc(
-          iconX + ingredientIconSize / 2,
-          iconY + ingredientIconSize / 2,
-          ingredientIconSize * 0.4,
-          0,
-          Math.PI * 2
-        );
-        ctx.fillStyle = itemColors[input.kind];
-        ctx.fill();
-        ctx.fillStyle = "#f0d58b";
-      }
-
-      const amountText = `x${input.amount}`;
-      ctx.fillText(amountText, iconX + ingredientIconSize + 6, rowY);
-    });
-
-    ctx.restore();
+  if (!selectedRecipe) {
+    return;
   }
+
+  const ingredientIconSize = 16;
+  const listPadding = CRAFT_PANEL_PADDING;
+  const rowHeight = CRAFT_INGREDIENT_ROW_HEIGHT;
+
+  ctx.save();
+  ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = "#0c161a";
+  drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, CRAFT_PANEL_RADIUS);
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = "#f0d58b";
+  ctx.font = `bold 12px ${UI_FONT}`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+
+  const listStartY = panelY + listPadding;
+  selectedRecipe.inputs.forEach((input, index) => {
+    const rowY = listStartY + index * rowHeight + rowHeight / 2;
+    const iconX = panelX + listPadding;
+    const iconY = rowY - ingredientIconSize / 2;
+    const ingredientIcon = getItemIcon(input.kind);
+
+    if (ingredientIcon) {
+      ctx.drawImage(ingredientIcon, iconX, iconY, ingredientIconSize, ingredientIconSize);
+    } else {
+      ctx.beginPath();
+      ctx.arc(
+        iconX + ingredientIconSize / 2,
+        iconY + ingredientIconSize / 2,
+        ingredientIconSize * 0.4,
+        0,
+        Math.PI * 2
+      );
+      ctx.fillStyle = itemColors[input.kind];
+      ctx.fill();
+      ctx.fillStyle = "#f0d58b";
+    }
+
+    const amountText = `x${input.amount}`;
+    ctx.fillText(amountText, iconX + ingredientIconSize + 6, rowY);
+  });
+
+  const craftable = playerId !== undefined ? canCraft(state.ecs, playerId, selectedRecipe) : false;
+  ctx.save();
+  ctx.fillStyle = craftable ? "#f0d58b" : "#6f6f6f";
+  ctx.strokeStyle = craftable ? "#f7e6b8" : "#404a4d";
+  ctx.lineWidth = 1.5;
+  drawRoundedRect(ctx, button.x, button.y, button.width, button.height, CRAFT_BUTTON_RADIUS);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = craftable ? "#1c1f21" : "#262d30";
+  ctx.font = `bold 14px ${UI_FONT}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("Craft", button.x + button.width / 2, button.y + button.height / 2 + 1);
+  ctx.restore();
+
+  ctx.restore();
 };
 
 const renderBuildVersion = (ctx: CanvasRenderingContext2D) => {
@@ -759,9 +765,9 @@ const renderHints = (ctx: CanvasRenderingContext2D) => {
   const { innerWidth, innerHeight } = window;
   const lines = [
     "Q to drop item",
-    "C to open crafting menu",
-    "M to toggle map",
-    "T to toggle debug panel"
+    "C opens crafting menu",
+    "M toggles map",
+    "T toggle debug"
   ];
   const fontSize = 14;
   const lineHeight = fontSize + 6;

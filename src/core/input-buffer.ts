@@ -11,7 +11,8 @@ export const InputBits = {
   ToggleCraft: 1 << 7,
   CloseCraft: 1 << 8,
   HasMouse: 1 << 9,
-  Teleport: 1 << 10
+  Teleport: 1 << 10,
+  Craft: 1 << 11
 } as const;
 
 export type InputFrame = {
@@ -39,6 +40,7 @@ export type InputBuffer = {
 const clearQueuedInputs = (input: InputState) => {
   input.interactQueued = false;
   input.useQueued = false;
+  input.craftQueued = false;
   input.dropQueued = false;
   input.toggleCraftQueued = false;
   input.closeCraftQueued = false;
@@ -97,6 +99,9 @@ const buildInputFrame = (input: InputState): InputFrame => {
   if (input.useQueued) {
     buttons |= InputBits.Use;
   }
+  if (input.craftQueued) {
+    buttons |= InputBits.Craft;
+  }
   if (input.dropQueued) {
     buttons |= InputBits.Drop;
   }
@@ -153,6 +158,7 @@ export const applyInputFrame = (frame: InputFrame, out: InputState) => {
   out.right = (buttons & InputBits.Right) !== 0;
   out.interactQueued = (buttons & InputBits.Interact) !== 0;
   out.useQueued = (buttons & InputBits.Use) !== 0;
+  out.craftQueued = (buttons & InputBits.Craft) !== 0;
   out.dropQueued = (buttons & InputBits.Drop) !== 0;
   out.toggleCraftQueued = (buttons & InputBits.ToggleCraft) !== 0;
   out.closeCraftQueued = (buttons & InputBits.CloseCraft) !== 0;
