@@ -6,6 +6,7 @@ export type DayCycleInfo = {
   hours: number;
   minutes: number;
   nightFactor: number;
+  timeInDaySeconds: number;
 };
 
 export const getDayCycleInfo = (elapsedSeconds: number): DayCycleInfo => {
@@ -21,5 +22,29 @@ export const getDayCycleInfo = (elapsedSeconds: number): DayCycleInfo => {
   const phase = (timeInDay / DAY_LENGTH_SECONDS) % 1;
   const daylight = 0.5 - 0.5 * Math.cos(phase * Math.PI * 2);
   const nightFactor = 1 - daylight;
-  return { day, hours, minutes, nightFactor };
+  return { day, hours, minutes, nightFactor, timeInDaySeconds: timeInDay };
+};
+
+const DAY_TITLE_DURATION_SECONDS = 4;
+
+export type DayTitleInfo = {
+  dayNumber: number;
+  alpha: number;
+};
+
+export const getDayTitleInfo = (elapsedSeconds: number): DayTitleInfo | null => {
+  const elapsed = Math.max(0, elapsedSeconds);
+  const { day, timeInDaySeconds } = getDayCycleInfo(elapsed);
+
+  if (elapsed <= DAY_TITLE_DURATION_SECONDS) {
+    const alpha = 1 - elapsed / DAY_TITLE_DURATION_SECONDS;
+    return { dayNumber: 1, alpha };
+  }
+
+  if (day > 0 && timeInDaySeconds <= DAY_TITLE_DURATION_SECONDS) {
+    const alpha = 1 - timeInDaySeconds / DAY_TITLE_DURATION_SECONDS;
+    return { dayNumber: day + 1, alpha };
+  }
+
+  return null;
 };
