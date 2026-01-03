@@ -760,7 +760,8 @@ const renderHints = (ctx: CanvasRenderingContext2D) => {
   const lines = [
     "Q to drop item",
     "C to open crafting menu",
-    "M to toggle map"
+    "M to toggle map",
+    "T to toggle debug panel"
   ];
   const fontSize = 14;
   const lineHeight = fontSize + 6;

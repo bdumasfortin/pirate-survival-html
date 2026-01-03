@@ -20,7 +20,7 @@
 - Island types:
   - Standard: grass + sand, crabs, trees, rocks, berry bushes.
   - Forest: darker grass + sand, wolves, trees, rocks, berry bushes.
-  - Beach: sand only, rocks, boss crab.
+  - Crab Boss: sand only, rocks, boss crab.
   - Wolf Boss: forest look, wolf boss.
 - Rare krakens roam the sea.
 

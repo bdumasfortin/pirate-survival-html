@@ -8,12 +8,12 @@ import { isPointInIsland } from "../world/island-geometry";
 import { BASE_ISLAND_RADIUS } from "../world/world-config";
 import {
   BEACH_BOSS_CRAB_COUNT,
+  CRAB_BEACH_RING_MAX,
+  CRAB_BEACH_RING_MIN,
   CRAB_BOSS_RADIUS_SCALE,
   CRAB_BOSS_STATS,
   CRAB_DEFAULT_STATS,
   CRAB_SPAWN_ATTEMPTS,
-  CRAB_SPAWN_RING_MAX,
-  CRAB_SPAWN_RING_MIN,
   CRAB_SPAWN_RADIUS_SCALE,
   FOREST_WOLF_COUNT,
   KRAKEN_SPAWN_ATTEMPTS,
@@ -22,6 +22,8 @@ import {
   KRAKEN_SPAWN_MIN_DISTANCE,
   KRAKEN_STATS,
   STANDARD_CRAB_COUNT,
+  WOLF_INLAND_RING_MAX,
+  WOLF_INLAND_RING_MIN,
   WOLF_BOSS_COUNT,
   WOLF_BOSS_RADIUS_SCALE,
   WOLF_BOSS_STATS,
@@ -52,12 +54,12 @@ const getIslandAreaScale = (island: Island) => {
 
 const scaleCreatureCount = (count: number, areaScale: number) => Math.max(1, Math.round(count * areaScale));
 
-const randomPointInIsland = (rng: RngState, island: Island, radiusScale: number) => {
+const randomPointInIsland = (rng: RngState, island: Island, radiusScale: number, ringMin: number, ringMax: number) => {
   let position = island.center;
   const islandRadius = getIslandRadius(island);
   for (let attempt = 0; attempt < CRAB_SPAWN_ATTEMPTS; attempt += 1) {
     const angle = nextFloat(rng) * Math.PI * 2;
-    const ring = nextRange(rng, CRAB_SPAWN_RING_MIN, CRAB_SPAWN_RING_MAX);
+    const ring = nextRange(rng, ringMin, ringMax);
     const radius = ring * islandRadius * radiusScale;
     position = {
       x: island.center.x + Math.cos(angle) * radius,
@@ -88,15 +90,17 @@ const placeCreaturePosition = (
   rng: RngState,
   island: Island,
   radiusScale: number,
+  ringMin: number,
+  ringMax: number,
   positions: Vec2[],
   minSpacing: number
 ) => {
-  let position = randomPointInIsland(rng, island, radiusScale);
+  let position = randomPointInIsland(rng, island, radiusScale, ringMin, ringMax);
   for (let attempt = 0; attempt < 8; attempt += 1) {
     if (isFarEnough(position, positions, minSpacing)) {
       break;
     }
-    position = randomPointInIsland(rng, island, radiusScale);
+    position = randomPointInIsland(rng, island, radiusScale, ringMin, ringMax);
   }
   positions.push(position);
   return position;
@@ -211,7 +215,15 @@ export const createEnemies = (ecs: EcsWorld, world: WorldState, rng: RngState) =
       const meanSpacing = count > 0 ? Math.sqrt(islandArea / count) : 0;
       const minSpacing = Math.max(CRAB_DEFAULT_STATS.radius * 4, meanSpacing * 0.6);
       for (let i = 0; i < count; i += 1) {
-        const position = placeCreaturePosition(rng, island, CRAB_SPAWN_RADIUS_SCALE, positions, minSpacing);
+        const position = placeCreaturePosition(
+          rng,
+          island,
+          CRAB_SPAWN_RADIUS_SCALE,
+          CRAB_BEACH_RING_MIN,
+          CRAB_BEACH_RING_MAX,
+          positions,
+          minSpacing
+        );
         spawnCrab(ecs, rng, position, index, CRAB_DEFAULT_STATS);
       }
       return;
@@ -222,8 +234,32 @@ export const createEnemies = (ecs: EcsWorld, world: WorldState, rng: RngState) =
       const meanSpacing = count > 0 ? Math.sqrt(islandArea / count) : 0;
       const minSpacing = Math.max(WOLF_DEFAULT_STATS.radius * 4, meanSpacing * 0.6);
       for (let i = 0; i < count; i += 1) {
-        const position = placeCreaturePosition(rng, island, WOLF_SPAWN_RADIUS_SCALE, positions, minSpacing);
+        const position = placeCreaturePosition(
+          rng,
+          island,
+          WOLF_SPAWN_RADIUS_SCALE,
+          WOLF_INLAND_RING_MIN,
+          WOLF_INLAND_RING_MAX,
+          positions,
+          minSpacing
+        );
         spawnWolf(ecs, rng, position, index, WOLF_DEFAULT_STATS);
+      }
+
+      const crabCount = scaleCreatureCount(STANDARD_CRAB_COUNT, areaScale);
+      const crabMeanSpacing = crabCount > 0 ? Math.sqrt(islandArea / crabCount) : 0;
+      const crabMinSpacing = Math.max(CRAB_DEFAULT_STATS.radius * 4, crabMeanSpacing * 0.6);
+      for (let i = 0; i < crabCount; i += 1) {
+        const position = placeCreaturePosition(
+          rng,
+          island,
+          CRAB_SPAWN_RADIUS_SCALE,
+          CRAB_BEACH_RING_MIN,
+          CRAB_BEACH_RING_MAX,
+          positions,
+          crabMinSpacing
+        );
+        spawnCrab(ecs, rng, position, index, CRAB_DEFAULT_STATS);
       }
       return;
     }
@@ -233,17 +269,33 @@ export const createEnemies = (ecs: EcsWorld, world: WorldState, rng: RngState) =
       const meanSpacing = count > 0 ? Math.sqrt(islandArea / count) : 0;
       const minSpacing = Math.max(WOLF_BOSS_STATS.radius * 3, meanSpacing * 0.6);
       for (let i = 0; i < count; i += 1) {
-        const position = placeCreaturePosition(rng, island, WOLF_BOSS_RADIUS_SCALE, positions, minSpacing);
+        const position = placeCreaturePosition(
+          rng,
+          island,
+          WOLF_BOSS_RADIUS_SCALE,
+          WOLF_INLAND_RING_MIN,
+          WOLF_INLAND_RING_MAX,
+          positions,
+          minSpacing
+        );
         spawnWolf(ecs, rng, position, index, WOLF_BOSS_STATS, true);
       }
       return;
     }
 
-    const count = scaleCreatureCount(BEACH_BOSS_CRAB_COUNT, areaScale);
+    const count = BEACH_BOSS_CRAB_COUNT;
     const meanSpacing = count > 0 ? Math.sqrt(islandArea / count) : 0;
     const minSpacing = Math.max(CRAB_BOSS_STATS.radius * 3, meanSpacing * 0.6);
     for (let i = 0; i < count; i += 1) {
-      const position = placeCreaturePosition(rng, island, CRAB_BOSS_RADIUS_SCALE, positions, minSpacing);
+      const position = placeCreaturePosition(
+        rng,
+        island,
+        CRAB_BOSS_RADIUS_SCALE,
+        CRAB_BEACH_RING_MIN,
+        CRAB_BEACH_RING_MAX,
+        positions,
+        minSpacing
+      );
       spawnCrab(ecs, rng, position, index, CRAB_BOSS_STATS, true);
     }
   });

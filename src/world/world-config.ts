@@ -15,6 +15,7 @@ const ISLAND_SIZE_SCALE = 3;
 
 export const BASE_ISLAND_RADIUS = (BASE_ISLAND_RADIUS_MIN + BASE_ISLAND_RADIUS_MAX) / 2;
 export const BOSS_ISLAND_RADIUS = BASE_ISLAND_RADIUS;
+export const BEACH_ISLAND_RADIUS = BOSS_ISLAND_RADIUS;
 
 export const WORLD_GEN_CONFIG = {
   islandCount: 55,
@@ -30,7 +31,7 @@ export const WORLD_GEN_CONFIG = {
 export const ISLAND_TYPE_WEIGHTS: Record<IslandType, number> = {
   standard: 5,
   forest: 5,
-  beach: 1,
+  crabBoss: 1,
   wolfBoss: 0
 };
 
@@ -99,5 +100,5 @@ export const RESOURCE_NODE_CONFIGS_BY_TYPE: Record<IslandType, ResourceNodeConfi
   standard: RESOURCE_NODE_CONFIGS,
   forest: RESOURCE_NODE_CONFIGS,
   wolfBoss: RESOURCE_NODE_CONFIGS,
-  beach: RESOURCE_NODE_CONFIGS.filter((config) => config.nodeType === "rock")
+  crabBoss: RESOURCE_NODE_CONFIGS.filter((config) => config.nodeType === "rock")
 };

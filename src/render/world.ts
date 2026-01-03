@@ -128,7 +128,7 @@ const islandStyles: Record<IslandType, { sand: string; grass?: string }> = {
   standard: { sand: "#f6e7c1", grass: "#7dbb6a" },
   forest: { sand: "#f6e7c1", grass: "#4b7a74" },
   wolfBoss: { sand: "#f6e7c1", grass: "#4b7a74" },
-  beach: { sand: "#f6e7c1" }
+  crabBoss: { sand: "#f6e7c1" }
 };
 const nodeColors: Record<ResourceNodeType, string> = {
   tree: "#3f7d4a",

@@ -8,6 +8,7 @@ import type { Island, IslandType, WorldState, YieldRange } from "./types";
 import type { IslandSpec } from "./world-config";
 import {
   BASE_ISLAND_RADIUS,
+  BEACH_ISLAND_RADIUS,
   BOSS_ISLAND_RADIUS,
   ISLAND_SHAPE_CONFIG,
   ISLAND_TYPE_WEIGHTS,
@@ -308,9 +309,9 @@ const createIslandSpecs = (seed: number): IslandSpec[] => {
   }
 
   for (let i = specs.length; i < islandCount; i += 1) {
-    const baseRadius = randomBetween(rng, radiusMin, radiusMax);
     const islandSeed = Math.floor(rng() * 1_000_000_000) + seed + i * 37;
     const type = pickIslandType(rng);
+    const baseRadius = type === "crabBoss" ? BEACH_ISLAND_RADIUS : randomBetween(rng, radiusMin, radiusMax);
     placeIsland(baseRadius, islandSeed, type);
   }
 
