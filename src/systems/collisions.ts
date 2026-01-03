@@ -6,17 +6,17 @@ import {
   closestPointOnPolygon,
   findClosestIslandEdge,
   findContainingIsland,
-  isPointInPolygon
+  isPointInIsland
 } from "../world/island-geometry";
 
 const trySlide = (position: Vec2, prev: Vec2, island: Island) => {
   const slideX = { x: position.x, y: prev.y };
-  if (isPointInPolygon(slideX, island.points)) {
+  if (isPointInIsland(slideX, island)) {
     return slideX;
   }
 
   const slideY = { x: prev.x, y: position.y };
-  if (isPointInPolygon(slideY, island.points)) {
+  if (isPointInIsland(slideY, island)) {
     return slideY;
   }
 

@@ -73,9 +73,10 @@ const netIndicator = document.getElementById("net-indicator") as HTMLElement | n
 const inGameMenu = document.getElementById("in-game-menu") as HTMLElement | null;
 const resumeButton = document.getElementById("resume-game") as HTMLButtonElement | null;
 const exitToMenuButton = document.getElementById("exit-to-menu") as HTMLButtonElement | null;
+const MAX_DEVICE_PIXEL_RATIO = 1.5;
 
 const resize = () => {
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const dpr = Math.min(MAX_DEVICE_PIXEL_RATIO, Math.max(1, window.devicePixelRatio || 1));
   const { innerWidth, innerHeight } = window;
 
   canvas.width = Math.floor(innerWidth * dpr);

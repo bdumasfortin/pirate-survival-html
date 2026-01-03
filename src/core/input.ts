@@ -121,6 +121,9 @@ export const bindKeyboard = (state: InputState) => {
   };
 
   window.addEventListener("keydown", (event) => {
+    if (event.repeat) {
+      return;
+    }
     setKey(event.code, true);
     queueCraftIndex(event.code);
   });
@@ -152,16 +155,27 @@ export const bindCraftScroll = (state: InputState, isActive: () => boolean) => {
 };
 
 export const bindMouse = (state: InputState) => {
-  window.addEventListener("mousemove", (event) => {
-    state.mouseScreen = { x: event.clientX, y: event.clientY };
-  });
+  const updateMouseScreen = (x: number, y: number) => {
+    if (!state.mouseScreen) {
+      state.mouseScreen = { x, y };
+      return;
+    }
+    state.mouseScreen.x = x;
+    state.mouseScreen.y = y;
+  };
+
+  window.addEventListener(
+    "mousemove",
+    (event) => {
+      updateMouseScreen(event.clientX, event.clientY);
+    },
+    { passive: true }
+  );
 
   window.addEventListener("mousedown", (event) => {
     if (event.button === 0) {
       state.useQueued = true;
-      if (!state.mouseScreen) {
-        state.mouseScreen = { x: event.clientX, y: event.clientY };
-      }
+      updateMouseScreen(event.clientX, event.clientY);
     }
   });
 };

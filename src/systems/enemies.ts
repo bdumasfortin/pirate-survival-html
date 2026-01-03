@@ -3,7 +3,7 @@ import { clamp, normalize } from "../core/math";
 import { nextFloat, nextRange } from "../core/rng";
 import { ComponentMask, destroyEntity, forEachEntity, isEntityAlive, type EntityId } from "../core/ecs";
 import { ENEMY_KIND_TO_INDEX } from "../game/enemy-kinds";
-import { closestPointOnPolygon, findContainingIsland, isPointInPolygon } from "../world/island-geometry";
+import { closestPointOnPolygon, findContainingIsland, isPointInIsland } from "../world/island-geometry";
 import { CRAB_HIT_FLASH_DURATION, DAMAGE_FLASH_DURATION } from "../game/combat-config";
 import { KRAKEN_STATS } from "../game/creatures-config";
 import { getEquippedItemCount } from "../game/equipment";
@@ -185,7 +185,7 @@ const updateLandEnemy = (state: GameState, id: EntityId, target: LivingPlayer | 
   ecs.position.x[id] += ecs.velocity.x[id] * delta;
   ecs.position.y[id] += ecs.velocity.y[id] * delta;
 
-  if (island && !isPointInPolygon({ x: ecs.position.x[id], y: ecs.position.y[id] }, island.points)) {
+  if (island && !isPointInIsland({ x: ecs.position.x[id], y: ecs.position.y[id] }, island)) {
     const toCenter = normalize(island.center.x - ecs.position.x[id], island.center.y - ecs.position.y[id]);
     ecs.position.x[id] += toCenter.x * ecs.enemySpeed[id] * delta;
     ecs.position.y[id] += toCenter.y * ecs.enemySpeed[id] * delta;

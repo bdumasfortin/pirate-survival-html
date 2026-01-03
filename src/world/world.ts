@@ -13,7 +13,7 @@ import {
   RESOURCE_PLACEMENT_CONFIG,
   WORLD_GEN_CONFIG
 } from "./world-config";
-import { isPointInPolygon } from "./island-geometry";
+import { isPointInIsland } from "./island-geometry";
 
 type Rng = () => number;
 
@@ -101,7 +101,7 @@ const getRandomPointInIsland = (island: Island, rng: Rng) => {
       y: island.center.y + Math.sin(angle) * islandRadius * radius
     };
 
-    if (isPointInPolygon(position, island.points)) {
+    if (isPointInIsland(position, island)) {
       return position;
     }
   }

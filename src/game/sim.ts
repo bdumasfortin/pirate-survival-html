@@ -20,10 +20,11 @@ const updateMouseWorldPosition = (input: InputState, playerX: number, playerY: n
     return;
   }
 
-  input.mouseWorld = {
-    x: (input.mouseScreen.x - window.innerWidth / 2) / CAMERA_ZOOM + playerX,
-    y: (input.mouseScreen.y - window.innerHeight / 2) / CAMERA_ZOOM + playerY
-  };
+  if (!input.mouseWorld) {
+    input.mouseWorld = { x: 0, y: 0 };
+  }
+  input.mouseWorld.x = (input.mouseScreen.x - window.innerWidth / 2) / CAMERA_ZOOM + playerX;
+  input.mouseWorld.y = (input.mouseScreen.y - window.innerHeight / 2) / CAMERA_ZOOM + playerY;
 };
 
 const updateAimAngle = (state: GameState, playerId: EntityId, input: InputState, playerX: number, playerY: number) => {

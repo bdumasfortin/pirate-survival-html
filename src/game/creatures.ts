@@ -4,7 +4,7 @@ import { nextFloat, nextRange, type RngState } from "../core/rng";
 import { ComponentMask, createEntity, EntityTag } from "../core/ecs";
 import { enemyKindToIndex } from "./enemy-kinds";
 import type { Island, WorldState } from "../world/types";
-import { isPointInPolygon } from "../world/island-geometry";
+import { isPointInIsland } from "../world/island-geometry";
 import {
   BEACH_BOSS_CRAB_COUNT,
   CRAB_BOSS_RADIUS_SCALE,
@@ -30,7 +30,7 @@ import {
   type CreatureStats
 } from "./creatures-config";
 
-const isPointInAnyIsland = (point: Vec2, islands: Island[]) => islands.some((island) => isPointInPolygon(point, island.points));
+const isPointInAnyIsland = (point: Vec2, islands: Island[]) => islands.some((island) => isPointInIsland(point, island));
 
 const randomPointInIsland = (rng: RngState, island: Island, radiusScale: number) => {
   let position = island.center;
@@ -43,7 +43,7 @@ const randomPointInIsland = (rng: RngState, island: Island, radiusScale: number)
       y: island.center.y + Math.sin(angle) * CRAB_SPAWN_BASE_RADIUS * radius
     };
 
-    if (isPointInPolygon(position, island.points)) {
+    if (isPointInIsland(position, island)) {
       return position;
     }
   }
