@@ -9,6 +9,7 @@ import { getNearestGatherableResource } from "../systems/gathering";
 import { DAMAGE_FLASH_DURATION } from "../game/combat-config";
 import { RAFT_INTERACTION_DISTANCE } from "../game/raft-config";
 import { EntityTag, INVENTORY_SLOT_COUNT, isEntityAlive } from "../core/ecs";
+import type { WorldState } from "../world/types";
 import { resourceNodeTypeFromIndex } from "../world/resource-node-types";
 import { equipmentPlaceholderImages, isImageReady, itemImages } from "./assets";
 import { drawRoundedRect } from "./render-helpers";
@@ -72,6 +73,8 @@ let debugOverlayEnabled = false;
 let debugFps = 0;
 let debugFrames = 0;
 let debugLastSample = performance.now();
+let mapOverlayEnabled = false;
+const mapBoundsCache = new WeakMap<WorldState, { minX: number; minY: number; maxX: number; maxY: number }>();
 
 export const toggleDebugOverlay = () => {
   debugOverlayEnabled = !debugOverlayEnabled;
@@ -79,6 +82,14 @@ export const toggleDebugOverlay = () => {
 
 export const setDebugOverlayEnabled = (enabled: boolean) => {
   debugOverlayEnabled = enabled;
+};
+
+export const toggleMapOverlay = () => {
+  mapOverlayEnabled = !mapOverlayEnabled;
+};
+
+export const setMapOverlayEnabled = (enabled: boolean) => {
+  mapOverlayEnabled = enabled;
 };
 
 export const setHudSeed = (seed: string) => {
@@ -559,6 +570,111 @@ const renderBuildVersion = (ctx: CanvasRenderingContext2D) => {
   ctx.restore();
 };
 
+const getWorldBounds = (world: WorldState) => {
+  const cached = mapBoundsCache.get(world);
+  if (cached) {
+    return cached;
+  }
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  for (const island of world.islands) {
+    for (const point of island.points) {
+      minX = Math.min(minX, point.x);
+      minY = Math.min(minY, point.y);
+      maxX = Math.max(maxX, point.x);
+      maxY = Math.max(maxY, point.y);
+    }
+  }
+
+  if (world.islands.length === 0) {
+    minX = 0;
+    minY = 0;
+    maxX = 0;
+    maxY = 0;
+  }
+
+  const bounds = { minX, minY, maxX, maxY };
+  mapBoundsCache.set(world, bounds);
+  return bounds;
+};
+
+const renderMapOverlay = (ctx: CanvasRenderingContext2D, state: GameState) => {
+  if (!mapOverlayEnabled) {
+    return;
+  }
+
+  const mapSize = 360;
+  const padding = 18;
+  const panelX = (window.innerWidth - mapSize) / 2;
+  const panelY = (window.innerHeight - mapSize) / 2;
+  const panelWidth = mapSize;
+  const panelHeight = mapSize;
+
+  ctx.save();
+  ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = "rgba(12, 22, 26, 0.8)";
+  drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 16);
+  ctx.fill();
+  ctx.restore();
+
+  const bounds = getWorldBounds(state.world);
+  const width = Math.max(1, bounds.maxX - bounds.minX);
+  const height = Math.max(1, bounds.maxY - bounds.minY);
+  const innerSizeX = panelWidth - padding * 2;
+  const innerSizeY = panelHeight - padding * 2;
+  const scale = Math.min(innerSizeX / width, innerSizeY / height);
+  const drawWidth = width * scale;
+  const drawHeight = height * scale;
+  const offsetX = panelX + padding + (innerSizeX - drawWidth) / 2;
+  const offsetY = panelY + padding + (innerSizeY - drawHeight) / 2;
+
+  ctx.save();
+  ctx.translate(offsetX, offsetY);
+  ctx.scale(scale, scale);
+  ctx.translate(-bounds.minX, -bounds.minY);
+
+  ctx.fillStyle = "rgba(246, 231, 193, 0.65)";
+  ctx.strokeStyle = "rgba(12, 22, 26, 0.6)";
+  ctx.lineWidth = Math.max(1 / scale, 0.6);
+
+  for (const island of state.world.islands) {
+    if (island.points.length === 0) {
+      continue;
+    }
+    ctx.beginPath();
+    ctx.moveTo(island.points[0].x, island.points[0].y);
+    for (let i = 1; i < island.points.length; i += 1) {
+      ctx.lineTo(island.points[i].x, island.points[i].y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  const playerId = getLocalPlayerId(state);
+  if (playerId !== undefined && isEntityAlive(state.ecs, playerId)) {
+    const x = state.ecs.position.x[playerId];
+    const y = state.ecs.position.y[playerId];
+    const size = 9 / scale;
+    const half = size / 2;
+    ctx.strokeStyle = "#e24b4b";
+    ctx.lineWidth = Math.max(2 / scale, 2.4);
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(x - half, y - half);
+    ctx.lineTo(x + half, y + half);
+    ctx.moveTo(x + half, y - half);
+    ctx.lineTo(x - half, y + half);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+};
+
 const updateDebugFps = () => {
   debugFrames += 1;
   const now = performance.now();
@@ -778,6 +894,7 @@ export const renderHud = (ctx: CanvasRenderingContext2D, state: GameState) => {
   renderInventory(ctx, state);
   renderHints(ctx);
   renderBuildVersion(ctx);
+  renderMapOverlay(ctx, state);
   renderDebugOverlay(ctx, state);
   renderDamageFlash(ctx, state);
   renderDeathOverlay(ctx, state);

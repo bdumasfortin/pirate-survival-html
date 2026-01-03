@@ -42,6 +42,7 @@ const clearQueuedInputs = (input: InputState) => {
   input.toggleCraftQueued = false;
   input.closeCraftQueued = false;
   input.debugToggleQueued = false;
+  input.mapToggleQueued = false;
   input.craftIndexQueued = null;
   input.craftScrollQueued = 0;
   input.inventoryIndexQueued = null;
@@ -151,6 +152,7 @@ export const applyInputFrame = (frame: InputFrame, out: InputState) => {
   out.toggleCraftQueued = (buttons & InputBits.ToggleCraft) !== 0;
   out.closeCraftQueued = (buttons & InputBits.CloseCraft) !== 0;
   out.debugToggleQueued = false;
+  out.mapToggleQueued = false;
 
   out.craftIndexQueued = frame.craftIndex >= 0 ? frame.craftIndex : null;
   out.craftScrollQueued = frame.craftScroll;

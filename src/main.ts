@@ -1,4 +1,4 @@
-import { createInputState, bindKeyboard, bindInventorySelection, bindMouse, bindCraftScroll, consumeDebugToggle, type InputState } from "./core/input";
+import { createInputState, bindKeyboard, bindInventorySelection, bindMouse, bindCraftScroll, consumeDebugToggle, consumeMapToggle, type InputState } from "./core/input";
 import { applyRemoteInputFrame, createInputSyncState, readPlayerInputFrame, trimInputSyncState, storeLocalInputFrame, type InputSyncState } from "./core/input-sync";
 import { applyInputFrame, InputBits, storeInputFrameData, type InputFrame } from "./core/input-buffer";
 import { isEntityAlive } from "./core/ecs";
@@ -9,7 +9,7 @@ import { createGameStateSnapshot, createRollbackBuffer, getRollbackSnapshot, res
 import { simulateFrame } from "./game/sim";
 import { runDeterminismCheck } from "./dev/determinism";
 import { render } from "./render/renderer";
-import { setHudRoomCode, setHudSeed, toggleDebugOverlay } from "./render/ui";
+import { setHudRoomCode, setHudSeed, toggleDebugOverlay, toggleMapOverlay } from "./render/ui";
 import { setPlayerNameLabels } from "./render/world";
 import { createClientSession, createHostSession, finalizeSessionStart, pauseSession, resumeSessionFromFrame, setSessionFrame, type SessionState } from "./net/session";
 import { decodeInputPacket, encodeInputPacket, type InputPacket } from "./net/input-wire";
@@ -1238,6 +1238,9 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
 
         if (consumeDebugToggle(liveInput)) {
           toggleDebugOverlay();
+        }
+        if (consumeMapToggle(liveInput)) {
+          toggleMapOverlay();
         }
 
         const inputFrameIndex = clock.frame + inputDelayFrames;

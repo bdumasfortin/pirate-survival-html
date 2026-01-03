@@ -1,13 +1,9 @@
 # TO DO
 
-- [ ] Resources respawns
-- [ ] Creature respawns
-- [ ] Make bigger island
-- [ ] Mapping system / Minimap
-- [ ] Settle on the game style (short/mid/longer survival, Roguelike, etc.)
-- [ ] Find a name for the game
-- [ ] End game goal
-- [ ] Milestones (days survived, bosses slain, rare loot).
+- [ ] Establish some milestones (days survived, bosses slain, rare loot).
+- [ ] Island size should vary a lot more, island can't be any smaller than they are now but should be able to be way bigger (beach size shouldn't be wider though)
+- [ ] Implement resources nodes
+- [ ] Implement creature respawning
 - [ ] Crafting revamp
 - [ ] Visual revamp
 - [ ] SFX/Ambiance
