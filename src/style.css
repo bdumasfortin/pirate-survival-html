@@ -76,6 +76,15 @@ canvas {
   text-align: center;
 }
 
+.menu-note {
+  margin: -10px auto 18px;
+  max-width: 320px;
+  text-align: center;
+  font-size: 16px;
+  letter-spacing: 0.2px;
+  color: rgba(246, 231, 193, 0.78);
+}
+
 .menu-card--compact .menu-actions {
   flex-direction: column;
 }

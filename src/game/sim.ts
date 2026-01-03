@@ -1,4 +1,5 @@
-import type { InputState } from "../core/input";
+import { consumeTeleport, type InputState } from "../core/input";
+import { isMapOverlayEnabled, mapScreenToWorld } from "./map-overlay";
 import { isEntityAlive, type EntityId } from "../core/ecs";
 import { CAMERA_ZOOM } from "./config";
 import type { GameState } from "./state";
@@ -20,10 +21,11 @@ const updateMouseWorldPosition = (input: InputState, playerX: number, playerY: n
     return;
   }
 
-  input.mouseWorld = {
-    x: (input.mouseScreen.x - window.innerWidth / 2) / CAMERA_ZOOM + playerX,
-    y: (input.mouseScreen.y - window.innerHeight / 2) / CAMERA_ZOOM + playerY
-  };
+  if (!input.mouseWorld) {
+    input.mouseWorld = { x: 0, y: 0 };
+  }
+  input.mouseWorld.x = (input.mouseScreen.x - window.innerWidth / 2) / CAMERA_ZOOM + playerX;
+  input.mouseWorld.y = (input.mouseScreen.y - window.innerHeight / 2) / CAMERA_ZOOM + playerY;
 };
 
 const updateAimAngle = (state: GameState, playerId: EntityId, input: InputState, playerX: number, playerY: number) => {
@@ -36,6 +38,39 @@ const updateAimAngle = (state: GameState, playerId: EntityId, input: InputState,
   if (Math.hypot(dx, dy) > 0.01) {
     state.ecs.playerAimAngle[playerId] = Math.atan2(dy, dx);
   }
+};
+
+const applyDevTeleport = (state: GameState, playerId: EntityId, input: InputState) => {
+  if (!import.meta.env.DEV) {
+    return;
+  }
+  if (state.playerIds.length !== 1) {
+    return;
+  }
+  if (!consumeTeleport(input)) {
+    return;
+  }
+  if (!isMapOverlayEnabled() || !input.mouseScreen) {
+    return;
+  }
+
+  const target = mapScreenToWorld(
+    state.world,
+    input.mouseScreen.x,
+    input.mouseScreen.y,
+    window.innerWidth,
+    window.innerHeight
+  );
+  if (!target) {
+    return;
+  }
+
+  state.ecs.position.x[playerId] = target.x;
+  state.ecs.position.y[playerId] = target.y;
+  state.ecs.prevPosition.x[playerId] = target.x;
+  state.ecs.prevPosition.y[playerId] = target.y;
+  state.ecs.velocity.x[playerId] = 0;
+  state.ecs.velocity.y[playerId] = 0;
 };
 
 const clearQueuedUse = (input: InputState) => {
@@ -62,6 +97,7 @@ export const simulateFrame = (state: GameState, inputs: InputState[], delta: num
     const playerX = ecs.position.x[playerId];
     const playerY = ecs.position.y[playerId];
     updateMouseWorldPosition(input, playerX, playerY);
+    applyDevTeleport(state, playerId, input);
     updateAimAngle(state, playerId, input, playerX, playerY);
 
     updateInventorySelection(state, playerId, input);

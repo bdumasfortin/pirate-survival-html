@@ -24,7 +24,13 @@ export const CRAFT_TILE_GAP = 14;
 export const CRAFT_TILE_RADIUS = 14;
 export const CRAFT_PANEL_PADDING = 18;
 export const CRAFT_PANEL_RADIUS = 16;
-export const CRAFT_COLUMN_OFFSET = 70;
+export const CRAFT_PANEL_WIDTH = 240;
+export const CRAFT_PANEL_GAP = 16;
+export const CRAFT_PANEL_SECTION_GAP = 10;
+export const CRAFT_INGREDIENT_ROW_HEIGHT = 22;
+export const CRAFT_BUTTON_WIDTH = 120;
+export const CRAFT_BUTTON_HEIGHT = 30;
+export const CRAFT_BUTTON_RADIUS = 10;
 
 export const ACTION_PROMPT_FONT_SIZE = 18;
 export const ACTION_PROMPT_PADDING_X = 16;

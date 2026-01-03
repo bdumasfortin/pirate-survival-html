@@ -9,33 +9,50 @@ export type IslandSpec = {
   type: IslandType;
 };
 
+const BASE_ISLAND_RADIUS_MIN = 220;
+const BASE_ISLAND_RADIUS_MAX = 380;
+const ISLAND_SIZE_SCALE = 3;
+
+export const BASE_ISLAND_RADIUS = (BASE_ISLAND_RADIUS_MIN + BASE_ISLAND_RADIUS_MAX) / 2;
+export const BOSS_ISLAND_RADIUS = BASE_ISLAND_RADIUS;
+export const BEACH_ISLAND_RADIUS = BOSS_ISLAND_RADIUS;
+
 export const WORLD_GEN_CONFIG = {
-  islandCount: 100,
-  spawnRadius: 420,
-  radiusMin: 220,
-  radiusMax: 380,
-  ringMin: 650,
-  ringMax: 2400,
-  edgePadding: 120,
+  islandCount: 55,
+  spawnRadius: 420 * ISLAND_SIZE_SCALE,
+  radiusMin: BASE_ISLAND_RADIUS_MIN * ISLAND_SIZE_SCALE,
+  radiusMax: BASE_ISLAND_RADIUS_MAX * ISLAND_SIZE_SCALE,
+  ringMin: 650 * ISLAND_SIZE_SCALE,
+  ringMax: 2400 * ISLAND_SIZE_SCALE,
+  edgePadding: 180 * ISLAND_SIZE_SCALE,
   placementAttempts: 120
 };
 
 export const ISLAND_TYPE_WEIGHTS: Record<IslandType, number> = {
   standard: 5,
   forest: 5,
-  beach: 1,
+  crabBoss: 1,
   wolfBoss: 0
 };
 
 export const ISLAND_SHAPE_CONFIG = {
-  pointCount: 72,
-  waveA: 3,
-  waveB: 5,
-  ampA: 0.12,
-  ampB: 0.06,
-  jitter: 0.04,
-  minRadius: 60,
-  smoothingPasses: 2
+  pointCountMin: 54,
+  pointCountMax: 96,
+  waveAMin: 2,
+  waveAMax: 4,
+  waveBMin: 4,
+  waveBMax: 7,
+  ampAMin: 0.08,
+  ampAMax: 0.18,
+  ampBMin: 0.04,
+  ampBMax: 0.12,
+  jitterMin: 0.02,
+  jitterMax: 0.08,
+  minRadiusRatio: 0.18,
+  smoothingPassesMin: 1,
+  smoothingPassesMax: 3,
+  leanMin: 0.7,
+  leanMax: 1.35
 };
 
 export const RESOURCE_PLACEMENT_CONFIG = {
@@ -83,5 +100,5 @@ export const RESOURCE_NODE_CONFIGS_BY_TYPE: Record<IslandType, ResourceNodeConfi
   standard: RESOURCE_NODE_CONFIGS,
   forest: RESOURCE_NODE_CONFIGS,
   wolfBoss: RESOURCE_NODE_CONFIGS,
-  beach: RESOURCE_NODE_CONFIGS.filter((config) => config.nodeType === "rock")
+  crabBoss: RESOURCE_NODE_CONFIGS.filter((config) => config.nodeType === "rock")
 };

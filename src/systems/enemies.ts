@@ -3,7 +3,7 @@ import { clamp, normalize } from "../core/math";
 import { nextFloat, nextRange } from "../core/rng";
 import { ComponentMask, destroyEntity, forEachEntity, isEntityAlive, type EntityId } from "../core/ecs";
 import { ENEMY_KIND_TO_INDEX } from "../game/enemy-kinds";
-import { closestPointOnPolygon, findContainingIsland, isPointInPolygon } from "../world/island-geometry";
+import { closestPointOnPolygon, findContainingIsland, isPointInIsland } from "../world/island-geometry";
 import { CRAB_HIT_FLASH_DURATION, DAMAGE_FLASH_DURATION } from "../game/combat-config";
 import { KRAKEN_STATS } from "../game/creatures-config";
 import { getEquippedItemCount } from "../game/equipment";
@@ -11,6 +11,8 @@ import { ARMOR_PER_PIECE, ARMOR_REGEN_DELAY } from "../game/survival-config";
 import { dropEnemyLoot } from "../game/enemy-loot";
 
 const WANDER_SPEED_SCALE = 0.4;
+const CHASE_ACCEL_FACTOR = 6;
+const CHASE_STOP_BUFFER = 6;
 const ENEMY_MASK = ComponentMask.Enemy | ComponentMask.Position | ComponentMask.Velocity | ComponentMask.Radius;
 
 type LivingPlayer = {
@@ -169,9 +171,27 @@ const updateLandEnemy = (state: GameState, id: EntityId, target: LivingPlayer | 
     : Number.POSITIVE_INFINITY;
 
   if (target && distance < ecs.enemyAggroRange[id]) {
-    const dir = normalize(target.x - ecs.position.x[id], target.y - ecs.position.y[id]);
-    ecs.velocity.x[id] = dir.x * ecs.enemySpeed[id];
-    ecs.velocity.y[id] = dir.y * ecs.enemySpeed[id];
+    const dx = target.x - ecs.position.x[id];
+    const dy = target.y - ecs.position.y[id];
+    const hitRange = ecs.enemyAttackRange[id] + target.radius;
+    const stopDistance = Math.max(4, hitRange - CHASE_STOP_BUFFER);
+    const desiredSpeed = distance <= stopDistance ? 0 : ecs.enemySpeed[id];
+    const dir = normalize(dx, dy);
+    const desiredVx = dir.x * desiredSpeed;
+    const desiredVy = dir.y * desiredSpeed;
+    const maxDelta = ecs.enemySpeed[id] * CHASE_ACCEL_FACTOR * delta;
+    const dvx = desiredVx - ecs.velocity.x[id];
+    const dvy = desiredVy - ecs.velocity.y[id];
+    const dvLen = Math.hypot(dvx, dvy);
+
+    if (dvLen <= maxDelta || dvLen === 0) {
+      ecs.velocity.x[id] = desiredVx;
+      ecs.velocity.y[id] = desiredVy;
+    } else {
+      const scale = maxDelta / dvLen;
+      ecs.velocity.x[id] += dvx * scale;
+      ecs.velocity.y[id] += dvy * scale;
+    }
   } else {
     ecs.enemyWanderTimer[id] -= delta;
     if (ecs.enemyWanderTimer[id] <= 0) {
@@ -185,7 +205,7 @@ const updateLandEnemy = (state: GameState, id: EntityId, target: LivingPlayer | 
   ecs.position.x[id] += ecs.velocity.x[id] * delta;
   ecs.position.y[id] += ecs.velocity.y[id] * delta;
 
-  if (island && !isPointInPolygon({ x: ecs.position.x[id], y: ecs.position.y[id] }, island.points)) {
+  if (island && !isPointInIsland({ x: ecs.position.x[id], y: ecs.position.y[id] }, island)) {
     const toCenter = normalize(island.center.x - ecs.position.x[id], island.center.y - ecs.position.y[id]);
     ecs.position.x[id] += toCenter.x * ecs.enemySpeed[id] * delta;
     ecs.position.y[id] += toCenter.y * ecs.enemySpeed[id] * delta;

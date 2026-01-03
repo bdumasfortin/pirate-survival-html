@@ -26,13 +26,12 @@
 
 ## Survival and systems
 - Temperature or weather-driven survival modifiers.
+- Nightly events
 - Armor stats and durability.
 - Food variety with buffs/debuffs.
-- Day/night cycle.
 - Inventory upgrades (bags, chests).
 
 ## Co-op and meta
-- Expand multiplayer beyond 4 players (larger lobbies, reconnects).
 - Shared bases and crafting stations.
 - Base building.
 - Collectible devil fruits (unique abilities, puzzles/rarity-based unlocks).

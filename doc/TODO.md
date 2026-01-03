@@ -1,19 +1,12 @@
 # TO DO
 
-- [ ] Fix right click breaking movement
-- [ ] Fix heavy stutter issues in multiplayer
-- [ ] Pause game when in esc menu (singleplayer only)
-- [ ] Resources respawns
-- [ ] Creature respawns
-- [ ] Make bigger island
-- [ ] Mapping system / Minimap
-- [ ] Settle on the game style (short/mid/longer survival, Roguelike, etc.)
-- [ ] Find a name for the game
-- [ ] End game goal
-- [ ] Milestones (days survived, bosses slain, rare loot).
+- [ ] Raft revamp, find a better way to embark/disembark 
+- [ ] Establish some milestones (days survived, bosses slain, rare loot).
 - [ ] Crafting revamp
 - [ ] Visual revamp
 - [ ] SFX/Ambiance
+- [ ] Implement resources nodes respawning
+- [ ] Implement creature respawning
 - [ ] Code standards and refactoring 
 - [ ] Add testing tools
 - [ ] See selected weapons/tools in the hands of the character

@@ -39,6 +39,17 @@ From `server/`:
 This outputs `server/dist/server.js` for easy distribution (Node required, no npm install needed on the host).
 For local runs inside the repo, `npm run start:bundle` uses `server/dist/server.cjs`.
 
+### Prebuilt relay server (server.zip)
+The latest release includes `server.zip` with:
+- `server.js` (bundled relay server)
+- `package.json`
+- `README.md` (how to run)
+
+Download and unzip, then run:
+`node server.js`
+
+To update on a server host, use `scripts/update-server.sh`.
+
 ### 2) Host a room (client)
 Open the game and use the Multiplayer tab in the start menu to create a room.
 
@@ -98,3 +109,4 @@ Notes:
 - Select hotbar slot: 1-9 or mouse wheel
 - Drop item: Q
 - Crafting menu: C
+- Craft: click the Craft button in the crafting panel

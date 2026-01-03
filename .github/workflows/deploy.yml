@@ -45,6 +45,11 @@ jobs:
         run: npm ci --prefix server
       - name: Build server bundle
         run: npm run build:bundle --prefix server
+      - name: Package server bundle
+        run: |
+          cd server/dist
+          rm -f server.zip
+          zip -j server.zip server.js README.md package.json
       - name: Read version
         id: version
         run: |
@@ -53,17 +58,15 @@ jobs:
       - name: Upload server bundle
         uses: actions/upload-artifact@v4
         with:
-          name: pirate-survival-server
+          name: server-zip
           path: |
-            server/dist/server.js
-            server/dist/README.md
-            server/dist/package.json
+            server/dist/server.zip
       - name: Create GitHub release
         uses: ncipollo/release-action@v1
         with:
           tag: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }}
-          artifacts: server/dist/server.js,server/dist/README.md,server/dist/package.json
+          artifacts: server/dist/server.zip
           allowUpdates: true
           replacesArtifacts: true
           generateReleaseNotes: true

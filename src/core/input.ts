@@ -8,9 +8,13 @@ export type InputState = {
   right: boolean;
   interactQueued: boolean;
   useQueued: boolean;
+  craftQueued: boolean;
   dropQueued: boolean;
   toggleCraftQueued: boolean;
   closeCraftQueued: boolean;
+  debugToggleQueued: boolean;
+  mapToggleQueued: boolean;
+  teleportQueued: boolean;
   craftIndexQueued: number | null;
   craftScrollQueued: number;
   inventoryIndexQueued: number | null;
@@ -26,9 +30,13 @@ export const createInputState = (): InputState => ({
   right: false,
   interactQueued: false,
   useQueued: false,
+  craftQueued: false,
   dropQueued: false,
   toggleCraftQueued: false,
   closeCraftQueued: false,
+  debugToggleQueued: false,
+  mapToggleQueued: false,
+  teleportQueued: false,
   craftIndexQueued: null,
   craftScrollQueued: 0,
   inventoryIndexQueued: null,
@@ -71,6 +79,21 @@ export const bindKeyboard = (state: InputState) => {
           state.toggleCraftQueued = true;
         }
         break;
+      case "KeyT":
+        if (value) {
+          state.debugToggleQueued = true;
+        }
+        break;
+      case "KeyM":
+        if (value) {
+          state.mapToggleQueued = true;
+        }
+        break;
+      case "KeyP":
+        if (value) {
+          state.teleportQueued = true;
+        }
+        break;
       case "Escape":
         if (value) {
           state.closeCraftQueued = true;
@@ -90,9 +113,13 @@ export const bindKeyboard = (state: InputState) => {
   const resetQueuedInputs = () => {
     state.interactQueued = false;
     state.useQueued = false;
+    state.craftQueued = false;
     state.dropQueued = false;
     state.toggleCraftQueued = false;
     state.closeCraftQueued = false;
+    state.debugToggleQueued = false;
+    state.mapToggleQueued = false;
+    state.teleportQueued = false;
     state.craftIndexQueued = null;
     state.craftScrollQueued = 0;
     state.inventoryIndexQueued = null;
@@ -121,12 +148,14 @@ export const bindKeyboard = (state: InputState) => {
   };
 
   window.addEventListener("keydown", (event) => {
+    if (event.repeat) {
+      return;
+    }
     setKey(event.code, true);
     queueCraftIndex(event.code);
   });
   window.addEventListener("keyup", (event) => setKey(event.code, false));
   window.addEventListener("blur", resetInputState);
-  window.addEventListener("contextmenu", resetInputState);
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       resetInputState();
@@ -152,17 +181,32 @@ export const bindCraftScroll = (state: InputState, isActive: () => boolean) => {
   window.addEventListener("wheel", handleWheel, { passive: false });
 };
 
-export const bindMouse = (state: InputState) => {
-  window.addEventListener("mousemove", (event) => {
-    state.mouseScreen = { x: event.clientX, y: event.clientY };
-  });
+export const bindMouse = (state: InputState, shouldQueueCraft?: (x: number, y: number) => boolean) => {
+  const updateMouseScreen = (x: number, y: number) => {
+    if (!state.mouseScreen) {
+      state.mouseScreen = { x, y };
+      return;
+    }
+    state.mouseScreen.x = x;
+    state.mouseScreen.y = y;
+  };
+
+  window.addEventListener(
+    "mousemove",
+    (event) => {
+      updateMouseScreen(event.clientX, event.clientY);
+    },
+    { passive: true }
+  );
 
   window.addEventListener("mousedown", (event) => {
     if (event.button === 0) {
-      state.useQueued = true;
-      if (!state.mouseScreen) {
-        state.mouseScreen = { x: event.clientX, y: event.clientY };
+      updateMouseScreen(event.clientX, event.clientY);
+      if (shouldQueueCraft?.(event.clientX, event.clientY)) {
+        state.craftQueued = true;
+        return;
       }
+      state.useQueued = true;
     }
   });
 };
@@ -209,6 +253,42 @@ export const consumeCloseCraft = (state: InputState) => {
   }
 
   state.closeCraftQueued = false;
+  return true;
+};
+
+export const consumeCraft = (state: InputState) => {
+  if (!state.craftQueued) {
+    return false;
+  }
+
+  state.craftQueued = false;
+  return true;
+};
+
+export const consumeDebugToggle = (state: InputState) => {
+  if (!state.debugToggleQueued) {
+    return false;
+  }
+
+  state.debugToggleQueued = false;
+  return true;
+};
+
+export const consumeMapToggle = (state: InputState) => {
+  if (!state.mapToggleQueued) {
+    return false;
+  }
+
+  state.mapToggleQueued = false;
+  return true;
+};
+
+export const consumeTeleport = (state: InputState) => {
+  if (!state.teleportQueued) {
+    return false;
+  }
+
+  state.teleportQueued = false;
   return true;
 };
 

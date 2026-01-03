@@ -1,4 +1,5 @@
 import type { Vec2Store, EcsSnapshot } from "../core/ecs";
+import { EQUIPMENT_SLOT_COUNT, INVENTORY_SLOT_COUNT } from "../core/ecs";
 import { createGameStateSnapshot, type GameStateSnapshot } from "../game/rollback";
 import type { GameState } from "../game/state";
 import type { WorldState } from "../world/types";
@@ -79,67 +80,75 @@ type SerializedGameStateSnapshot = {
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-const serializeVec2Store = (store: Vec2Store): SerializedVec2Store => ({
-  x: Array.from(store.x),
-  y: Array.from(store.y)
+const sliceArray = (source: ArrayLike<number>, length: number) => Array.from(Array.prototype.slice.call(source, 0, length));
+
+const serializeVec2Store = (store: Vec2Store, length: number): SerializedVec2Store => ({
+  x: sliceArray(store.x, length),
+  y: sliceArray(store.y, length)
 });
 
-const serializeEcsSnapshot = (ecs: EcsSnapshot): SerializedEcsSnapshot => ({
-  capacity: ecs.capacity,
-  nextId: ecs.nextId,
-  alive: Array.from(ecs.alive),
-  mask: Array.from(ecs.mask),
-  tag: Array.from(ecs.tag),
-  position: serializeVec2Store(ecs.position),
-  prevPosition: serializeVec2Store(ecs.prevPosition),
-  velocity: serializeVec2Store(ecs.velocity),
-  radius: Array.from(ecs.radius),
-  playerAimAngle: Array.from(ecs.playerAimAngle),
-  playerMoveAngle: Array.from(ecs.playerMoveAngle),
-  playerDamageFlashTimer: Array.from(ecs.playerDamageFlashTimer),
-  playerAttackTimer: Array.from(ecs.playerAttackTimer),
-  playerUseCooldown: Array.from(ecs.playerUseCooldown),
-  playerHealth: Array.from(ecs.playerHealth),
-  playerMaxHealth: Array.from(ecs.playerMaxHealth),
-  playerHunger: Array.from(ecs.playerHunger),
-  playerMaxHunger: Array.from(ecs.playerMaxHunger),
-  playerArmor: Array.from(ecs.playerArmor),
-  playerMaxArmor: Array.from(ecs.playerMaxArmor),
-  playerArmorRegenTimer: Array.from(ecs.playerArmorRegenTimer),
-  playerRespawnTimer: Array.from(ecs.playerRespawnTimer),
-  playerIsDead: Array.from(ecs.playerIsDead),
-  playerIsOnRaft: Array.from(ecs.playerIsOnRaft),
-  enemyKind: Array.from(ecs.enemyKind),
-  enemyIsBoss: Array.from(ecs.enemyIsBoss),
-  enemyHealth: Array.from(ecs.enemyHealth),
-  enemyMaxHealth: Array.from(ecs.enemyMaxHealth),
-  enemyHitTimer: Array.from(ecs.enemyHitTimer),
-  enemyDamage: Array.from(ecs.enemyDamage),
-  enemySpeed: Array.from(ecs.enemySpeed),
-  enemyAggroRange: Array.from(ecs.enemyAggroRange),
-  enemyAttackRange: Array.from(ecs.enemyAttackRange),
-  enemyAttackCooldown: Array.from(ecs.enemyAttackCooldown),
-  enemyAttackTimer: Array.from(ecs.enemyAttackTimer),
-  enemyWanderAngle: Array.from(ecs.enemyWanderAngle),
-  enemyWanderTimer: Array.from(ecs.enemyWanderTimer),
-  enemyHomeIsland: Array.from(ecs.enemyHomeIsland),
-  resourceNodeType: Array.from(ecs.resourceNodeType),
-  resourceKind: Array.from(ecs.resourceKind),
-  resourceRotation: Array.from(ecs.resourceRotation),
-  resourceYieldMin: Array.from(ecs.resourceYieldMin),
-  resourceYieldMax: Array.from(ecs.resourceYieldMax),
-  resourceRemaining: Array.from(ecs.resourceRemaining),
-  resourceRespawnTime: Array.from(ecs.resourceRespawnTime),
-  resourceRespawnTimer: Array.from(ecs.resourceRespawnTimer),
-  inventoryKind: Array.from(ecs.inventoryKind),
-  inventoryQuantity: Array.from(ecs.inventoryQuantity),
-  inventorySelected: Array.from(ecs.inventorySelected),
-  equipmentKind: Array.from(ecs.equipmentKind),
-  groundItemKind: Array.from(ecs.groundItemKind),
-  groundItemQuantity: Array.from(ecs.groundItemQuantity),
-  groundItemDroppedAt: Array.from(ecs.groundItemDroppedAt),
-  propKind: Array.from(ecs.propKind)
-});
+const serializeEcsSnapshot = (ecs: EcsSnapshot): SerializedEcsSnapshot => {
+  const entityCount = ecs.nextId;
+  const inventoryCount = entityCount * INVENTORY_SLOT_COUNT;
+  const equipmentCount = entityCount * EQUIPMENT_SLOT_COUNT;
+
+  return {
+    capacity: entityCount,
+    nextId: ecs.nextId,
+    alive: sliceArray(ecs.alive, entityCount),
+    mask: sliceArray(ecs.mask, entityCount),
+    tag: sliceArray(ecs.tag, entityCount),
+    position: serializeVec2Store(ecs.position, entityCount),
+    prevPosition: serializeVec2Store(ecs.prevPosition, entityCount),
+    velocity: serializeVec2Store(ecs.velocity, entityCount),
+    radius: sliceArray(ecs.radius, entityCount),
+    playerAimAngle: sliceArray(ecs.playerAimAngle, entityCount),
+    playerMoveAngle: sliceArray(ecs.playerMoveAngle, entityCount),
+    playerDamageFlashTimer: sliceArray(ecs.playerDamageFlashTimer, entityCount),
+    playerAttackTimer: sliceArray(ecs.playerAttackTimer, entityCount),
+    playerUseCooldown: sliceArray(ecs.playerUseCooldown, entityCount),
+    playerHealth: sliceArray(ecs.playerHealth, entityCount),
+    playerMaxHealth: sliceArray(ecs.playerMaxHealth, entityCount),
+    playerHunger: sliceArray(ecs.playerHunger, entityCount),
+    playerMaxHunger: sliceArray(ecs.playerMaxHunger, entityCount),
+    playerArmor: sliceArray(ecs.playerArmor, entityCount),
+    playerMaxArmor: sliceArray(ecs.playerMaxArmor, entityCount),
+    playerArmorRegenTimer: sliceArray(ecs.playerArmorRegenTimer, entityCount),
+    playerRespawnTimer: sliceArray(ecs.playerRespawnTimer, entityCount),
+    playerIsDead: sliceArray(ecs.playerIsDead, entityCount),
+    playerIsOnRaft: sliceArray(ecs.playerIsOnRaft, entityCount),
+    enemyKind: sliceArray(ecs.enemyKind, entityCount),
+    enemyIsBoss: sliceArray(ecs.enemyIsBoss, entityCount),
+    enemyHealth: sliceArray(ecs.enemyHealth, entityCount),
+    enemyMaxHealth: sliceArray(ecs.enemyMaxHealth, entityCount),
+    enemyHitTimer: sliceArray(ecs.enemyHitTimer, entityCount),
+    enemyDamage: sliceArray(ecs.enemyDamage, entityCount),
+    enemySpeed: sliceArray(ecs.enemySpeed, entityCount),
+    enemyAggroRange: sliceArray(ecs.enemyAggroRange, entityCount),
+    enemyAttackRange: sliceArray(ecs.enemyAttackRange, entityCount),
+    enemyAttackCooldown: sliceArray(ecs.enemyAttackCooldown, entityCount),
+    enemyAttackTimer: sliceArray(ecs.enemyAttackTimer, entityCount),
+    enemyWanderAngle: sliceArray(ecs.enemyWanderAngle, entityCount),
+    enemyWanderTimer: sliceArray(ecs.enemyWanderTimer, entityCount),
+    enemyHomeIsland: sliceArray(ecs.enemyHomeIsland, entityCount),
+    resourceNodeType: sliceArray(ecs.resourceNodeType, entityCount),
+    resourceKind: sliceArray(ecs.resourceKind, entityCount),
+    resourceRotation: sliceArray(ecs.resourceRotation, entityCount),
+    resourceYieldMin: sliceArray(ecs.resourceYieldMin, entityCount),
+    resourceYieldMax: sliceArray(ecs.resourceYieldMax, entityCount),
+    resourceRemaining: sliceArray(ecs.resourceRemaining, entityCount),
+    resourceRespawnTime: sliceArray(ecs.resourceRespawnTime, entityCount),
+    resourceRespawnTimer: sliceArray(ecs.resourceRespawnTimer, entityCount),
+    inventoryKind: sliceArray(ecs.inventoryKind, inventoryCount),
+    inventoryQuantity: sliceArray(ecs.inventoryQuantity, inventoryCount),
+    inventorySelected: sliceArray(ecs.inventorySelected, entityCount),
+    equipmentKind: sliceArray(ecs.equipmentKind, equipmentCount),
+    groundItemKind: sliceArray(ecs.groundItemKind, entityCount),
+    groundItemQuantity: sliceArray(ecs.groundItemQuantity, entityCount),
+    groundItemDroppedAt: sliceArray(ecs.groundItemDroppedAt, entityCount),
+    propKind: sliceArray(ecs.propKind, entityCount)
+  };
+};
 
 const deserializeVec2Store = (payload: SerializedVec2Store): Vec2Store => ({
   x: new Float32Array(payload.x),

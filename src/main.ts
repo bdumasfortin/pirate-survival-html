@@ -1,6 +1,6 @@
-import { createInputState, bindKeyboard, bindInventorySelection, bindMouse, bindCraftScroll, type InputState } from "./core/input";
+import { createInputState, bindKeyboard, bindInventorySelection, bindMouse, bindCraftScroll, consumeDebugToggle, consumeMapToggle, type InputState } from "./core/input";
 import { applyRemoteInputFrame, createInputSyncState, readPlayerInputFrame, trimInputSyncState, storeLocalInputFrame, type InputSyncState } from "./core/input-sync";
-import { applyInputFrame, InputBits, storeInputFrameData, type InputFrame } from "./core/input-buffer";
+import { applyInputFrame, InputBits, storeInputFrameData, type InputBuffer, type InputFrame } from "./core/input-buffer";
 import { isEntityAlive } from "./core/ecs";
 import { startLoop } from "./core/loop";
 import { hashGameStateSnapshot } from "./core/state-hash";
@@ -9,7 +9,9 @@ import { createGameStateSnapshot, createRollbackBuffer, getRollbackSnapshot, res
 import { simulateFrame } from "./game/sim";
 import { runDeterminismCheck } from "./dev/determinism";
 import { render } from "./render/renderer";
-import { setHudRoomCode, setHudSeed } from "./render/ui";
+import { getCraftingLayout } from "./render/crafting-layout";
+import { setHudRoomCode, setHudSeed, toggleDebugOverlay } from "./render/ui";
+import { closeMapOverlay, isMapOverlayEnabled, toggleMapOverlay } from "./game/map-overlay";
 import { setPlayerNameLabels } from "./render/world";
 import { createClientSession, createHostSession, finalizeSessionStart, pauseSession, resumeSessionFromFrame, setSessionFrame, type SessionState } from "./net/session";
 import { decodeInputPacket, encodeInputPacket, type InputPacket } from "./net/input-wire";
@@ -73,9 +75,10 @@ const netIndicator = document.getElementById("net-indicator") as HTMLElement | n
 const inGameMenu = document.getElementById("in-game-menu") as HTMLElement | null;
 const resumeButton = document.getElementById("resume-game") as HTMLButtonElement | null;
 const exitToMenuButton = document.getElementById("exit-to-menu") as HTMLButtonElement | null;
+const MAX_DEVICE_PIXEL_RATIO = 1.5;
 
 const resize = () => {
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const dpr = Math.min(MAX_DEVICE_PIXEL_RATIO, Math.max(1, window.devicePixelRatio || 1));
   const { innerWidth, innerHeight } = window;
 
   canvas.width = Math.floor(innerWidth * dpr);
@@ -158,6 +161,18 @@ const setInGameMenuVisible = (visible: boolean) => {
   }
   isInGameMenuOpen = visible;
   inGameMenu.classList.toggle("hidden", !visible);
+
+  if (!activeSession || activeSession.expectedPlayerCount !== 1) {
+    return;
+  }
+
+  if (visible) {
+    if (activeSession.status === "running") {
+      pauseSession(activeSession, "menu");
+    }
+  } else if (activeSession.status === "paused" && activeSession.pauseReason === "menu") {
+    resumeSessionFromFrame(activeSession, activeSession.currentFrame);
+  }
 };
 
 const returnToMainMenu = () => {
@@ -667,6 +682,46 @@ const resetStateHashTracking = () => {
   lastHashSentFrame = -1;
 };
 
+const resetInputBuffer = (buffer: InputBuffer) => {
+  buffer.frames.fill(-1);
+  buffer.buttons.fill(0);
+  buffer.craftIndex.fill(0);
+  buffer.craftScroll.fill(0);
+  buffer.inventoryIndex.fill(0);
+  buffer.inventoryScroll.fill(0);
+  buffer.mouseX.fill(0);
+  buffer.mouseY.fill(0);
+};
+
+const resetRemotePlayerInputState = (playerIndex: number) => {
+  if (!activeGame) {
+    return;
+  }
+  const buffer = activeGame.inputSync.buffers[playerIndex];
+  if (buffer) {
+    resetInputBuffer(buffer);
+  }
+  const predicted = activeGame.predictedFrames[playerIndex];
+  if (predicted) {
+    predicted.buttons = 0;
+    predicted.craftIndex = -1;
+    predicted.craftScroll = 0;
+    predicted.inventoryIndex = -1;
+    predicted.inventoryScroll = 0;
+    predicted.mouseX = 0;
+    predicted.mouseY = 0;
+  }
+  if (playerIndex >= 0 && playerIndex < activeGame.maxInputFrames.length) {
+    activeGame.maxInputFrames[playerIndex] = activeGame.clock.frame - 1;
+  }
+  const queue = activeGame.remoteInputQueue;
+  for (let i = queue.length - 1; i >= 0; i -= 1) {
+    if (queue[i].playerIndex === playerIndex) {
+      queue.splice(i, 1);
+    }
+  }
+};
+
 const syncRoomPlayers = (roomState: RoomConnectionState, players: RoomPlayerInfo[]) => {
   roomState.players = players;
 
@@ -714,6 +769,7 @@ const syncRoomPlayers = (roomState: RoomConnectionState, players: RoomPlayerInfo
     const isAlive = isEntityAlive(ecs, playerId);
     if (shouldBeAlive && !isAlive) {
       ecs.alive[playerId] = 1;
+      resetRemotePlayerInputState(index);
       const delayFrames = Math.max(0, roomState.inputDelayFrames);
       if (index !== activeSession?.localPlayerIndex) {
         activeGame.minRemoteInputFrames[index] = activeGame.clock.frame + delayFrames;
@@ -722,6 +778,7 @@ const syncRoomPlayers = (roomState: RoomConnectionState, players: RoomPlayerInfo
     }
     if (!shouldBeAlive && isAlive) {
       ecs.alive[playerId] = 0;
+      resetRemotePlayerInputState(index);
       if (activeGame.state.attackEffects[index]) {
         activeGame.state.attackEffects[index] = null;
       }
@@ -1029,6 +1086,7 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
 
   await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
 
+  const hasPendingResync = pendingResync !== null;
   const inputDelayFrames = options.inputDelayFrames ?? INPUT_DELAY_FRAMES;
   const session = options.session ?? createHostSession(seed, PLAYER_COUNT);
   if (!options.session) {
@@ -1036,13 +1094,17 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
   }
   activeSession = session;
   resetStateHashTracking();
-  setNetIndicator("", false);
+  if (!hasPendingResync) {
+    setNetIndicator("", false);
+  }
   setHudRoomCode(activeRoomState?.roomCode ?? null);
-  pendingResync = null;
-  resyncRequestFrame = null;
-  resyncRetryCount = 0;
   lastResyncFrame = -1;
-  clearResyncTimers();
+  if (!hasPendingResync) {
+    pendingResync = null;
+    resyncRequestFrame = null;
+    resyncRetryCount = 0;
+    clearResyncTimers();
+  }
   clearResyncSendState();
 
   const sessionSeed = session.seed ?? seed;
@@ -1071,6 +1133,10 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
   };
   if (activeRoomState) {
     syncRoomPlayers(activeRoomState, activeRoomState.players);
+  }
+
+  if (hasPendingResync) {
+    pauseSession(session, "late-join");
   }
 
   const enqueueRemoteInput = (playerIndex: number, remoteFrame: number, inputFrame: InputFrame) => {
@@ -1197,7 +1263,14 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
   };
 
   bindKeyboard(liveInput);
-  bindMouse(liveInput);
+  bindMouse(liveInput, (x, y) => {
+    const layout = getCraftingLayout(state, window.innerWidth, window.innerHeight);
+    if (!layout) {
+      return false;
+    }
+    const { button } = layout;
+    return x >= button.x && x <= button.x + button.width && y >= button.y && y <= button.y + button.height;
+  });
   bindCraftScroll(liveInput, () => state.crafting[state.localPlayerIndex]?.isOpen ?? false);
   bindInventorySelection(liveInput, () => {
     const localPlayerId = state.playerIds[state.localPlayerIndex];
@@ -1217,15 +1290,26 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
 
   setOverlayVisible(loadingOverlay, false);
 
-  startLoop({
-    onUpdate: (delta) => {
-      if (session.status !== "running") {
-        return;
-      }
+  if (pendingResync && pendingResync.receivedBytes >= pendingResync.totalBytes) {
+    applyResyncSnapshot(pendingResync);
+  }
 
-      const inputFrameIndex = clock.frame + inputDelayFrames;
-      storeLocalInputFrame(inputSync, inputFrameIndex, liveInput);
-      updateMaxInputFrame(session.localPlayerIndex, inputFrameIndex);
+  startLoop({
+      onUpdate: (delta) => {
+        if (session.status !== "running") {
+          return;
+        }
+
+        if (consumeDebugToggle(liveInput)) {
+          toggleDebugOverlay();
+        }
+        if (consumeMapToggle(liveInput)) {
+          toggleMapOverlay();
+        }
+
+        const inputFrameIndex = clock.frame + inputDelayFrames;
+        storeLocalInputFrame(inputSync, inputFrameIndex, liveInput);
+        updateMaxInputFrame(session.localPlayerIndex, inputFrameIndex);
 
       if (transport) {
         const outgoing = readPlayerInputFrame(inputSync, session.localPlayerIndex, inputFrameIndex);
@@ -1544,6 +1628,9 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, socket: WebSock
         receivedBytes: 0,
         lastReceivedAt: Date.now()
       };
+      if (activeSession && activeSession.status === "running") {
+        pauseSession(activeSession, "late-join");
+      }
       setNetIndicator("Receiving snapshot...", true);
       roomState.ui?.setStatus("Receiving resync snapshot...");
       scheduleResyncTimeout();
@@ -1652,6 +1739,11 @@ const initMenu = () => {
       return;
     }
     if (!hasStarted || !activeGame || !activeSession) {
+      return;
+    }
+    if (isMapOverlayEnabled()) {
+      closeMapOverlay();
+      event.preventDefault();
       return;
     }
     const craftingOpen = activeGame.state.crafting[activeSession.localPlayerIndex]?.isOpen ?? false;

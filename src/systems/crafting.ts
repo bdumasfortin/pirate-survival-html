@@ -1,6 +1,6 @@
 import type { InputState } from "../core/input";
 import type { GameState } from "../game/state";
-import { consumeCraftIndex, consumeCraftScroll, consumeCloseCraft, consumeToggleCraft, consumeUse } from "../core/input";
+import { consumeCraft, consumeCraftIndex, consumeCraftScroll, consumeCloseCraft, consumeToggleCraft, consumeUse } from "../core/input";
 import { craftRecipe, recipes } from "../game/crafting";
 import type { EntityId } from "../core/ecs";
 
@@ -19,6 +19,7 @@ export const updateCrafting = (state: GameState, playerIndex: number, playerId: 
     consumeCraftIndex(input);
     consumeCraftScroll(input);
     consumeUse(input);
+    consumeCraft(input);
     return;
   }
 
@@ -48,7 +49,7 @@ export const updateCrafting = (state: GameState, playerIndex: number, playerId: 
     crafting.selectedIndex = clampIndex(crafting.selectedIndex + scrollDelta, recipes.length);
   }
 
-  if (!consumeUse(input)) {
+  if (!consumeCraft(input)) {
     return;
   }
 

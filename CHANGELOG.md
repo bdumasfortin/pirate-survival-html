@@ -2,6 +2,31 @@
 
 All notable changes to this project are documented here.
 
+## [0.1.10] - 2026-01-03
+### Added
+- T to toggle a new debug panel
+- Day/Night cycle
+- Map of the world
+- Pause on escape (singleplayer)
+- Upgrades to Raft navigation feels
+
+### Changed
+- Big upgrades to island generation
+- Some temporary changes to the crafting menu
+- Small tweak to enemy pathing
+
+### Fixed
+- Heavy CPU optimisations to fix stutter in network play
+- Right click would stop current movement, not anymore!
+
+## [0.1.9] - 2026-01-02
+### Added
+- Game now has a name!
+
+### Changed
+- Now allowing 4 players per room
+- Upgrades to main menu's UI
+
 ## [0.1.8] - 2026-01-01
 ### Fixed
 - Server build wasn't working with node 24
