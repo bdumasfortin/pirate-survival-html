@@ -16,6 +16,7 @@ import { resourceNodeTypeFromIndex } from "../world/resource-node-types";
 import { propKindFromIndex } from "../game/prop-kinds";
 import { UI_FONT } from "./ui-config";
 import { findContainingIsland } from "../world/island-geometry";
+import { SPAWN_ZONE_RADIUS } from "../world/world-config";
 
 const SEA_GRADIENT_TOP = "#2c7a7b";
 const SEA_GRADIENT_BOTTOM = "#0b2430";
@@ -49,6 +50,7 @@ const PLAYER_NAME_RADIUS = 4;
 const PLAYER_NAME_LOWER_OFFSET = 4;
 const PLAYER_NAME_TEXT_OFFSET = 2;
 const CULL_PADDING = 120;
+const SPAWN_ZONE_COLOR = "#b88b65";
 
 let playerNameLabels: string[] = [];
 const labelMetricsCache = new Map<string, { width: number; height: number }>();
@@ -291,6 +293,22 @@ const renderIslands = (ctx: CanvasRenderingContext2D, state: GameState, view: Vi
       drawIsland(ctx, inner);
     }
   });
+};
+
+const renderSpawnZone = (ctx: CanvasRenderingContext2D, state: GameState, view: ViewBounds) => {
+  const spawnIsland = state.world.islands[0];
+  if (!spawnIsland) {
+    return;
+  }
+  const { x, y } = spawnIsland.center;
+  if (!isCircleInView(x, y, SPAWN_ZONE_RADIUS, view)) {
+    return;
+  }
+
+  ctx.beginPath();
+  ctx.arc(x, y, SPAWN_ZONE_RADIUS, 0, Math.PI * 2);
+  ctx.fillStyle = SPAWN_ZONE_COLOR;
+  ctx.fill();
 };
 
 const renderGroundItems = (ctx: CanvasRenderingContext2D, state: GameState, view: ViewBounds) => {
@@ -638,6 +656,7 @@ export const renderWorld = (ctx: CanvasRenderingContext2D, state: GameState) => 
   ctx.translate(-cameraX, -cameraY);
 
   renderIslands(ctx, state, view);
+  renderSpawnZone(ctx, state, view);
   renderResources(ctx, state, view, "non-trees");
   renderProps(ctx, state, view);
   renderGroundItems(ctx, state, view);

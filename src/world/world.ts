@@ -14,6 +14,7 @@ import {
   ISLAND_TYPE_WEIGHTS,
   RESOURCE_NODE_CONFIGS_BY_TYPE,
   RESOURCE_PLACEMENT_CONFIG,
+  SPAWN_ZONE_RADIUS,
   WORLD_GEN_CONFIG
 } from "./world-config";
 import { isPointInIsland } from "./island-geometry";
@@ -129,20 +130,20 @@ const rollYield = (rng: Rng, range: YieldRange) => {
   return Math.floor(rng() * (range.max - range.min + 1)) + range.min;
 };
 
-const getRandomPointInIsland = (island: Island, rng: Rng) => {
+const getRandomPointInIsland = (island: Island, rng: Rng, reject?: (position: Vec2) => boolean) => {
   const islandRadius = getIslandRadius(island) * RESOURCE_PLACEMENT_CONFIG.radiusScale;
-  let position: Vec2 = island.center;
+  let position: Vec2 | null = null;
 
   for (let attempt = 0; attempt < RESOURCE_PLACEMENT_CONFIG.attempts; attempt += 1) {
     const angle = rng() * Math.PI * 2;
     const radius = Math.sqrt(rng());
-    position = {
+    const candidate = {
       x: island.center.x + Math.cos(angle) * islandRadius * radius,
       y: island.center.y + Math.sin(angle) * islandRadius * radius
     };
 
-    if (isPointInIsland(position, island)) {
-      return position;
+    if (isPointInIsland(candidate, island) && (!reject || !reject(candidate))) {
+      return candidate;
     }
   }
 
@@ -151,7 +152,7 @@ const getRandomPointInIsland = (island: Island, rng: Rng) => {
 
 const RESOURCE_MASK = ComponentMask.Position | ComponentMask.Radius | ComponentMask.Tag | ComponentMask.Resource;
 
-const spawnResourcesForIsland = (ecs: EcsWorld, island: Island, seed: number) => {
+const spawnResourcesForIsland = (ecs: EcsWorld, island: Island, seed: number, reject?: (position: Vec2) => boolean) => {
   const rng = createRng(seed);
 
   const configs = RESOURCE_NODE_CONFIGS_BY_TYPE[island.type];
@@ -180,12 +181,21 @@ const spawnResourcesForIsland = (ecs: EcsWorld, island: Island, seed: number) =>
     const count = scaledCounts[configIndex] ?? config.count;
     const minSpacing = Math.max(config.radius * 2.2, meanSpacing * 0.6);
     for (let i = 0; i < count; i += 1) {
-      let position = getRandomPointInIsland(island, rng);
+      let position = getRandomPointInIsland(island, rng, reject);
+      if (!position) {
+        continue;
+      }
       for (let attempt = 0; attempt < RESOURCE_PLACEMENT_CONFIG.attempts; attempt += 1) {
         if (isFarEnough(position, minSpacing)) {
           break;
         }
-        position = getRandomPointInIsland(island, rng);
+        position = getRandomPointInIsland(island, rng, reject);
+        if (!position) {
+          break;
+        }
+      }
+      if (!position) {
+        continue;
       }
       placed.push(position);
       const remaining = rollYield(rng, config.yield);
@@ -332,7 +342,17 @@ export const createWorld = (seed: string | number): WorldState => {
 };
 
 export const spawnWorldResources = (ecs: EcsWorld, world: WorldState) => {
-  world.islands.forEach((island) => {
-    spawnResourcesForIsland(ecs, island, island.seed + 100);
+  const spawnIsland = world.islands[0];
+  const spawnCenter = spawnIsland?.center ?? { x: 0, y: 0 };
+  const spawnRadiusSq = SPAWN_ZONE_RADIUS * SPAWN_ZONE_RADIUS;
+  const rejectSpawnZone = (position: Vec2) => {
+    const dx = position.x - spawnCenter.x;
+    const dy = position.y - spawnCenter.y;
+    return dx * dx + dy * dy < spawnRadiusSq;
+  };
+
+  world.islands.forEach((island, index) => {
+    const reject = index === 0 ? rejectSpawnZone : undefined;
+    spawnResourcesForIsland(ecs, island, island.seed + 100, reject);
   });
 };
