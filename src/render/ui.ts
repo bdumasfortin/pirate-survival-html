@@ -8,7 +8,7 @@ import type { Recipe } from "../game/crafting";
 import { getNearestGatherableResource } from "../systems/gathering";
 import { DAMAGE_FLASH_DURATION } from "../game/combat-config";
 import { RAFT_INTERACTION_DISTANCE } from "../game/raft-config";
-import { INVENTORY_SLOT_COUNT, isEntityAlive } from "../core/ecs";
+import { EntityTag, INVENTORY_SLOT_COUNT, isEntityAlive } from "../core/ecs";
 import { resourceNodeTypeFromIndex } from "../world/resource-node-types";
 import { equipmentPlaceholderImages, isImageReady, itemImages } from "./assets";
 import { drawRoundedRect } from "./render-helpers";
@@ -68,6 +68,18 @@ const buildVersionLabel = `v${__APP_VERSION__}${import.meta.env.DEV ? "-dev" : "
 
 let activeSeedLabel = "Seed: --";
 let activeRoomCodeLabel: string | null = null;
+let debugOverlayEnabled = false;
+let debugFps = 0;
+let debugFrames = 0;
+let debugLastSample = performance.now();
+
+export const toggleDebugOverlay = () => {
+  debugOverlayEnabled = !debugOverlayEnabled;
+};
+
+export const setDebugOverlayEnabled = (enabled: boolean) => {
+  debugOverlayEnabled = enabled;
+};
 
 export const setHudSeed = (seed: string) => {
   activeSeedLabel = `Seed: ${seed}`;
@@ -547,28 +559,106 @@ const renderBuildVersion = (ctx: CanvasRenderingContext2D) => {
   ctx.restore();
 };
 
-const renderPlayerCoords = (ctx: CanvasRenderingContext2D, state: GameState) => {
-  const playerId = getLocalPlayerId(state);
+const updateDebugFps = () => {
+  debugFrames += 1;
+  const now = performance.now();
+  const elapsed = now - debugLastSample;
+  if (elapsed >= 500) {
+    debugFps = Math.round((debugFrames * 1000) / elapsed);
+    debugFrames = 0;
+    debugLastSample = now;
+  }
+};
+
+const countEntitiesByTag = (state: GameState) => {
   const ecs = state.ecs;
-  if (playerId === undefined || !isEntityAlive(ecs, playerId)) {
+  const counts = {
+    total: 0,
+    players: 0,
+    enemies: 0,
+    resources: 0,
+    groundItems: 0,
+    props: 0
+  };
+
+  for (let id = 0; id < ecs.nextId; id += 1) {
+    if (ecs.alive[id] !== 1) {
+      continue;
+    }
+    counts.total += 1;
+    switch (ecs.tag[id]) {
+      case EntityTag.Player:
+        counts.players += 1;
+        break;
+      case EntityTag.Enemy:
+        counts.enemies += 1;
+        break;
+      case EntityTag.Resource:
+        counts.resources += 1;
+        break;
+      case EntityTag.GroundItem:
+        counts.groundItems += 1;
+        break;
+      case EntityTag.Prop:
+        counts.props += 1;
+        break;
+      default:
+        break;
+    }
+  }
+
+  return counts;
+};
+
+const renderDebugOverlay = (ctx: CanvasRenderingContext2D, state: GameState) => {
+  if (!debugOverlayEnabled) {
     return;
   }
+
+  updateDebugFps();
+
+  const playerId = getLocalPlayerId(state);
+  const ecs = state.ecs;
+  const counts = countEntitiesByTag(state);
 
   const fontSize = 14;
   const lineHeight = fontSize + 4;
   const paddingX = 12;
-  const paddingTop = 8;
-  const paddingBottom = 4;
+  const paddingY = 8;
   const lines = [
-    `X: ${Math.round(ecs.position.x[playerId])}`,
-    `Y: ${Math.round(ecs.position.y[playerId])}`
+    `FPS: ${debugFps}`,
+    `Time: ${state.time.toFixed(2)}s`,
+    `Players: ${counts.players}/${state.playerIds.length} alive (local ${state.localPlayerIndex})`,
+    `Islands: ${state.world.islands.length}`,
+    `Entities: ${counts.total} (next ${ecs.nextId})`,
+    `Enemies: ${counts.enemies}  Resources: ${counts.resources}`,
+    `Ground: ${counts.groundItems}  Props: ${counts.props}`
   ];
+
+  if (playerId !== undefined && isEntityAlive(ecs, playerId)) {
+    const health = Math.round(ecs.playerHealth[playerId]);
+    const maxHealth = Math.round(ecs.playerMaxHealth[playerId]);
+    const hunger = Math.round(ecs.playerHunger[playerId]);
+    const maxHunger = Math.round(ecs.playerMaxHunger[playerId]);
+    const maxArmor = Math.round(ecs.playerMaxArmor[playerId]);
+    lines.push(`X: ${Math.round(ecs.position.x[playerId])}`);
+    lines.push(`Y: ${Math.round(ecs.position.y[playerId])}`);
+    lines.push(`HP: ${health}/${maxHealth}  Hunger: ${hunger}/${maxHunger}`);
+    if (maxArmor > 0) {
+      const armor = Math.round(ecs.playerArmor[playerId]);
+      lines.push(`Armor: ${armor}/${maxArmor}`);
+    }
+    lines.push(`Dead: ${ecs.playerIsDead[playerId] ? "yes" : "no"}  Raft: ${ecs.playerIsOnRaft[playerId] ? "yes" : "no"}`);
+  } else {
+    lines.push("X: --");
+    lines.push("Y: --");
+  }
 
   ctx.save();
   ctx.font = `${fontSize}px ${UI_FONT}`;
   const maxWidth = lines.reduce((max, line) => Math.max(max, ctx.measureText(line).width), 0);
   const boxWidth = maxWidth + paddingX * 2;
-  const boxHeight = lines.length * lineHeight + paddingTop + paddingBottom;
+  const boxHeight = lines.length * lineHeight + paddingY * 2;
   const boxX = HUD_MARGIN;
   const boxY = HUD_MARGIN;
 
@@ -582,10 +672,7 @@ const renderPlayerCoords = (ctx: CanvasRenderingContext2D, state: GameState) => 
   ctx.fillStyle = "rgba(246, 231, 193, 0.9)";
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
-
-  const contentHeight = boxHeight - paddingTop - paddingBottom;
-  const textBlockHeight = lines.length * lineHeight;
-  const startY = boxY + paddingTop + Math.max(0, (contentHeight - textBlockHeight) / 2);
+  const startY = boxY + paddingY;
 
   lines.forEach((line, index) => {
     const x = boxX + paddingX;
@@ -691,7 +778,7 @@ export const renderHud = (ctx: CanvasRenderingContext2D, state: GameState) => {
   renderInventory(ctx, state);
   renderHints(ctx);
   renderBuildVersion(ctx);
-  renderPlayerCoords(ctx, state);
+  renderDebugOverlay(ctx, state);
   renderDamageFlash(ctx, state);
   renderDeathOverlay(ctx, state);
 };
