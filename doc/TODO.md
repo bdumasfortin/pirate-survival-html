@@ -1,6 +1,5 @@
 # TO DO
 
-- [ ] Pause game when in esc menu (singleplayer only)
 - [ ] Resources respawns
 - [ ] Creature respawns
 - [ ] Make bigger island

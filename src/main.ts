@@ -159,6 +159,18 @@ const setInGameMenuVisible = (visible: boolean) => {
   }
   isInGameMenuOpen = visible;
   inGameMenu.classList.toggle("hidden", !visible);
+
+  if (!activeSession || activeSession.expectedPlayerCount !== 1) {
+    return;
+  }
+
+  if (visible) {
+    if (activeSession.status === "running") {
+      pauseSession(activeSession, "menu");
+    }
+  } else if (activeSession.status === "paused" && activeSession.pauseReason === "menu") {
+    resumeSessionFromFrame(activeSession, activeSession.currentFrame);
+  }
 };
 
 const returnToMainMenu = () => {
