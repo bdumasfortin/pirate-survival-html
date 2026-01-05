@@ -26,14 +26,14 @@ export const WORLD_GEN_CONFIG = {
   ringMin: 650 * ISLAND_SIZE_SCALE,
   ringMax: 2400 * ISLAND_SIZE_SCALE,
   edgePadding: 180 * ISLAND_SIZE_SCALE,
-  placementAttempts: 120
+  placementAttempts: 120,
 };
 
 export const ISLAND_TYPE_WEIGHTS: Record<IslandType, number> = {
   standard: 5,
   forest: 5,
   crabBoss: 1,
-  wolfBoss: 0
+  wolfBoss: 0,
 };
 
 export const ISLAND_SHAPE_CONFIG = {
@@ -53,12 +53,12 @@ export const ISLAND_SHAPE_CONFIG = {
   smoothingPassesMin: 1,
   smoothingPassesMax: 3,
   leanMin: 0.7,
-  leanMax: 1.35
+  leanMax: 1.35,
 };
 
 export const RESOURCE_PLACEMENT_CONFIG = {
   radiusScale: 0.78,
-  attempts: 40
+  attempts: 40,
 };
 
 export type ResourceNodeConfig = {
@@ -77,7 +77,7 @@ export const RESOURCE_NODE_CONFIGS: ResourceNodeConfig[] = [
     radius: 40,
     count: 7,
     yield: { min: 3, max: 5 },
-    respawnTime: 0
+    respawnTime: 0,
   },
   {
     nodeType: "rock",
@@ -85,7 +85,7 @@ export const RESOURCE_NODE_CONFIGS: ResourceNodeConfig[] = [
     radius: 4.5,
     count: 8,
     yield: { min: 1, max: 1 },
-    respawnTime: 0
+    respawnTime: 0,
   },
   {
     nodeType: "bush",
@@ -93,13 +93,13 @@ export const RESOURCE_NODE_CONFIGS: ResourceNodeConfig[] = [
     radius: 14,
     count: 5,
     yield: { min: 2, max: 3 },
-    respawnTime: 20
-  }
+    respawnTime: 20,
+  },
 ];
 
 export const RESOURCE_NODE_CONFIGS_BY_TYPE: Record<IslandType, ResourceNodeConfig[]> = {
   standard: RESOURCE_NODE_CONFIGS,
   forest: RESOURCE_NODE_CONFIGS,
   wolfBoss: RESOURCE_NODE_CONFIGS,
-  crabBoss: RESOURCE_NODE_CONFIGS.filter((config) => config.nodeType === "rock")
+  crabBoss: RESOURCE_NODE_CONFIGS.filter((config) => config.nodeType === "rock"),
 };

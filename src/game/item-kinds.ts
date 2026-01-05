@@ -20,7 +20,7 @@ export const ITEM_KIND_TO_INDEX: Record<ItemKind, number> = {
   wolfmeat: 7,
   crabhelmet: 8,
   wolfcloak: 9,
-  krakenring: 10
+  krakenring: 10,
 };
 
 const ITEM_KIND_BY_INDEX: ItemKind[] = [
@@ -33,10 +33,9 @@ const ITEM_KIND_BY_INDEX: ItemKind[] = [
   "wolfmeat",
   "crabhelmet",
   "wolfcloak",
-  "krakenring"
+  "krakenring",
 ];
 
 export const itemKindToIndex = (kind: ItemKind) => ITEM_KIND_TO_INDEX[kind];
 
-export const itemKindFromIndex = (index: number): ItemKind =>
-  ITEM_KIND_BY_INDEX[index - 1] ?? "wood";
+export const itemKindFromIndex = (index: number): ItemKind => ITEM_KIND_BY_INDEX[index - 1] ?? "wood";

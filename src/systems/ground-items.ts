@@ -1,9 +1,9 @@
-import type { GameState } from "../game/state";
-import { destroyEntity, forEachEntity, isEntityAlive, type EntityId } from "../core/ecs";
-import { addToInventory } from "../game/inventory";
-import { GROUND_ITEM_PICKUP_COOLDOWN, GROUND_ITEM_PICKUP_RANGE } from "../game/ground-items-config";
+import { destroyEntity, type EntityId, forEachEntity, isEntityAlive } from "../core/ecs";
 import { GROUND_ITEM_MASK } from "../game/ground-items";
+import { GROUND_ITEM_PICKUP_COOLDOWN, GROUND_ITEM_PICKUP_RANGE } from "../game/ground-items-config";
+import { addToInventory } from "../game/inventory";
 import { itemKindFromIndex } from "../game/item-kinds";
+import type { GameState } from "../game/state";
 
 export const pickupGroundItems = (state: GameState, playerId: EntityId) => {
   const ecs = state.ecs;

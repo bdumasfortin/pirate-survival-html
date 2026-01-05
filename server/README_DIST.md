@@ -1,8 +1,9 @@
 # Pirate Survival Relay Server
 
 ## How to run
-1) Install Node.js (18+ recommended).
-2) Start the server:
+
+1. Install Node.js (18+ recommended).
+2. Start the server:
    `node server.js`
 
 The default port is `8787`.
@@ -10,8 +11,10 @@ The default port is `8787`.
 Keep `package.json` next to `server.js` if you run it from a folder that uses `"type": "module"`.
 
 ## Configuration
+
 - Set a custom port:
   `PORT=9000 node server.js`
 
 ## Notes
+
 - This server is relay-only; clients connect with WebSocket URLs like `ws://HOST:8787`.

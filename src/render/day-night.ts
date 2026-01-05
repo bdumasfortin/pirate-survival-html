@@ -1,5 +1,5 @@
-import type { GameState } from "../game/state";
 import { getDayCycleInfo, getDayTitleInfo } from "../game/day-night";
+import type { GameState } from "../game/state";
 import { UI_FONT } from "./ui-config";
 
 export const renderDayNightOverlay = (ctx: CanvasRenderingContext2D, state: GameState) => {

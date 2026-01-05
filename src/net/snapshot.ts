@@ -1,4 +1,4 @@
-import type { Vec2Store, EcsSnapshot } from "../core/ecs";
+import type { EcsSnapshot, Vec2Store } from "../core/ecs";
 import { EQUIPMENT_SLOT_COUNT, INVENTORY_SLOT_COUNT } from "../core/ecs";
 import { createGameStateSnapshot, type GameStateSnapshot } from "../game/rollback";
 import type { GameState } from "../game/state";
@@ -80,11 +80,12 @@ type SerializedGameStateSnapshot = {
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-const sliceArray = (source: ArrayLike<number>, length: number) => Array.from(Array.prototype.slice.call(source, 0, length));
+const sliceArray = (source: ArrayLike<number>, length: number) =>
+  Array.from(Array.prototype.slice.call(source, 0, length));
 
 const serializeVec2Store = (store: Vec2Store, length: number): SerializedVec2Store => ({
   x: sliceArray(store.x, length),
-  y: sliceArray(store.y, length)
+  y: sliceArray(store.y, length),
 });
 
 const serializeEcsSnapshot = (ecs: EcsSnapshot): SerializedEcsSnapshot => {
@@ -146,13 +147,13 @@ const serializeEcsSnapshot = (ecs: EcsSnapshot): SerializedEcsSnapshot => {
     groundItemKind: sliceArray(ecs.groundItemKind, entityCount),
     groundItemQuantity: sliceArray(ecs.groundItemQuantity, entityCount),
     groundItemDroppedAt: sliceArray(ecs.groundItemDroppedAt, entityCount),
-    propKind: sliceArray(ecs.propKind, entityCount)
+    propKind: sliceArray(ecs.propKind, entityCount),
   };
 };
 
 const deserializeVec2Store = (payload: SerializedVec2Store): Vec2Store => ({
   x: new Float32Array(payload.x),
-  y: new Float32Array(payload.y)
+  y: new Float32Array(payload.y),
 });
 
 const deserializeEcsSnapshot = (payload: SerializedEcsSnapshot): EcsSnapshot => ({
@@ -209,7 +210,7 @@ const deserializeEcsSnapshot = (payload: SerializedEcsSnapshot): EcsSnapshot => 
   groundItemKind: new Uint8Array(payload.groundItemKind),
   groundItemQuantity: new Int16Array(payload.groundItemQuantity),
   groundItemDroppedAt: new Float32Array(payload.groundItemDroppedAt),
-  propKind: new Uint8Array(payload.propKind)
+  propKind: new Uint8Array(payload.propKind),
 });
 
 export const serializeGameStateSnapshot = (snapshot: GameStateSnapshot) => {
@@ -221,7 +222,7 @@ export const serializeGameStateSnapshot = (snapshot: GameStateSnapshot) => {
     rngState: snapshot.rngState,
     crafting: snapshot.crafting,
     attackEffects: snapshot.attackEffects,
-    ecs: serializeEcsSnapshot(snapshot.ecs)
+    ecs: serializeEcsSnapshot(snapshot.ecs),
   };
   return encoder.encode(JSON.stringify(payload));
 };
@@ -236,15 +237,13 @@ export const deserializeGameStateSnapshot = (data: Uint8Array): GameStateSnapsho
     rngState: payload.rngState,
     crafting: payload.crafting,
     attackEffects: payload.attackEffects,
-    ecs: deserializeEcsSnapshot(payload.ecs)
+    ecs: deserializeEcsSnapshot(payload.ecs),
   };
 };
 
-export const serializeGameState = (state: GameState) =>
-  serializeGameStateSnapshot(createGameStateSnapshot(state));
+export const serializeGameState = (state: GameState) => serializeGameStateSnapshot(createGameStateSnapshot(state));
 
-export const deserializeGameState = (data: Uint8Array) =>
-  deserializeGameStateSnapshot(data);
+export const deserializeGameState = (data: Uint8Array) => deserializeGameStateSnapshot(data);
 
 const BASE64_CHUNK = 0x8000;
 

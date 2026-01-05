@@ -1,22 +1,27 @@
-import type { GameState } from "../game/state";
-import type { Vec2 } from "../core/types";
-import type { Island, IslandType, ResourceNodeType } from "../world/types";
-import { CAMERA_ZOOM } from "./ui-config";
-import { GROUND_ITEM_RENDER_SIZE } from "../game/ground-items-config";
-import { ATTACK_EFFECT_DURATION, CRAB_HIT_FLASH_DURATION, PLAYER_ATTACK_COOLDOWN } from "../game/combat-config";
 import { ComponentMask, forEachEntity, isEntityAlive } from "../core/ecs";
+import type { Vec2 } from "../core/types";
+import { ATTACK_EFFECT_DURATION, CRAB_HIT_FLASH_DURATION, PLAYER_ATTACK_COOLDOWN } from "../game/combat-config";
 import { enemyKindFromIndex } from "../game/enemy-kinds";
 import { GROUND_ITEM_MASK } from "../game/ground-items";
-import { drawIsland, insetPoints } from "./render-helpers";
-import { isImageReady, itemImages, propImages, worldImages } from "./assets";
+import { GROUND_ITEM_RENDER_SIZE } from "../game/ground-items-config";
 import { getInventorySelectedIndex, getInventorySlotKind, getInventorySlotQuantity } from "../game/inventory";
-import { itemKindFromIndex, type ItemKind } from "../game/item-kinds";
-import { getStructurePreviewRadius, getStructurePropKind, getStructureSurface, isStructureItem } from "../game/structure-items";
-import { resourceNodeTypeFromIndex } from "../world/resource-node-types";
+import { type ItemKind, itemKindFromIndex } from "../game/item-kinds";
 import { propKindFromIndex } from "../game/prop-kinds";
-import { UI_FONT } from "./ui-config";
+import type { GameState } from "../game/state";
+import {
+  getStructurePreviewRadius,
+  getStructurePropKind,
+  getStructureSurface,
+  isStructureItem,
+} from "../game/structure-items";
 import { findContainingIsland } from "../world/island-geometry";
+import { resourceNodeTypeFromIndex } from "../world/resource-node-types";
+import type { Island, IslandType, ResourceNodeType } from "../world/types";
 import { SPAWN_ZONE_RADIUS } from "../world/world-config";
+import { isImageReady, itemImages, propImages, worldImages } from "./assets";
+import { drawIsland, insetPoints } from "./render-helpers";
+import { CAMERA_ZOOM } from "./ui-config";
+import { UI_FONT } from "./ui-config";
 
 const SEA_GRADIENT_TOP = "#2c7a7b";
 const SEA_GRADIENT_BOTTOM = "#0b2430";
@@ -73,7 +78,7 @@ const getLabelMetrics = (ctx: CanvasRenderingContext2D, label: string) => {
   const metrics = ctx.measureText(label);
   const entry = {
     width: metrics.width,
-    height: metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent
+    height: metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent,
   };
   labelMetricsCache.set(label, entry);
   return entry;
@@ -122,11 +127,18 @@ const getViewBounds = (cameraX: number, cameraY: number, width: number, height: 
     minX: cameraX - halfWidth - CULL_PADDING,
     maxX: cameraX + halfWidth + CULL_PADDING,
     minY: cameraY - halfHeight - CULL_PADDING,
-    maxY: cameraY + halfHeight + CULL_PADDING
+    maxY: cameraY + halfHeight + CULL_PADDING,
   };
 };
 
-const drawRoundedRect = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) => {
+const drawRoundedRect = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+) => {
   const clamped = Math.max(0, Math.min(radius, Math.min(width, height) / 2));
   ctx.beginPath();
   ctx.moveTo(x + clamped, y);
@@ -141,18 +153,18 @@ const islandStyles: Record<IslandType, { sand: string; grass?: string }> = {
   standard: { sand: "#f6e7c1", grass: "#7dbb6a" },
   forest: { sand: "#f6e7c1", grass: "#4b7a74" },
   wolfBoss: { sand: "#f6e7c1", grass: "#4b7a74" },
-  crabBoss: { sand: "#f6e7c1" }
+  crabBoss: { sand: "#f6e7c1" },
 };
 const nodeColors: Record<ResourceNodeType, string> = {
   tree: "#3f7d4a",
   rock: "#8f9399",
-  bush: "#6f4aa8"
+  bush: "#6f4aa8",
 };
 
 const enemyColors: Record<string, string> = {
   crab: "#d0674b",
   wolf: "#8a6b55",
-  kraken: "#2f8aa0"
+  kraken: "#2f8aa0",
 };
 
 const {
@@ -165,7 +177,7 @@ const {
   palmtree: palmtreeImage,
   rock: rockImage,
   raft: raftImage,
-  cutlass: cutlassImage
+  cutlass: cutlassImage,
 } = worldImages;
 
 const getItemIcon = (kind: keyof typeof itemImages) => {
@@ -181,7 +193,14 @@ const hasSelectedSword = (state: GameState, playerId: number) => {
   return slotKind === "sword" && slotQuantity > 0;
 };
 
-const isStructurePlacementValid = (state: GameState, playerId: number, kind: ItemKind, x: number, y: number, radius: number) => {
+const isStructurePlacementValid = (
+  state: GameState,
+  playerId: number,
+  kind: ItemKind,
+  x: number,
+  y: number,
+  radius: number
+) => {
   const ecs = state.ecs;
   if (ecs.playerIsOnRaft[playerId]) {
     return false;
@@ -353,7 +372,12 @@ const renderGroundItems = (ctx: CanvasRenderingContext2D, state: GameState, view
 
 type ResourceLayer = "all" | "trees" | "bushes" | "non-trees";
 
-const renderResources = (ctx: CanvasRenderingContext2D, state: GameState, view: ViewBounds, layer: ResourceLayer = "all") => {
+const renderResources = (
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  view: ViewBounds,
+  layer: ResourceLayer = "all"
+) => {
   const ecs = state.ecs;
   const resourceMask = ComponentMask.Resource | ComponentMask.Position | ComponentMask.Radius;
   const bushReady = isImageReady(bushImage);
@@ -458,13 +482,7 @@ const renderProps = (ctx: CanvasRenderingContext2D, state: GameState, view: View
         ctx.drawImage(image, -width / 2, -size / 2, width, size);
         ctx.restore();
       } else {
-        ctx.drawImage(
-          image,
-          x - PROP_RENDER_SIZE / 2,
-          y - PROP_RENDER_SIZE / 2,
-          PROP_RENDER_SIZE,
-          PROP_RENDER_SIZE
-        );
+        ctx.drawImage(image, x - PROP_RENDER_SIZE / 2, y - PROP_RENDER_SIZE / 2, PROP_RENDER_SIZE, PROP_RENDER_SIZE);
       }
       return;
     }
@@ -491,13 +509,20 @@ const renderEnemies = (ctx: CanvasRenderingContext2D, state: GameState, view: Vi
     }
     const kind = enemyKindFromIndex(ecs.enemyKind[id]);
     const flash = ecs.enemyHitTimer[id] > 0 ? ecs.enemyHitTimer[id] / CRAB_HIT_FLASH_DURATION : 0;
-    const image = kind === "crab"
-      ? (crabReady ? crabImage : null)
-      : kind === "wolf"
-        ? (wolfReady ? wolfImage : null)
-        : kind === "kraken"
-          ? (krakenReady ? krakenImage : null)
-          : null;
+    const image =
+      kind === "crab"
+        ? crabReady
+          ? crabImage
+          : null
+        : kind === "wolf"
+          ? wolfReady
+            ? wolfImage
+            : null
+          : kind === "kraken"
+            ? krakenReady
+              ? krakenImage
+              : null
+            : null;
     const canDrawImage = image !== null;
 
     if (canDrawImage) {
@@ -507,11 +532,7 @@ const renderEnemies = (ctx: CanvasRenderingContext2D, state: GameState, view: Vi
       const velY = ecs.velocity.y[id];
       const speed = Math.hypot(velX, velY);
       const angle = speed > 0.01 ? Math.atan2(velY, velX) : 0;
-      const rotation = kind === "wolf"
-        ? angle + Math.PI
-        : kind === "kraken"
-          ? 0
-          : angle;
+      const rotation = kind === "wolf" ? angle + Math.PI : kind === "kraken" ? 0 : angle;
 
       ctx.save();
       ctx.translate(x, y);
@@ -667,10 +688,3 @@ export const renderWorld = (ctx: CanvasRenderingContext2D, state: GameState) => 
 
   ctx.restore();
 };
-
-
-
-
-
-
-

@@ -1,8 +1,15 @@
-import type { InputState } from "../core/input";
-import type { GameState } from "../game/state";
-import { consumeCraft, consumeCraftIndex, consumeCraftScroll, consumeCloseCraft, consumeToggleCraft, consumeUse } from "../core/input";
-import { craftRecipe, recipes } from "../game/crafting";
 import type { EntityId } from "../core/ecs";
+import type { InputState } from "../core/input";
+import {
+  consumeCloseCraft,
+  consumeCraft,
+  consumeCraftIndex,
+  consumeCraftScroll,
+  consumeToggleCraft,
+  consumeUse,
+} from "../core/input";
+import { craftRecipe, recipes } from "../game/crafting";
+import type { GameState } from "../game/state";
 
 const clampIndex = (index: number, length: number) => {
   if (length <= 0) {

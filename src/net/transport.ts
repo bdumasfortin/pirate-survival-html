@@ -48,7 +48,7 @@ export const createLoopbackTransportPair = (options: LoopbackOptions = {}): [Tra
     close: () => {
       handlerA = null;
       handlerB = null;
-    }
+    },
   };
 
   const endpointB: Transport = {
@@ -59,7 +59,7 @@ export const createLoopbackTransportPair = (options: LoopbackOptions = {}): [Tra
     close: () => {
       handlerA = null;
       handlerB = null;
-    }
+    },
   };
 
   return [endpointA, endpointB];

@@ -1,31 +1,70 @@
-import { createInputState, bindKeyboard, bindInventorySelection, bindMouse, bindCraftScroll, consumeDebugToggle, consumeMapToggle, type InputState } from "./core/input";
-import { applyRemoteInputFrame, createInputSyncState, readPlayerInputFrame, trimInputSyncState, storeLocalInputFrame, type InputSyncState } from "./core/input-sync";
-import { applyInputFrame, InputBits, storeInputFrameData, type InputBuffer, type InputFrame } from "./core/input-buffer";
-import { isEntityAlive } from "./core/ecs";
-import { startLoop } from "./core/loop";
-import { hashGameStateSnapshot } from "./core/state-hash";
-import { createInitialState, type GameState } from "./game/state";
-import { createGameStateSnapshot, createRollbackBuffer, getRollbackSnapshot, resetRollbackBuffer, restoreGameStateSnapshot, restoreRollbackFrame, storeRollbackSnapshot, type RollbackBuffer } from "./game/rollback";
-import { simulateFrame } from "./game/sim";
-import { runDeterminismCheck } from "./dev/determinism";
-import { render } from "./render/renderer";
-import { getCraftingLayout } from "./render/crafting-layout";
-import { setHudRoomCode, setHudSeed, toggleDebugOverlay } from "./render/ui";
-import { closeMapOverlay, isMapOverlayEnabled, toggleMapOverlay } from "./game/map-overlay";
-import { setPlayerNameLabels } from "./render/world";
-import { createClientSession, createHostSession, finalizeSessionStart, pauseSession, resumeSessionFromFrame, setSessionFrame, type SessionState } from "./net/session";
-import { decodeInputPacket, encodeInputPacket, type InputPacket } from "./net/input-wire";
-import { decodeBase64, deserializeGameStateSnapshot, encodeBase64, serializeGameStateSnapshot } from "./net/snapshot";
-import { createLoopbackTransportPair, type Transport } from "./net/transport";
-import { createWebSocketTransport } from "./net/ws-transport";
 import {
   DEFAULT_INPUT_DELAY_FRAMES,
   isValidRoomCode,
   normalizeRoomCode,
   type RoomClientMessage,
   type RoomPlayerInfo,
-  type RoomServerMessage
+  type RoomServerMessage,
 } from "../shared/room-protocol";
+import { isEntityAlive } from "./core/ecs";
+import {
+  bindCraftScroll,
+  bindInventorySelection,
+  bindKeyboard,
+  bindMouse,
+  consumeDebugToggle,
+  consumeMapToggle,
+  createInputState,
+  type InputState,
+} from "./core/input";
+import {
+  applyInputFrame,
+  InputBits,
+  type InputBuffer,
+  type InputFrame,
+  storeInputFrameData,
+} from "./core/input-buffer";
+import {
+  applyRemoteInputFrame,
+  createInputSyncState,
+  type InputSyncState,
+  readPlayerInputFrame,
+  storeLocalInputFrame,
+  trimInputSyncState,
+} from "./core/input-sync";
+import { startLoop } from "./core/loop";
+import { hashGameStateSnapshot } from "./core/state-hash";
+import { runDeterminismCheck } from "./dev/determinism";
+import { closeMapOverlay, isMapOverlayEnabled, toggleMapOverlay } from "./game/map-overlay";
+import {
+  createGameStateSnapshot,
+  createRollbackBuffer,
+  getRollbackSnapshot,
+  resetRollbackBuffer,
+  restoreGameStateSnapshot,
+  restoreRollbackFrame,
+  type RollbackBuffer,
+  storeRollbackSnapshot,
+} from "./game/rollback";
+import { simulateFrame } from "./game/sim";
+import { createInitialState, type GameState } from "./game/state";
+import { decodeInputPacket, encodeInputPacket, type InputPacket } from "./net/input-wire";
+import {
+  createClientSession,
+  createHostSession,
+  finalizeSessionStart,
+  pauseSession,
+  resumeSessionFromFrame,
+  type SessionState,
+  setSessionFrame,
+} from "./net/session";
+import { decodeBase64, deserializeGameStateSnapshot, encodeBase64, serializeGameStateSnapshot } from "./net/snapshot";
+import { createLoopbackTransportPair, type Transport } from "./net/transport";
+import { createWebSocketTransport } from "./net/ws-transport";
+import { getCraftingLayout } from "./render/crafting-layout";
+import { render } from "./render/renderer";
+import { setHudRoomCode, setHudSeed, toggleDebugOverlay } from "./render/ui";
+import { setPlayerNameLabels } from "./render/world";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement | null;
 
@@ -224,7 +263,7 @@ const scheduleResyncChunkSend = () => {
         requesterId: sendState.requesterId,
         snapshotId: sendState.snapshotId,
         offset,
-        data: encodeBase64(chunk)
+        data: encodeBase64(chunk),
       });
       sendState.offset += sendState.chunkSize;
       sent += 1;
@@ -323,7 +362,7 @@ const createEmptyInputFrame = (): InputFrame => ({
   inventoryIndex: -1,
   inventoryScroll: 0,
   mouseX: 0,
-  mouseY: 0
+  mouseY: 0,
 });
 
 const EMPTY_INPUT_FRAME = createEmptyInputFrame();
@@ -451,9 +490,7 @@ let hasStarted = false;
 const SHOULD_RUN_DETERMINISM = import.meta.env.DEV && URL_PARAMS.has("determinism");
 const NETWORK_MODE = URL_PARAMS.get("net");
 const INPUT_DELAY_FRAMES = Math.max(0, Number.parseInt(URL_PARAMS.get("inputDelay") ?? "0", 10) || 0);
-const REQUESTED_INPUT_DELAY_FRAMES = URL_PARAMS.has("inputDelay")
-  ? INPUT_DELAY_FRAMES
-  : DEFAULT_INPUT_DELAY_FRAMES;
+const REQUESTED_INPUT_DELAY_FRAMES = URL_PARAMS.has("inputDelay") ? INPUT_DELAY_FRAMES : DEFAULT_INPUT_DELAY_FRAMES;
 const LOOPBACK_LATENCY_MS = Math.max(0, Number.parseInt(URL_PARAMS.get("latencyMs") ?? "0", 10) || 0);
 const LOOPBACK_JITTER_MS = Math.max(0, Number.parseInt(URL_PARAMS.get("jitterMs") ?? "0", 10) || 0);
 const LOOPBACK_DROP_RATE = Math.min(1, Math.max(0, Number.parseFloat(URL_PARAMS.get("dropRate") ?? "0") || 0));
@@ -481,10 +518,9 @@ const SERVER_URL_STORAGE_KEY = "pirate_server_url";
 const ROOM_CODE_STORAGE_KEY = "pirate_room_code";
 const MAX_PLAYER_NAME_LENGTH = 16;
 const PLAYER_COUNT = 1;
-const WS_SERVER_URL = URL_PARAMS.get("ws") ??
-  (window.location.protocol === "https:"
-    ? "wss://server.sailorquest.com"
-    : `ws://${window.location.hostname}:8787`);
+const WS_SERVER_URL =
+  URL_PARAMS.get("ws") ??
+  (window.location.protocol === "https:" ? "wss://server.sailorquest.com" : `ws://${window.location.hostname}:8787`);
 const WS_ROOM_CODE = URL_PARAMS.get("room");
 const WS_ROLE = (URL_PARAMS.get("role") ?? (WS_ROOM_CODE ? "client" : "host")).toLowerCase();
 const sanitizePlayerName = (value: string) => value.trim().slice(0, MAX_PLAYER_NAME_LENGTH);
@@ -547,7 +583,6 @@ const storeRoomCode = (value: string) => {
   }
 };
 const getPlayerNameValue = () => sanitizePlayerName(playerNameInput?.value ?? readStoredPlayerName());
-
 
 let activeRoomState: RoomConnectionState | null = null;
 let activeRoomSocket: WebSocket | null = null;
@@ -737,7 +772,7 @@ const syncRoomPlayers = (roomState: RoomConnectionState, players: RoomPlayerInfo
       if (prevIndex !== localInfo.index) {
         console.info(
           `[sync-players] Local player index changed: ${prevIndex} -> ${localInfo.index}, ` +
-          `localId=${localId}, role=${roomState.role}`
+            `localId=${localId}, role=${roomState.role}`
         );
       }
     }
@@ -749,7 +784,7 @@ const syncRoomPlayers = (roomState: RoomConnectionState, players: RoomPlayerInfo
     activeSession.players = players.map((player) => ({
       id: player.id,
       index: player.index,
-      isLocal: player.id === sessionLocalId
+      isLocal: player.id === sessionLocalId,
     }));
     const localInfo = players.find((player) => player.id === sessionLocalId);
     if (localInfo) {
@@ -759,13 +794,13 @@ const syncRoomPlayers = (roomState: RoomConnectionState, players: RoomPlayerInfo
       if (prevLocalIndex !== localInfo.index) {
         console.info(
           `[sync-players] Session player index changed: ${prevLocalIndex} -> ${localInfo.index}, ` +
-          `localId=${activeSession.localId}, isHost=${activeSession.isHost}`
+            `localId=${activeSession.localId}, isHost=${activeSession.isHost}`
         );
       }
     }
     console.info(
       `[sync-players] Updated session players: ` +
-      `${activeSession.players.map(p => `${p.id}:${p.index}${p.isLocal ? "(local)" : ""}`).join(", ")}`
+        `${activeSession.players.map((p) => `${p.id}:${p.index}${p.isLocal ? "(local)" : ""}`).join(", ")}`
     );
   }
 
@@ -792,7 +827,7 @@ const syncRoomPlayers = (roomState: RoomConnectionState, players: RoomPlayerInfo
     if (shouldBeAlive && !isAlive) {
       console.info(
         `[sync-players] Marking player ${index} as alive (rejoin), ` +
-        `playerId=${playerId}, connected=${shouldBeAlive}`
+          `playerId=${playerId}, connected=${shouldBeAlive}`
       );
       ecs.alive[playerId] = 1;
       resetRemotePlayerInputState(index);
@@ -825,7 +860,6 @@ const syncRoomPlayers = (roomState: RoomConnectionState, players: RoomPlayerInfo
   }
   setPlayerNameLabels(labels);
 };
-
 
 const pruneStateHashHistory = (currentFrame: number) => {
   const cutoff = currentFrame - STATE_HASH_HISTORY_FRAMES;
@@ -882,11 +916,11 @@ const recordLocalStateHash = (frame: number, hash: number) => {
   if (remoteForFrame) {
     for (const [playerId, remoteHash] of remoteForFrame.entries()) {
       if (remoteHash !== hash) {
-        const playerInfo = activeSession?.players.find(p => p.id === playerId);
+        const playerInfo = activeSession?.players.find((p) => p.id === playerId);
         const playerIndex = playerInfo?.index ?? -1;
         console.error(
           `[desync] State hash mismatch at frame ${frame}: ` +
-          `local=${hash.toString(16)}, remote(player ${playerIndex})=${remoteHash.toString(16)}`
+            `local=${hash.toString(16)}, remote(player ${playerIndex})=${remoteHash.toString(16)}`
         );
         requestDesyncResync(frame, playerId);
         break;
@@ -912,11 +946,11 @@ const recordRemoteStateHash = (playerId: string, frame: number, hash: number) =>
   }
   const localHash = localStateHashes.get(frame);
   if (localHash !== undefined && localHash !== hash) {
-    const playerInfo = activeSession?.players.find(p => p.id === playerId);
+    const playerInfo = activeSession?.players.find((p) => p.id === playerId);
     const playerIndex = playerInfo?.index ?? -1;
     console.error(
       `[desync] State hash mismatch at frame ${frame}: ` +
-      `local=${localHash.toString(16)}, remote(player ${playerIndex})=${hash.toString(16)}`
+        `local=${localHash.toString(16)}, remote(player ${playerIndex})=${hash.toString(16)}`
     );
     requestDesyncResync(frame, playerId);
   }
@@ -946,7 +980,6 @@ const createSnapshotId = () => {
   return Math.floor(Math.random() * 1_000_000_000).toString(16);
 };
 
-
 const applyResyncSnapshot = (pending: PendingResync) => {
   if (!activeGame || !activeSession) {
     return;
@@ -963,12 +996,12 @@ const applyResyncSnapshotInternal = (pending: PendingResync) => {
   const session = activeSession;
   const snapshot = deserializeGameStateSnapshot(pending.buffer);
   const sessionLocalId = session.localId;
-  
+
   // Try to find our client ID in the resync players list
   // Note: On rejoin, we have a NEW client ID, so we might not be in the list
   // In that case, use the index from room-joined message (stored in activeSession)
   let localPlayer = pending.players.find((player) => player.id === sessionLocalId) ?? null;
-  
+
   if (!localPlayer && activeRoomState) {
     // Rejoin scenario: we have a new client ID, so we're not in the snapshot's players list
     // Use the index from room-joined message instead
@@ -979,25 +1012,25 @@ const applyResyncSnapshotInternal = (pending: PendingResync) => {
         id: activeSession.localId,
         index: roomJoinedIndex,
         isHost: false,
-        name: ""
+        name: "",
       };
       console.info(
         `[resync] Rejoin detected: client ID ${activeSession.localId} not in snapshot, ` +
-        `using index ${roomJoinedIndex} from room-joined message`
+          `using index ${roomJoinedIndex} from room-joined message`
       );
     }
   }
-  
+
   if (!localPlayer) {
     console.error(
       `[resync] Could not determine player index. ` +
-      `localId=${sessionLocalId}, ` +
-      `roomIndex=${activeRoomState?.localPlayerIndex ?? "null"}, ` +
-      `snapshot players=${pending.players.map(p => `${p.id}:${p.index}`).join(", ")}`
+        `localId=${sessionLocalId}, ` +
+        `roomIndex=${activeRoomState?.localPlayerIndex ?? "null"}, ` +
+        `snapshot players=${pending.players.map((p) => `${p.id}:${p.index}`).join(", ")}`
     );
     return;
   }
-  
+
   // Update player index from resync snapshot or room-joined
   session.localPlayerIndex = localPlayer.index;
   // Also update room state if available
@@ -1005,20 +1038,20 @@ const applyResyncSnapshotInternal = (pending: PendingResync) => {
     activeRoomState.localPlayerIndex = localPlayer.index;
     activeRoomState.localPlayerId = sessionLocalId;
   }
-  
+
   const localIndex = Math.max(0, Math.min(session.localPlayerIndex, snapshot.playerIds.length - 1));
   snapshot.localPlayerIndex = localIndex;
   restoreGameStateSnapshot(game.state, snapshot);
   game.state.localPlayerIndex = localIndex;
   game.inputSync.localPlayerIndex = localIndex;
-  
+
   // Log resync details for debugging rejoin issues
   console.info(
     `[resync] Applied snapshot at frame ${pending.frame}, ` +
-    `localPlayerIndex=${localIndex}, players=${pending.players.length}, ` +
-    `playerIds in snapshot=${snapshot.playerIds.length}, ` +
-    `session players=${session.players.map(p => `${p.id}:${p.index}`).join(", ")}, ` +
-    `snapshot players=${pending.players.map(p => `${p.id}:${p.index}`).join(", ")}`
+      `localPlayerIndex=${localIndex}, players=${pending.players.length}, ` +
+      `playerIds in snapshot=${snapshot.playerIds.length}, ` +
+      `session players=${session.players.map((p) => `${p.id}:${p.index}`).join(", ")}, ` +
+      `snapshot players=${pending.players.map((p) => `${p.id}:${p.index}`).join(", ")}`
   );
   resetRollbackBuffer(game.rollbackBuffer, pending.frame, game.state);
   trimInputSyncState(game.inputSync, pending.frame);
@@ -1033,11 +1066,12 @@ const applyResyncSnapshotInternal = (pending: PendingResync) => {
   session.players = pending.players.map((player) => ({
     id: player.id,
     index: player.index,
-    isLocal: player.id === sessionLocalId
+    isLocal: player.id === sessionLocalId,
   }));
-  const expectedPlayerCount = activeRoomState?.playerCount && activeRoomState.playerCount > 0
-    ? activeRoomState.playerCount
-    : Math.max(session.expectedPlayerCount, pending.players.length);
+  const expectedPlayerCount =
+    activeRoomState?.playerCount && activeRoomState.playerCount > 0
+      ? activeRoomState.playerCount
+      : Math.max(session.expectedPlayerCount, pending.players.length);
   session.expectedPlayerCount = expectedPlayerCount;
   game.inputSync.playerCount = expectedPlayerCount;
   const resetFrame = pending.frame - 1;
@@ -1058,8 +1092,8 @@ const applyResyncSnapshotInternal = (pending: PendingResync) => {
       game.minRemoteInputFrames[i] = pending.frame + Math.max(0, inputDelayFrames);
       console.info(
         `[resync] Reset minRemoteInputFrames for player ${i}: ` +
-        `${oldMinFrame} -> ${game.minRemoteInputFrames[i]}, ` +
-        `resyncFrame=${pending.frame}, delayFrames=${inputDelayFrames}`
+          `${oldMinFrame} -> ${game.minRemoteInputFrames[i]}, ` +
+          `resyncFrame=${pending.frame}, delayFrames=${inputDelayFrames}`
       );
     }
   }
@@ -1101,14 +1135,17 @@ const applyResyncSnapshotInternal = (pending: PendingResync) => {
     // Sync players after resync - this ensures rejoining players are marked as alive
     // and their entities are properly mapped
     syncRoomPlayers(activeRoomState, pending.players);
-    
+
     // Log entity states for debugging
     if (game) {
       console.info(
         `[resync] After sync, player entities: ` +
-        game.state.playerIds.map((id, idx) => 
-          `${idx}:${id ?? "none"}${id !== undefined && isEntityAlive(game.state.ecs, id) ? "(alive)" : "(dead)"}`
-        ).join(", ")
+          game.state.playerIds
+            .map(
+              (id, idx) =>
+                `${idx}:${id ?? "none"}${id !== undefined && isEntityAlive(game.state.ecs, id) ? "(alive)" : "(dead)"}`
+            )
+            .join(", ")
       );
     }
   }
@@ -1130,9 +1167,7 @@ const sendResyncSnapshot = (
   }
   const requestedFrame = Math.max(0, Math.floor(fromFrame));
   let snapshotFrame = requestedFrame;
-  let snapshot = options.useLiveSnapshot
-    ? null
-    : getRollbackSnapshot(game.rollbackBuffer, requestedFrame);
+  let snapshot = options.useLiveSnapshot ? null : getRollbackSnapshot(game.rollbackBuffer, requestedFrame);
   if (!snapshot) {
     snapshot = createGameStateSnapshot(game.state);
     snapshotFrame = game.clock.frame;
@@ -1148,21 +1183,22 @@ const sendResyncSnapshot = (
   const sessionLocalId = session.localId;
   // Use current room players list - this ensures rejoining players get correct index mapping
   // The players list from roomState should match the current game state
-  const currentPlayers = roomState.players.length > 0 
-    ? roomState.players 
-    : session.players.map(p => ({
-        id: p.id,
-        index: p.index,
-        isHost: p.id === sessionLocalId ? session.isHost : false,
-        name: "" // Name not needed for resync
-      }));
-  
+  const currentPlayers =
+    roomState.players.length > 0
+      ? roomState.players
+      : session.players.map((p) => ({
+          id: p.id,
+          index: p.index,
+          isHost: p.id === sessionLocalId ? session.isHost : false,
+          name: "", // Name not needed for resync
+        }));
+
   // Log for debugging resync issues
   console.info(
     `[resync] Sending snapshot to ${requesterId}, frame=${snapshotFrame}, ` +
-    `players=${currentPlayers.length}, playerIds in snapshot=${snapshot.playerIds.length}`
+      `players=${currentPlayers.length}, playerIds in snapshot=${snapshot.playerIds.length}`
   );
-  
+
   sendRoomMessage(activeRoomSocket, {
     type: "resync-state",
     requesterId,
@@ -1171,7 +1207,7 @@ const sendResyncSnapshot = (
     players: currentPlayers,
     snapshotId,
     totalBytes: bytes.length,
-    chunkSize
+    chunkSize,
   });
   clearResyncSendState();
   resyncSendState = {
@@ -1179,7 +1215,7 @@ const sendResyncSnapshot = (
     snapshotId,
     bytes,
     offset: 0,
-    chunkSize
+    chunkSize,
   };
   scheduleResyncChunkSend();
 };
@@ -1191,16 +1227,14 @@ const buildSessionFromStart = (
   const session = createClientSession();
   session.isHost = roomState.role === "host";
   session.localPlayerIndex = roomState.localPlayerIndex ?? 0;
-  session.expectedPlayerCount = roomState.playerCount > 0
-    ? roomState.playerCount
-    : startMessage.players.length;
+  session.expectedPlayerCount = roomState.playerCount > 0 ? roomState.playerCount : startMessage.players.length;
   session.seed = startMessage.seed;
   session.startFrame = startMessage.startFrame;
   session.currentFrame = startMessage.startFrame;
   session.players = startMessage.players.map((player) => ({
     id: player.id,
     index: player.index,
-    isLocal: player.index === session.localPlayerIndex
+    isLocal: player.index === session.localPlayerIndex,
   }));
   session.localId = roomState.localPlayerId ?? session.localId;
   session.status = "running";
@@ -1278,7 +1312,7 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
     remoteInputQueue,
     maxInputFrames: Array.from({ length: session.expectedPlayerCount }, () => -1),
     minRemoteInputFrames: Array.from({ length: session.expectedPlayerCount }, () => 0),
-    lastInputGapWarningFrame: Array.from({ length: session.expectedPlayerCount }, () => -1)
+    lastInputGapWarningFrame: Array.from({ length: session.expectedPlayerCount }, () => -1),
   };
   if (activeRoomState) {
     syncRoomPlayers(activeRoomState, activeRoomState.players);
@@ -1301,7 +1335,7 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
     const [localTransport, remoteTransport] = createLoopbackTransportPair({
       latencyMs: LOOPBACK_LATENCY_MS,
       jitterMs: LOOPBACK_JITTER_MS,
-      dropRate: LOOPBACK_DROP_RATE
+      dropRate: LOOPBACK_DROP_RATE,
     });
     transport = localTransport;
 
@@ -1330,9 +1364,8 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
       if (packet.playerIndex < 0 || packet.playerIndex >= session.expectedPlayerCount) {
         return;
       }
-      const maxAhead = session.status === "running" && !pendingResync
-        ? MAX_REMOTE_FRAME_AHEAD
-        : MAX_REMOTE_FRAME_AHEAD * 4;
+      const maxAhead =
+        session.status === "running" && !pendingResync ? MAX_REMOTE_FRAME_AHEAD : MAX_REMOTE_FRAME_AHEAD * 4;
       if (packet.frame > clock.frame + maxAhead) {
         return;
       }
@@ -1364,9 +1397,8 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
       const rollbackFrame = applyRemoteInputFrame(inputSync, entry.playerIndex, clock.frame, entry.frame, entry.input);
       updateMaxInputFrame(entry.playerIndex, entry.frame);
       if (rollbackFrame !== null) {
-        pendingRollbackFrame.value = pendingRollbackFrame.value === null
-          ? rollbackFrame
-          : Math.min(pendingRollbackFrame.value, rollbackFrame);
+        pendingRollbackFrame.value =
+          pendingRollbackFrame.value === null ? rollbackFrame : Math.min(pendingRollbackFrame.value, rollbackFrame);
       }
     }
     remoteInputQueue.length = 0;
@@ -1393,7 +1425,7 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
       const maxInputFrame = activeGame?.maxInputFrames[playerIndex] ?? -1;
       const minRemoteFrame = activeGame?.minRemoteInputFrames[playerIndex] ?? 0;
       const gapFrames = targetFrame - maxInputFrame;
-      
+
       // Only warn if:
       // 1. Gap is large enough
       // 2. We're past the minimum expected frame (player should have sent inputs by now)
@@ -1401,7 +1433,7 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
       if (gapFrames > MAX_INPUT_GAP_FRAMES && targetFrame >= minRemoteFrame && activeGame) {
         const playerId = activeGame.state.playerIds[playerIndex];
         const isPlayerAlive = playerId !== undefined && isEntityAlive(activeGame.state.ecs, playerId);
-        
+
         if (isPlayerAlive) {
           // Large gap detected - warn periodically
           const lastWarning = activeGame.lastInputGapWarningFrame[playerIndex] ?? -1;
@@ -1474,21 +1506,21 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
   }
 
   startLoop({
-      onUpdate: (delta) => {
-        if (session.status !== "running") {
-          return;
-        }
+    onUpdate: (delta) => {
+      if (session.status !== "running") {
+        return;
+      }
 
-        if (consumeDebugToggle(liveInput)) {
-          toggleDebugOverlay();
-        }
-        if (consumeMapToggle(liveInput)) {
-          toggleMapOverlay();
-        }
+      if (consumeDebugToggle(liveInput)) {
+        toggleDebugOverlay();
+      }
+      if (consumeMapToggle(liveInput)) {
+        toggleMapOverlay();
+      }
 
-        const inputFrameIndex = clock.frame + inputDelayFrames;
-        storeLocalInputFrame(inputSync, inputFrameIndex, liveInput);
-        updateMaxInputFrame(session.localPlayerIndex, inputFrameIndex);
+      const inputFrameIndex = clock.frame + inputDelayFrames;
+      storeLocalInputFrame(inputSync, inputFrameIndex, liveInput);
+      updateMaxInputFrame(session.localPlayerIndex, inputFrameIndex);
 
       // Only send inputs if we're not waiting for resync
       // This prevents sending old inputs with wrong frame numbers during rejoin
@@ -1498,7 +1530,7 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
           const packet = {
             playerIndex: session.localPlayerIndex,
             frame: inputFrameIndex,
-            input: outgoing
+            input: outgoing,
           };
           transport.send(encodeInputPacket(packet));
         }
@@ -1522,7 +1554,7 @@ const startGame = async (seed: string, options: StartGameOptions = {}) => {
     },
     onRender: () => {
       render(ctx, state);
-    }
+    },
   });
 };
 
@@ -1552,7 +1584,7 @@ const startNetworkHost = (seed: string, options: NetworkStartOptions = {}) => {
     pendingAction: "create",
     connectTimeoutId: null,
     requestTimeoutId: null,
-    suppressCloseStatus: false
+    suppressCloseStatus: false,
   };
 
   if (activeRoomSocket && activeRoomSocket.readyState === WebSocket.OPEN) {
@@ -1561,13 +1593,13 @@ const startNetworkHost = (seed: string, options: NetworkStartOptions = {}) => {
 
   const { socket, transport } = createWebSocketTransport(serverUrl, (payload) => {
     const message = parseRoomServerMessage(payload);
-      if (!message) {
-        return;
-      }
-      if (!pendingResync && activeSession?.status === "paused") {
-        scheduleResyncRetry();
-      }
-      handleRoomServerMessage(roomState, socket, message);
+    if (!message) {
+      return;
+    }
+    if (!pendingResync && activeSession?.status === "paused") {
+      scheduleResyncRetry();
+    }
+    handleRoomServerMessage(roomState, socket, message);
   });
 
   roomState.transport = transport;
@@ -1584,7 +1616,7 @@ const startNetworkHost = (seed: string, options: NetworkStartOptions = {}) => {
       playerName,
       playerCount,
       seed,
-      inputDelayFrames
+      inputDelayFrames,
     });
     scheduleRoomRequestTimeout(roomState, socket, "create");
   });
@@ -1656,7 +1688,7 @@ const startNetworkClient = (roomCode: string, options: NetworkStartOptions = {})
     pendingAction: "join",
     connectTimeoutId: null,
     requestTimeoutId: null,
-    suppressCloseStatus: false
+    suppressCloseStatus: false,
   };
 
   if (activeRoomSocket && activeRoomSocket.readyState === WebSocket.OPEN) {
@@ -1680,10 +1712,10 @@ const startNetworkClient = (roomCode: string, options: NetworkStartOptions = {})
   socket.addEventListener("open", () => {
     roomState.suppressCloseStatus = false;
     clearRoomTimeouts(roomState);
-    sendRoomMessage(socket, { 
-      type: "join-room", 
-      code: normalizedCode, 
-      playerName
+    sendRoomMessage(socket, {
+      type: "join-room",
+      code: normalizedCode,
+      playerName,
     });
     scheduleRoomRequestTimeout(roomState, socket, "join");
   });
@@ -1727,7 +1759,7 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, _socket: WebSoc
       roomState.localPlayerIndex = message.playerIndex;
       const localPlayerId = message.players.find((player) => player.index === message.playerIndex)?.id ?? null;
       roomState.localPlayerId = localPlayerId;
-      
+
       roomState.ui?.setStatus(`Room created. Share code ${message.code}.`);
       roomState.ui?.setRoomInfo(message.code, message.players, message.playerCount);
       roomState.ui?.setStartEnabled(roomState.role === "host");
@@ -1747,7 +1779,7 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, _socket: WebSoc
       roomState.localPlayerIndex = message.playerIndex;
       const localPlayerId = message.players.find((player) => player.index === message.playerIndex)?.id ?? null;
       roomState.localPlayerId = localPlayerId;
-      
+
       roomState.ui?.setStatus(`Joined room ${message.code}. Waiting for host...`);
       roomState.ui?.setRoomInfo(message.code, message.players, message.playerCount);
       roomState.ui?.setStartEnabled(false);
@@ -1765,7 +1797,7 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, _socket: WebSoc
         // Already started - ignore duplicate start message
         return;
       }
-      
+
       roomState.ui?.setStatus("Starting match...");
       // Clear pendingAction now that we're starting
       roomState.pendingAction = null;
@@ -1775,7 +1807,7 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, _socket: WebSoc
       void startGame(message.seed, {
         session,
         inputDelayFrames,
-        transport: roomState.transport
+        transport: roomState.transport,
       });
       return;
     }
@@ -1789,8 +1821,10 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, _socket: WebSoc
       if (!activeSession || message.playerId === activeSession.localId) {
         return;
       }
-      if (message.frame < activeSession.currentFrame - STATE_HASH_HISTORY_FRAMES ||
-        message.frame > activeSession.currentFrame + MAX_REMOTE_FRAME_AHEAD) {
+      if (
+        message.frame < activeSession.currentFrame - STATE_HASH_HISTORY_FRAMES ||
+        message.frame > activeSession.currentFrame + MAX_REMOTE_FRAME_AHEAD
+      ) {
         return;
       }
       recordRemoteStateHash(message.playerId, message.frame, message.hash);
@@ -1820,7 +1854,7 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, _socket: WebSoc
         buffer: new Uint8Array(message.totalBytes),
         received: new Set(),
         receivedBytes: 0,
-        lastReceivedAt: Date.now()
+        lastReceivedAt: Date.now(),
       };
       // Clear pendingAction when resync starts
       roomState.pendingAction = null;
@@ -1866,14 +1900,14 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, _socket: WebSoc
       setRoomScreen?.("form");
       const errorMessage = formatRoomError(roomState, message);
       roomState.ui?.setStatus(errorMessage, true);
-      
+
       // Show prominent error in form status area
       if (roomStatusForm && roomStatusFormBox) {
         roomStatusForm.textContent = errorMessage;
         roomStatusForm.classList.add("error");
         roomStatusFormBox.classList.remove("hidden");
       }
-      
+
       roomState.ui?.setActionsEnabled(true);
       return;
     }
@@ -1894,32 +1928,30 @@ const handleRoomServerMessage = (roomState: RoomConnectionState, _socket: WebSoc
         if (activeSession.isHost && message.requesterId && !isLocalRequester) {
           // For desync, use live snapshot to get current state
           const useLiveSnapshot = message.reason === "desync";
-          const requestedFrame = useLiveSnapshot && activeGame
-            ? activeGame.clock.frame
-            : message.fromFrame;
-          
+          const requestedFrame = useLiveSnapshot && activeGame ? activeGame.clock.frame : message.fromFrame;
+
           // Before sending resync, ensure all connected players are marked as alive in the game state
           // This is critical for rejoin - the player entity might be marked as dead
           if (activeGame && useLiveSnapshot) {
-            const connectedIndices = new Set(roomState.players.map(p => p.index));
+            const connectedIndices = new Set(roomState.players.map((p) => p.index));
             for (let index = 0; index < activeGame.state.playerIds.length; index += 1) {
               const playerId = activeGame.state.playerIds[index];
               if (playerId !== undefined && connectedIndices.has(index)) {
                 if (!isEntityAlive(activeGame.state.ecs, playerId)) {
                   console.info(
                     `[resync] Marking player ${index} as alive before sending snapshot (rejoin), ` +
-                    `playerId=${playerId}`
+                      `playerId=${playerId}`
                   );
                   activeGame.state.ecs.alive[playerId] = 1;
                 }
               }
             }
           }
-          
+
           console.info(
             `[resync] Host sending resync to ${message.requesterId}, ` +
-            `reason=${message.reason}, frame=${requestedFrame}, live=${useLiveSnapshot}, ` +
-            `roomState.players=${roomState.players.map(p => `${p.id}:${p.index}`).join(", ")}`
+              `reason=${message.reason}, frame=${requestedFrame}, live=${useLiveSnapshot}, ` +
+              `roomState.players=${roomState.players.map((p) => `${p.id}:${p.index}`).join(", ")}`
           );
           sendResyncSnapshot(roomState, message.requesterId, requestedFrame, { useLiveSnapshot });
         } else if (isLocalRequester) {
@@ -1993,58 +2025,59 @@ const initMenu = () => {
     }
   };
 
-  const roomUi: RoomUiState | null = roomStatus && roomCodeDisplay && roomPlayerCount && createRoomButton && joinRoomButton && startRoomButton
-    ? {
-      setStatus: (text, isError = false) => {
-        roomStatus.textContent = `Status: ${text}`;
-        roomStatus.classList.toggle("error", isError);
-      },
-      setRoomInfo: (code, players, playerCount) => {
-        roomCodeDisplay.textContent = code ?? "--";
-        const total = playerCount > 0 ? playerCount : players.length;
-        roomPlayerCount.textContent = `${players.length}/${total}`;
-        setHudRoomCode(code);
-        setJoinLinkEnabled(Boolean(code));
-        storeRoomCode(code ?? "");
-      },
-      setStartEnabled: (enabled) => {
-        startRoomButton.disabled = !enabled;
-        startRoomButton.classList.toggle("hidden", !enabled);
-      },
-      setActionsEnabled: (enabled) => {
-        multiplayerActionsEnabled = enabled;
-        updateMultiplayerActions();
-        setJoinLinkEnabled(enabled && Boolean(activeRoomState?.roomCode));
-        if (multiCreateButton) {
-          multiCreateButton.disabled = !enabled;
+  const roomUi: RoomUiState | null =
+    roomStatus && roomCodeDisplay && roomPlayerCount && createRoomButton && joinRoomButton && startRoomButton
+      ? {
+          setStatus: (text, isError = false) => {
+            roomStatus.textContent = `Status: ${text}`;
+            roomStatus.classList.toggle("error", isError);
+          },
+          setRoomInfo: (code, players, playerCount) => {
+            roomCodeDisplay.textContent = code ?? "--";
+            const total = playerCount > 0 ? playerCount : players.length;
+            roomPlayerCount.textContent = `${players.length}/${total}`;
+            setHudRoomCode(code);
+            setJoinLinkEnabled(Boolean(code));
+            storeRoomCode(code ?? "");
+          },
+          setStartEnabled: (enabled) => {
+            startRoomButton.disabled = !enabled;
+            startRoomButton.classList.toggle("hidden", !enabled);
+          },
+          setActionsEnabled: (enabled) => {
+            multiplayerActionsEnabled = enabled;
+            updateMultiplayerActions();
+            setJoinLinkEnabled(enabled && Boolean(activeRoomState?.roomCode));
+            if (multiCreateButton) {
+              multiCreateButton.disabled = !enabled;
+            }
+            if (multiJoinButton) {
+              multiJoinButton.disabled = !enabled;
+            }
+            if (modeSoloButton) {
+              modeSoloButton.disabled = !enabled;
+            }
+            if (modeMultiButton) {
+              modeMultiButton.disabled = !enabled;
+            }
+            if (serverUrlInput) {
+              serverUrlInput.disabled = !enabled;
+            }
+            if (roomCodeInput) {
+              roomCodeInput.disabled = !enabled;
+            }
+            if (playerNameInput) {
+              playerNameInput.disabled = !enabled;
+            }
+            if (seedInputMulti) {
+              seedInputMulti.disabled = !enabled;
+            }
+            if (randomSeedButtonMulti) {
+              randomSeedButtonMulti.disabled = !enabled;
+            }
+          },
         }
-        if (multiJoinButton) {
-          multiJoinButton.disabled = !enabled;
-        }
-        if (modeSoloButton) {
-          modeSoloButton.disabled = !enabled;
-        }
-        if (modeMultiButton) {
-          modeMultiButton.disabled = !enabled;
-        }
-        if (serverUrlInput) {
-          serverUrlInput.disabled = !enabled;
-        }
-        if (roomCodeInput) {
-          roomCodeInput.disabled = !enabled;
-        }
-        if (playerNameInput) {
-          playerNameInput.disabled = !enabled;
-        }
-        if (seedInputMulti) {
-          seedInputMulti.disabled = !enabled;
-        }
-        if (randomSeedButtonMulti) {
-          randomSeedButtonMulti.disabled = !enabled;
-        }
-      }
-    }
-    : null;
+      : null;
 
   let multiplayerMode: "create" | "join" = "create";
   const createOnlyElements = multiPanel?.querySelectorAll<HTMLElement>(".create-only") ?? [];
@@ -2203,7 +2236,7 @@ const initMenu = () => {
       serverUrl,
       inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
       ui: roomUi,
-      playerName
+      playerName,
     });
   });
 
@@ -2226,7 +2259,7 @@ const initMenu = () => {
       serverUrl,
       inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
       ui: roomUi,
-      playerName
+      playerName,
     });
   });
 
@@ -2279,7 +2312,7 @@ const initMenu = () => {
         serverUrl: WS_SERVER_URL,
         inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
         ui: roomUi,
-        playerName
+        playerName,
       });
       return;
     }
@@ -2294,7 +2327,7 @@ const initMenu = () => {
         serverUrl: WS_SERVER_URL,
         inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
         ui: roomUi,
-        playerName
+        playerName,
       });
       return;
     }

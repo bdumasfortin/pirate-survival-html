@@ -1,21 +1,21 @@
+import { type EntityId, isEntityAlive } from "../core/ecs";
 import { consumeTeleport, type InputState } from "../core/input";
-import { isMapOverlayEnabled, mapScreenToWorld } from "./map-overlay";
-import { isEntityAlive, type EntityId } from "../core/ecs";
-import { CAMERA_ZOOM } from "./config";
-import type { GameState } from "./state";
-import { updateMovement } from "../systems/movement";
 import { constrainPlayerToIslands, constrainPlayerToResources } from "../systems/collisions";
 import { updateCrafting } from "../systems/crafting";
-import { updateEnemies } from "../systems/enemies";
-import { updatePlayerCombat } from "../systems/player-combat";
-import { updateInventorySelection } from "../systems/inventory-selection";
-import { gatherNearbyResource, updateResourceRespawns } from "../systems/gathering";
-import { updateRaft } from "../systems/raft";
-import { updateSurvival } from "../systems/survival";
 import { dropSelectedItem } from "../systems/drop-selected-item";
+import { updateEnemies } from "../systems/enemies";
+import { gatherNearbyResource, updateResourceRespawns } from "../systems/gathering";
 import { pickupGroundItems } from "../systems/ground-items";
-import { updateUseCooldown, useSelectedItem } from "../systems/use-selected-item";
+import { updateInventorySelection } from "../systems/inventory-selection";
+import { updateMovement } from "../systems/movement";
+import { updatePlayerCombat } from "../systems/player-combat";
+import { updateRaft } from "../systems/raft";
 import { updateStructurePlacement } from "../systems/structures";
+import { updateSurvival } from "../systems/survival";
+import { updateUseCooldown, useSelectedItem } from "../systems/use-selected-item";
+import { CAMERA_ZOOM } from "./config";
+import { isMapOverlayEnabled, mapScreenToWorld } from "./map-overlay";
+import type { GameState } from "./state";
 
 const updateMouseWorldPosition = (input: InputState, playerX: number, playerY: number) => {
   if (!input.mouseScreen) {

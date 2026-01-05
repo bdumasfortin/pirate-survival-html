@@ -12,5 +12,3 @@ export type Enemy = {
   maxHealth: number;
   hitTimer: number;
 };
-
-

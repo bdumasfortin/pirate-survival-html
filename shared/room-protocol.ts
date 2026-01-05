@@ -25,7 +25,16 @@ export type RoomClientMessage =
   | { type: "join-room"; code: string; playerName: string }
   | { type: "leave-room" }
   | { type: "start-room" }
-  | { type: "resync-state"; requesterId: string; frame: number; seed: string; players: RoomPlayerInfo[]; snapshotId: string; totalBytes: number; chunkSize: number }
+  | {
+      type: "resync-state";
+      requesterId: string;
+      frame: number;
+      seed: string;
+      players: RoomPlayerInfo[];
+      snapshotId: string;
+      totalBytes: number;
+      chunkSize: number;
+    }
   | { type: "resync-chunk"; requesterId: string; snapshotId: string; offset: number; data: string }
   | { type: "state-hash"; frame: number; hash: number }
   | { type: "ping"; ts: number }
@@ -42,48 +51,47 @@ export type RoomServerErrorCode =
 
 export type RoomServerMessage =
   | {
-    type: "room-created";
-    code: string;
-    roomId: string;
-    playerIndex: number;
-    playerCount: number;
-    seed: string;
-    inputDelayFrames: number;
-    players: RoomPlayerInfo[];
-  }
+      type: "room-created";
+      code: string;
+      roomId: string;
+      playerIndex: number;
+      playerCount: number;
+      seed: string;
+      inputDelayFrames: number;
+      players: RoomPlayerInfo[];
+    }
   | {
-    type: "room-joined";
-    code: string;
-    roomId: string;
-    playerIndex: number;
-    playerCount: number;
-    seed: string;
-    inputDelayFrames: number;
-    players: RoomPlayerInfo[];
-  }
+      type: "room-joined";
+      code: string;
+      roomId: string;
+      playerIndex: number;
+      playerCount: number;
+      seed: string;
+      inputDelayFrames: number;
+      players: RoomPlayerInfo[];
+    }
   | { type: "room-updated"; players: RoomPlayerInfo[] }
   | { type: "room-closed"; reason: string }
   | { type: "state-hash"; playerId: string; playerIndex: number; frame: number; hash: number }
   | {
-    type: "start";
-    seed: string;
-    startFrame: number;
-    inputDelayFrames: number;
-    players: RoomPlayerInfo[];
-  }
+      type: "start";
+      seed: string;
+      startFrame: number;
+      inputDelayFrames: number;
+      players: RoomPlayerInfo[];
+    }
   | { type: "resync-chunk"; snapshotId: string; offset: number; data: string }
   | { type: "resync-request"; fromFrame: number; reason: ResyncReason; requesterId: string }
   | {
-    type: "resync-state";
-    frame: number;
-    seed: string;
-    players: RoomPlayerInfo[];
-    snapshotId: string;
-    totalBytes: number;
-    chunkSize: number;
-  }
+      type: "resync-state";
+      frame: number;
+      seed: string;
+      players: RoomPlayerInfo[];
+      snapshotId: string;
+      totalBytes: number;
+      chunkSize: number;
+    }
   | { type: "error"; code: RoomServerErrorCode; message: string }
   | { type: "pong"; ts: number };
 
 export type RoomWireMessage = RoomClientMessage | RoomServerMessage;
-

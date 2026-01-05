@@ -1,10 +1,9 @@
-import type { Vec2 } from "../core/types";
 import type { EcsWorld } from "../core/ecs";
-import { nextFloat, nextRange, type RngState } from "../core/rng";
 import { ComponentMask, createEntity, EntityTag } from "../core/ecs";
-import { enemyKindToIndex } from "./enemy-kinds";
-import type { Island, WorldState } from "../world/types";
+import { nextFloat, nextRange, type RngState } from "../core/rng";
+import type { Vec2 } from "../core/types";
 import { isPointInIsland } from "../world/island-geometry";
+import type { Island, WorldState } from "../world/types";
 import { BASE_ISLAND_RADIUS, SPAWN_ZONE_RADIUS } from "../world/world-config";
 import {
   BEACH_BOSS_CRAB_COUNT,
@@ -15,6 +14,7 @@ import {
   CRAB_DEFAULT_STATS,
   CRAB_SPAWN_ATTEMPTS,
   CRAB_SPAWN_RADIUS_SCALE,
+  type CreatureStats,
   FOREST_WOLF_COUNT,
   KRAKEN_SPAWN_ATTEMPTS,
   KRAKEN_SPAWN_COUNT,
@@ -22,15 +22,15 @@ import {
   KRAKEN_SPAWN_MIN_DISTANCE,
   KRAKEN_STATS,
   STANDARD_CRAB_COUNT,
-  WOLF_INLAND_RING_MAX,
-  WOLF_INLAND_RING_MIN,
   WOLF_BOSS_COUNT,
   WOLF_BOSS_RADIUS_SCALE,
   WOLF_BOSS_STATS,
   WOLF_DEFAULT_STATS,
+  WOLF_INLAND_RING_MAX,
+  WOLF_INLAND_RING_MIN,
   WOLF_SPAWN_RADIUS_SCALE,
-  type CreatureStats
 } from "./creatures-config";
+import { enemyKindToIndex } from "./enemy-kinds";
 
 const isPointInAnyIsland = (point: Vec2, islands: Island[]) => islands.some((island) => isPointInIsland(point, island));
 
@@ -62,7 +62,7 @@ const randomPointInIsland = (
   ringMax: number,
   reject?: (position: Vec2) => boolean
 ) => {
-  let position: Vec2 | null = null;
+  const position: Vec2 | null = null;
   const islandRadius = getIslandRadius(island);
   for (let attempt = 0; attempt < CRAB_SPAWN_ATTEMPTS; attempt += 1) {
     const angle = nextFloat(rng) * Math.PI * 2;
@@ -70,7 +70,7 @@ const randomPointInIsland = (
     const radius = ring * islandRadius * radiusScale;
     const candidate = {
       x: island.center.x + Math.cos(angle) * radius,
-      y: island.center.y + Math.sin(angle) * radius
+      y: island.center.y + Math.sin(angle) * radius,
     };
 
     if (isPointInIsland(candidate, island) && (!reject || !reject(candidate))) {
@@ -128,7 +128,7 @@ const randomPointInSea = (rng: RngState, origin: Vec2, islands: Island[], minDis
     const radius = nextRange(rng, minDistance, maxDistance);
     position = {
       x: origin.x + Math.cos(angle) * radius,
-      y: origin.y + Math.sin(angle) * radius
+      y: origin.y + Math.sin(angle) * radius,
     };
 
     if (!isPointInAnyIsland(position, islands)) {
@@ -139,13 +139,17 @@ const randomPointInSea = (rng: RngState, origin: Vec2, islands: Island[], minDis
   return position;
 };
 
-const ENEMY_MASK = ComponentMask.Position |
-  ComponentMask.Velocity |
-  ComponentMask.Radius |
-  ComponentMask.Tag |
-  ComponentMask.Enemy;
+const ENEMY_MASK =
+  ComponentMask.Position | ComponentMask.Velocity | ComponentMask.Radius | ComponentMask.Tag | ComponentMask.Enemy;
 
-const spawnCrab = (ecs: EcsWorld, rng: RngState, position: Vec2, homeIslandIndex: number, stats: CreatureStats, isBoss = false) => {
+const spawnCrab = (
+  ecs: EcsWorld,
+  rng: RngState,
+  position: Vec2,
+  homeIslandIndex: number,
+  stats: CreatureStats,
+  isBoss = false
+) => {
   const id = createEntity(ecs, ENEMY_MASK, EntityTag.Enemy);
   ecs.position.x[id] = position.x;
   ecs.position.y[id] = position.y;
@@ -168,7 +172,14 @@ const spawnCrab = (ecs: EcsWorld, rng: RngState, position: Vec2, homeIslandIndex
   ecs.enemyHitTimer[id] = 0;
 };
 
-const spawnWolf = (ecs: EcsWorld, rng: RngState, position: Vec2, homeIslandIndex: number, stats: CreatureStats, isBoss = false) => {
+const spawnWolf = (
+  ecs: EcsWorld,
+  rng: RngState,
+  position: Vec2,
+  homeIslandIndex: number,
+  stats: CreatureStats,
+  isBoss = false
+) => {
   const id = createEntity(ecs, ENEMY_MASK, EntityTag.Enemy);
   ecs.position.x[id] = position.x;
   ecs.position.y[id] = position.y;

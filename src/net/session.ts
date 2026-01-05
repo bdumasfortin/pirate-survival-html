@@ -61,7 +61,7 @@ export const createHostSession = (seed: string, expectedPlayerCount: number): Se
     seed,
     startFrame: 0,
     currentFrame: 0,
-    pauseReason: null
+    pauseReason: null,
   };
 };
 
@@ -78,13 +78,13 @@ export const createClientSession = (): SessionState => {
     seed: null,
     startFrame: 0,
     currentFrame: 0,
-    pauseReason: null
+    pauseReason: null,
   };
 };
 
 export const buildJoinRequest = (session: SessionState): SessionMessage => ({
   type: "join-request",
-  playerId: session.localId
+  playerId: session.localId,
 });
 
 export const applyJoinRequest = (session: SessionState, message: SessionMessage) => {
@@ -101,7 +101,7 @@ export const applyJoinRequest = (session: SessionState, message: SessionMessage)
   return {
     type: "join-accept",
     playerId: message.playerId,
-    assignedIndex
+    assignedIndex,
   } satisfies SessionMessage;
 };
 
@@ -112,9 +112,7 @@ export const applyJoinAccept = (session: SessionState, message: SessionMessage) 
 
   session.localPlayerIndex = message.assignedIndex;
   session.players = session.players.map((player) =>
-    player.id === session.localId
-      ? { ...player, index: message.assignedIndex }
-      : player
+    player.id === session.localId ? { ...player, index: message.assignedIndex } : player
   );
 };
 
@@ -132,7 +130,7 @@ export const finalizeSessionStart = (session: SessionState, currentFrame: number
     type: "start",
     seed: session.seed,
     startFrame,
-    players: toPlayerInfo(session.players)
+    players: toPlayerInfo(session.players),
   } satisfies SessionMessage;
 };
 
@@ -145,7 +143,7 @@ export const applySessionStart = (session: SessionState, message: SessionMessage
   session.startFrame = message.startFrame;
   session.players = message.players.map((player) => ({
     ...player,
-    isLocal: player.id === session.localId
+    isLocal: player.id === session.localId,
   }));
   session.expectedPlayerCount = session.players.length;
   session.status = "running";
@@ -168,7 +166,7 @@ export const buildResyncRequest = (session: SessionState, reason: PauseReason): 
   return {
     type: "resync-request",
     fromFrame: session.currentFrame,
-    reason
+    reason,
   };
 };
 
@@ -189,7 +187,7 @@ export const buildResyncState = (session: SessionState, frame: number): SessionM
     type: "resync-state",
     frame,
     seed: session.seed,
-    players: toPlayerInfo(session.players)
+    players: toPlayerInfo(session.players),
   };
 };
 
@@ -202,7 +200,7 @@ export const applyResyncState = (session: SessionState, message: SessionMessage)
   session.currentFrame = message.frame;
   session.players = message.players.map((player) => ({
     ...player,
-    isLocal: player.id === session.localId
+    isLocal: player.id === session.localId,
   }));
   session.status = "paused";
   session.pauseReason = "desync";

@@ -1,17 +1,27 @@
-import { type InputState } from "../core/input";
-import type { GameState } from "../game/state";
-import { getEquipmentSlotForItem, getEquipmentSlotKind, setEquipmentSlotKind } from "../game/equipment";
-import { clamp } from "../core/math";
-import { getInventorySelectedIndex, getInventorySlotKind, getInventorySlotQuantity, setInventorySlotQuantity } from "../game/inventory";
-import type { ItemKind } from "../game/item-kinds";
-import { BERRY_RESTORE_RATIO, CRAB_MEAT_RESTORE_RATIO, ITEM_USE_COOLDOWN, WOLF_MEAT_RESTORE_RATIO } from "../game/use-config";
 import type { EntityId } from "../core/ecs";
+import { type InputState } from "../core/input";
+import { clamp } from "../core/math";
+import { getEquipmentSlotForItem, getEquipmentSlotKind, setEquipmentSlotKind } from "../game/equipment";
+import {
+  getInventorySelectedIndex,
+  getInventorySlotKind,
+  getInventorySlotQuantity,
+  setInventorySlotQuantity,
+} from "../game/inventory";
+import type { ItemKind } from "../game/item-kinds";
+import type { GameState } from "../game/state";
+import {
+  BERRY_RESTORE_RATIO,
+  CRAB_MEAT_RESTORE_RATIO,
+  ITEM_USE_COOLDOWN,
+  WOLF_MEAT_RESTORE_RATIO,
+} from "../game/use-config";
 
 const isConsumable = (kind: ItemKind) => kind === "berries" || kind === "crabmeat" || kind === "wolfmeat";
 const CONSUMABLE_RESTORE: Partial<Record<ItemKind, number>> = {
   berries: BERRY_RESTORE_RATIO,
   crabmeat: CRAB_MEAT_RESTORE_RATIO,
-  wolfmeat: WOLF_MEAT_RESTORE_RATIO
+  wolfmeat: WOLF_MEAT_RESTORE_RATIO,
 };
 
 export const updateUseCooldown = (state: GameState, playerId: EntityId, delta: number) => {

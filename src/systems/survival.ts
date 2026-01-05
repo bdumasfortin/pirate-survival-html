@@ -1,19 +1,14 @@
-import type { GameState } from "../game/state";
+import type { EntityId } from "../core/ecs";
+import { INVENTORY_SLOT_COUNT } from "../core/ecs";
 import { clamp } from "../core/math";
+import { nextFloat } from "../core/rng";
 import { DAMAGE_FLASH_DURATION } from "../game/combat-config";
 import { getEquippedItemCount } from "../game/equipment";
-import { INVENTORY_SLOT_COUNT } from "../core/ecs";
-import { nextFloat } from "../core/rng";
 import { spawnGroundItem } from "../game/ground-items";
-import { getInventorySlotKind, getInventorySlotQuantity, clearInventorySlot } from "../game/inventory";
+import { clearInventorySlot, getInventorySlotKind, getInventorySlotQuantity } from "../game/inventory";
+import type { GameState } from "../game/state";
 import { createSurvivalStats } from "../game/survival";
-import {
-  ARMOR_PER_PIECE,
-  ARMOR_REGEN_RATE,
-  HUNGER_DECAY_RATE,
-  STARVATION_DAMAGE_RATE
-} from "../game/survival-config";
-import type { EntityId } from "../core/ecs";
+import { ARMOR_PER_PIECE, ARMOR_REGEN_RATE, HUNGER_DECAY_RATE, STARVATION_DAMAGE_RATE } from "../game/survival-config";
 
 const RESPAWN_DELAY_SECONDS = 3;
 const RESPAWN_RADIUS = 28;
@@ -26,7 +21,7 @@ const getRespawnPosition = (playerIndex: number, playerCount: number) => {
   const angle = (playerIndex / playerCount) * Math.PI * 2;
   return {
     x: Math.cos(angle) * RESPAWN_RADIUS,
-    y: Math.sin(angle) * RESPAWN_RADIUS
+    y: Math.sin(angle) * RESPAWN_RADIUS,
   };
 };
 
@@ -50,7 +45,7 @@ const dropInventoryItems = (state: GameState, playerId: EntityId) => {
       quantity,
       {
         x: baseX + Math.cos(angle) * offset,
-        y: baseY + Math.sin(angle) * offset
+        y: baseY + Math.sin(angle) * offset,
       },
       state.time
     );
@@ -132,9 +127,11 @@ export const updateSurvival = (state: GameState, playerIndex: number, playerId: 
     );
   }
 
-  if (ecs.playerMaxArmor[playerId] > 0 &&
+  if (
+    ecs.playerMaxArmor[playerId] > 0 &&
     ecs.playerArmor[playerId] < ecs.playerMaxArmor[playerId] &&
-    ecs.playerArmorRegenTimer[playerId] <= 0) {
+    ecs.playerArmorRegenTimer[playerId] <= 0
+  ) {
     ecs.playerArmor[playerId] = clamp(
       ecs.playerArmor[playerId] + delta * ARMOR_REGEN_RATE,
       0,

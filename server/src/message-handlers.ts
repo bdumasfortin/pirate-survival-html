@@ -1,12 +1,13 @@
 import type { WebSocket } from "ws";
+
 import {
   isValidRoomCode,
   normalizeRoomCode,
+  type ResyncReason,
   ROOM_CODE_LENGTH,
   type RoomClientMessage,
   type RoomServerErrorCode,
   type RoomServerMessage,
-  type ResyncReason
 } from "../../shared/room-protocol.js";
 import {
   addPlayerToRoom,
@@ -17,7 +18,7 @@ import {
   logRoom,
   ROOM_START_FRAME,
   sanitizePlayerName,
-  touchRoom
+  touchRoom,
 } from "./room-manager.js";
 import type { Client, Room } from "./types.js";
 
@@ -134,7 +135,7 @@ export const handleCreateRoom = (
     playerCount: room.playerCount,
     seed: room.seed,
     inputDelayFrames: room.inputDelayFrames,
-    players: buildPlayersList(room)
+    players: buildPlayersList(room),
   });
   logRoom(room, "Room created");
 };
@@ -157,7 +158,11 @@ export const handleJoinRoom = (
 
   const code = normalizeRoomCode(message.code);
   if (!isValidRoomCode(code)) {
-    sendError(client.ws, "invalid-code", `Cannot join room: invalid room code format. Expected ${ROOM_CODE_LENGTH} characters from the allowed alphabet.`);
+    sendError(
+      client.ws,
+      "invalid-code",
+      `Cannot join room: invalid room code format. Expected ${ROOM_CODE_LENGTH} characters from the allowed alphabet.`
+    );
     return;
   }
 
@@ -180,13 +185,17 @@ export const handleJoinRoom = (
 
   // Check if room has space
   if (room.players.size >= room.playerCount) {
-    sendError(client.ws, "room-full", `Cannot join room: room is full (${room.players.size}/${room.playerCount} players).`);
+    sendError(
+      client.ws,
+      "room-full",
+      `Cannot join room: room is full (${room.players.size}/${room.playerCount} players).`
+    );
     return;
   }
 
   const index = getNextPlayerIndex(room);
   addPlayerToRoom(room, client, index, false, playerName);
-  
+
   logRoom(room, `Player joined | index=${index} id=${client.id}`);
 
   client.roomCode = room.code;
@@ -201,7 +210,7 @@ export const handleJoinRoom = (
     playerCount: room.playerCount,
     seed: room.seed,
     inputDelayFrames: room.inputDelayFrames,
-    players
+    players,
   });
 
   broadcastRoom(room, { type: "room-updated", players }, client.id);
@@ -230,7 +239,7 @@ export const handleStartRoom = (client: Client, rooms: Map<string, Room>): void 
     seed: room.seed,
     startFrame: room.startFrame,
     inputDelayFrames: room.inputDelayFrames,
-    players: buildPlayersList(room)
+    players: buildPlayersList(room),
   };
   broadcastRoom(room, message);
   logRoom(room, "Game session started");
@@ -287,7 +296,7 @@ export const handleResyncState = (
     players: message.players,
     snapshotId: message.snapshotId,
     totalBytes: Math.max(0, Math.floor(message.totalBytes)),
-    chunkSize: Math.max(1, Math.floor(message.chunkSize))
+    chunkSize: Math.max(1, Math.floor(message.chunkSize)),
   };
   sendRelayJson(requester.ws, payload);
   touchRoom(room);
@@ -318,18 +327,13 @@ export const handleResyncChunk = (
     type: "resync-chunk",
     snapshotId: message.snapshotId,
     offset: Math.max(0, Math.floor(message.offset)),
-    data: message.data
+    data: message.data,
   };
   sendRelayJson(requester.ws, payload);
   touchRoom(room);
 };
 
-export const handleStateHash = (
-  client: Client,
-  frame: number,
-  hash: number,
-  rooms: Map<string, Room>
-): void => {
+export const handleStateHash = (client: Client, frame: number, hash: number, rooms: Map<string, Room>): void => {
   const room = client.roomCode ? rooms.get(client.roomCode) : null;
   if (!room) {
     sendError(client.ws, "not-in-room", "Not in a room.");
@@ -352,7 +356,7 @@ export const handleStateHash = (
     playerId: player.id,
     playerIndex: player.index,
     frame: Math.max(0, Math.floor(frame)),
-    hash: hash >>> 0
+    hash: hash >>> 0,
   };
   for (const entry of room.players.values()) {
     if (entry.id === client.id) {
@@ -378,11 +382,7 @@ export const handleBinaryMessage = (client: Client, data: ArrayBuffer, rooms: Ma
   touchRoom(room);
 };
 
-export const handleRemoveClientFromRoom = (
-  client: Client,
-  reason: string,
-  rooms: Map<string, Room>
-): void => {
+export const handleRemoveClientFromRoom = (client: Client, reason: string, rooms: Map<string, Room>): void => {
   if (!client.roomCode) {
     return;
   }
@@ -430,4 +430,3 @@ export const handleCloseRoom = (room: Room, reason: string): void => {
     player.ws.close(1000, reason);
   }
 };
-

@@ -1,8 +1,9 @@
-import type { Vec2 } from "../core/types";
-import { normalizeSeed } from "../core/seed";
 import type { EcsWorld } from "../core/ecs";
 import { ComponentMask, createEntity, EntityTag } from "../core/ecs";
+import { normalizeSeed } from "../core/seed";
+import type { Vec2 } from "../core/types";
 import { itemKindToIndex } from "../game/item-kinds";
+import { isPointInIsland } from "./island-geometry";
 import { resourceNodeTypeToIndex } from "./resource-node-types";
 import type { Island, IslandType, WorldState, YieldRange } from "./types";
 import type { IslandSpec } from "./world-config";
@@ -15,9 +16,8 @@ import {
   RESOURCE_NODE_CONFIGS_BY_TYPE,
   RESOURCE_PLACEMENT_CONFIG,
   SPAWN_ZONE_RADIUS,
-  WORLD_GEN_CONFIG
+  WORLD_GEN_CONFIG,
 } from "./world-config";
-import { isPointInIsland } from "./island-geometry";
 
 type Rng = () => number;
 
@@ -44,7 +44,7 @@ const smoothPoints = (points: Vec2[], passes: number) => {
       const nextPoint = current[(i + 1) % current.length];
       next.push({
         x: (prev.x + curr.x + nextPoint.x) / 3,
-        y: (prev.y + curr.y + nextPoint.y) / 3
+        y: (prev.y + curr.y + nextPoint.y) / 3,
       });
     }
     current = next;
@@ -72,10 +72,10 @@ const createIsland = (spec: IslandSpec): Island => {
     smoothingPassesMin,
     smoothingPassesMax,
     leanMin,
-    leanMax
+    leanMax,
   } = ISLAND_SHAPE_CONFIG;
   const pointCount = Math.round(randomBetween(rng, pointCountMin, pointCountMax));
-  let waveA = Math.max(1, Math.round(randomBetween(rng, waveAMin, waveAMax)));
+  const waveA = Math.max(1, Math.round(randomBetween(rng, waveAMin, waveAMax)));
   let waveB = Math.max(2, Math.round(randomBetween(rng, waveBMin, waveBMax)));
   if (waveB === waveA) {
     waveB += 1;
@@ -109,7 +109,7 @@ const createIsland = (spec: IslandSpec): Island => {
 
     points.push({
       x: center.x + x,
-      y: center.y + y
+      y: center.y + y,
     });
   }
 
@@ -132,14 +132,14 @@ const rollYield = (rng: Rng, range: YieldRange) => {
 
 const getRandomPointInIsland = (island: Island, rng: Rng, reject?: (position: Vec2) => boolean) => {
   const islandRadius = getIslandRadius(island) * RESOURCE_PLACEMENT_CONFIG.radiusScale;
-  let position: Vec2 | null = null;
+  const position: Vec2 | null = null;
 
   for (let attempt = 0; attempt < RESOURCE_PLACEMENT_CONFIG.attempts; attempt += 1) {
     const angle = rng() * Math.PI * 2;
     const radius = Math.sqrt(rng());
     const candidate = {
       x: island.center.x + Math.cos(angle) * islandRadius * radius,
-      y: island.center.y + Math.sin(angle) * islandRadius * radius
+      y: island.center.y + Math.sin(angle) * islandRadius * radius,
     };
 
     if (isPointInIsland(candidate, island) && (!reject || !reject(candidate))) {
@@ -255,23 +255,15 @@ const pickIslandType = (rng: Rng): IslandType => {
 
 const createIslandSpecs = (seed: number): IslandSpec[] => {
   const rng = createRng(seed);
-  const {
-    islandCount,
-    spawnRadius,
-    radiusMin,
-    radiusMax,
-    ringMin,
-    ringMax,
-    edgePadding,
-    placementAttempts
-  } = WORLD_GEN_CONFIG;
+  const { islandCount, spawnRadius, radiusMin, radiusMax, ringMin, ringMax, edgePadding, placementAttempts } =
+    WORLD_GEN_CONFIG;
   const specs: IslandSpec[] = [
     {
       center: { x: 0, y: 0 },
       baseRadius: spawnRadius,
       seed: seed + 1,
-      type: "standard"
-    }
+      type: "standard",
+    },
   ];
 
   const placeIsland = (baseRadius: number, islandSeed: number, type: IslandType) => {
@@ -282,7 +274,7 @@ const createIslandSpecs = (seed: number): IslandSpec[] => {
       center: { x: 0, y: 0 },
       baseRadius,
       seed: islandSeed,
-      type
+      type,
     };
 
     while (!placed) {
@@ -291,11 +283,11 @@ const createIslandSpecs = (seed: number): IslandSpec[] => {
       candidate = {
         center: {
           x: Math.cos(angle) * ring,
-          y: Math.sin(angle) * ring
+          y: Math.sin(angle) * ring,
         },
         baseRadius,
         seed: islandSeed,
-        type
+        type,
       };
 
       if (isIslandSeparated(candidate, specs, edgePadding)) {
@@ -337,7 +329,7 @@ export const createWorld = (seed: string | number): WorldState => {
   const islands = createIslands(specs);
 
   return {
-    islands
+    islands,
   };
 };
 

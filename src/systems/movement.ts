@@ -1,7 +1,7 @@
-import type { GameState } from "../game/state";
+import { type EntityId, isEntityAlive } from "../core/ecs";
 import type { InputState } from "../core/input";
-import { isEntityAlive, type EntityId } from "../core/ecs";
 import { PLAYER_SPEED, RAFT_ACCEL, RAFT_DECEL, RAFT_SPEED } from "../game/config";
+import type { GameState } from "../game/state";
 
 export const updateMovement = (state: GameState, playerId: EntityId, input: InputState, delta: number) => {
   const ecs = state.ecs;
@@ -52,4 +52,3 @@ export const updateMovement = (state: GameState, playerId: EntityId, input: Inpu
     ecs.playerMoveAngle[playerId] = Math.atan2(ecs.velocity.y[playerId], ecs.velocity.x[playerId]);
   }
 };
-

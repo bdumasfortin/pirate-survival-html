@@ -53,4 +53,3 @@ export const validateNumericRange = (value: number, min: number, max: number): b
 export const validateStringLength = (value: string, min: number, max: number): boolean => {
   return typeof value === "string" && value.length >= min && value.length <= max;
 };
-

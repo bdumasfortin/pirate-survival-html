@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
+
 import {
   DEFAULT_INPUT_DELAY_FRAMES,
   DEFAULT_ROOM_PLAYER_COUNT,
@@ -66,7 +67,7 @@ export const addPlayerToRoom = (room: Room, client: Client, index: number, isHos
     name,
     ws: client.ws,
     lastSeenAt: now,
-    lastPingAt: client.lastPingAt
+    lastPingAt: client.lastPingAt,
   };
   room.players.set(client.id, player);
   client.roomCode = room.code;
@@ -124,8 +125,7 @@ export const createRoom = (
     hostId: client.id,
     createdAt: now,
     lastActivity: now,
-    players: new Map()
+    players: new Map(),
   };
   return room;
 };
-

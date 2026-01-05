@@ -32,4 +32,3 @@ export type Room = {
   lastActivity: number;
   players: Map<string, RoomPlayer>;
 };
-

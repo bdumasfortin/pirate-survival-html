@@ -1,6 +1,11 @@
 import type { EcsWorld, EntityId } from "../core/ecs";
+import {
+  getInventorySelectedIndex,
+  getInventorySlotKind,
+  getInventorySlotQuantity,
+  setInventorySlotQuantity,
+} from "../game/inventory";
 import type { ItemKind } from "../game/item-kinds";
-import { getInventorySelectedIndex, getInventorySlotKind, getInventorySlotQuantity, setInventorySlotQuantity } from "../game/inventory";
 
 export const consumeSelectedItem = (ecs: EcsWorld, entityId: EntityId): ItemKind | null => {
   const selectedIndex = getInventorySelectedIndex(ecs, entityId);

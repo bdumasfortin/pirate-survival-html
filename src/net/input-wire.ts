@@ -71,7 +71,7 @@ export const decodeInputPacket = (buffer: ArrayBuffer): InputPacket | null => {
       inventoryIndex,
       inventoryScroll,
       mouseX,
-      mouseY
-    }
+      mouseY,
+    },
   };
 };

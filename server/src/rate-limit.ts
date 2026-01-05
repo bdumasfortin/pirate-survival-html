@@ -25,4 +25,3 @@ export const allowRate = (client: Client, key: string, limit: number, windowMs: 
   entry.count += 1;
   return true;
 };
-

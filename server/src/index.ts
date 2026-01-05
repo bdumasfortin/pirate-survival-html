@@ -1,8 +1,8 @@
 import http from "node:http";
-import { WebSocketServer, type WebSocket } from "ws";
+
+import { type WebSocket, WebSocketServer } from "ws";
+
 import type { RoomClientMessage, RoomServerErrorCode, RoomServerMessage } from "../../shared/room-protocol.js";
-import { allowRate, RATE_BINARY_LIMIT, RATE_CREATE_LIMIT, RATE_JOIN_LIMIT, RATE_RESYNC_CHUNK_LIMIT, RATE_RESYNC_META_LIMIT, RATE_RESYNC_REQUEST_LIMIT, RATE_START_LIMIT, RATE_STATE_HASH_LIMIT, RATE_WINDOW_MEDIUM_MS, RATE_WINDOW_SHORT_MS } from "./rate-limit.js";
-import { createId, logRoom } from "./room-manager.js";
 import {
   handleBinaryMessage,
   handleCloseRoom,
@@ -13,8 +13,22 @@ import {
   handleResyncRequest,
   handleResyncState,
   handleStartRoom,
-  handleStateHash
+  handleStateHash,
 } from "./message-handlers.js";
+import {
+  allowRate,
+  RATE_BINARY_LIMIT,
+  RATE_CREATE_LIMIT,
+  RATE_JOIN_LIMIT,
+  RATE_RESYNC_CHUNK_LIMIT,
+  RATE_RESYNC_META_LIMIT,
+  RATE_RESYNC_REQUEST_LIMIT,
+  RATE_START_LIMIT,
+  RATE_STATE_HASH_LIMIT,
+  RATE_WINDOW_MEDIUM_MS,
+  RATE_WINDOW_SHORT_MS,
+} from "./rate-limit.js";
+import { createId, logRoom } from "./room-manager.js";
 import type { Client, Room } from "./types.js";
 import { validateMessageStructure } from "./validation.js";
 
@@ -108,7 +122,11 @@ const handleClientMessage = (client: Client, message: RoomClientMessage): void =
       handleResyncRequest(client, message.fromFrame, message.reason, rooms);
       return;
     default:
-      sendError(client.ws, "bad-request", `Unknown message type: ${(message as { type?: string }).type ?? "undefined"}.`);
+      sendError(
+        client.ws,
+        "bad-request",
+        `Unknown message type: ${(message as { type?: string }).type ?? "undefined"}.`
+      );
   }
 };
 
@@ -123,15 +141,13 @@ wss.on("connection", (ws) => {
     roomCode: null,
     lastSeenAt: Date.now(),
     lastPingAt: 0,
-    rateLimits: new Map()
+    rateLimits: new Map(),
   };
   clients.set(ws, client);
 
   ws.on("message", (data, isBinary) => {
     if (isBinary) {
-      const byteLength = data instanceof ArrayBuffer
-        ? data.byteLength
-        : (data as Buffer).byteLength;
+      const byteLength = data instanceof ArrayBuffer ? data.byteLength : (data as Buffer).byteLength;
       if (byteLength > MAX_BINARY_MESSAGE_BYTES) {
         ws.close(1009, "Message too big.");
         return;
@@ -142,16 +158,18 @@ wss.on("connection", (ws) => {
       if (!allowRate(client, "binary", RATE_BINARY_LIMIT, RATE_WINDOW_SHORT_MS)) {
         return;
       }
-      const buffer = data instanceof ArrayBuffer
-        ? data
-        : (data as Buffer).buffer.slice((data as Buffer).byteOffset, (data as Buffer).byteOffset + (data as Buffer).byteLength);
+      const buffer =
+        data instanceof ArrayBuffer
+          ? data
+          : (data as Buffer).buffer.slice(
+              (data as Buffer).byteOffset,
+              (data as Buffer).byteOffset + (data as Buffer).byteLength
+            );
       handleBinaryMessage(client, buffer as ArrayBuffer, rooms);
       return;
     }
 
-    const textByteLength = typeof data === "string"
-      ? Buffer.byteLength(data, "utf8")
-      : (data as Buffer).byteLength;
+    const textByteLength = typeof data === "string" ? Buffer.byteLength(data, "utf8") : (data as Buffer).byteLength;
     if (textByteLength > MAX_JSON_MESSAGE_BYTES) {
       ws.close(1009, "Message too big.");
       return;

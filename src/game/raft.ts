@@ -3,5 +3,5 @@ export type RaftState = {
 };
 
 export const createRaftState = (): RaftState => ({
-  isOnRaft: false
+  isOnRaft: false,
 });
