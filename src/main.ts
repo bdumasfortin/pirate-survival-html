@@ -25,7 +25,7 @@ import {
   type RoomClientMessage,
   type RoomPlayerInfo,
   type RoomServerMessage
-} from "./net/room-protocol";
+} from "../shared/room-protocol";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement | null;
 

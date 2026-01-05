@@ -1,4 +1,3 @@
-// Keep this file aligned with src/net/room-protocol.ts.
 export const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 export const ROOM_CODE_LENGTH = 5;
 export const ROOM_MIN_PLAYERS = 2;
@@ -87,3 +86,4 @@ export type RoomServerMessage =
   | { type: "pong"; ts: number };
 
 export type RoomWireMessage = RoomClientMessage | RoomServerMessage;
+
