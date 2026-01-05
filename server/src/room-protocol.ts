@@ -12,7 +12,7 @@ const roomCodePattern = new RegExp(`^[${ROOM_CODE_ALPHABET}]{${ROOM_CODE_LENGTH}
 
 export const isValidRoomCode = (code: string) => roomCodePattern.test(normalizeRoomCode(code));
 
-export type ResyncReason = "late-join" | "desync";
+export type ResyncReason = "desync";
 
 export type RoomPlayerInfo = {
   id: string;
@@ -38,6 +38,7 @@ export type RoomServerErrorCode =
   | "invalid-code"
   | "not-host"
   | "not-in-room"
+  | "room-already-started"
   | "bad-request";
 
 export type RoomServerMessage =

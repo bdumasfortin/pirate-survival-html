@@ -12,8 +12,6 @@ Keep `package.json` next to `server.js` if you run it from a folder that uses `"
 ## Configuration
 - Set a custom port:
   `PORT=9000 node server.js`
-- Optional network simulation (for testing):
-  `RELAY_LATENCY_MS=60 RELAY_JITTER_MS=20 RELAY_DROP_RATE=0.02 node server.js`
 
 ## Notes
 - This server is relay-only; clients connect with WebSocket URLs like `ws://HOST:8787`.

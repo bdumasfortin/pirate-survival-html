@@ -1,6 +1,6 @@
 export type SessionStatus = "handshaking" | "running" | "paused";
 
-export type PauseReason = "late-join" | "desync" | "menu";
+export type PauseReason = "desync" | "menu";
 
 export type SessionPlayerInfo = {
   id: string;

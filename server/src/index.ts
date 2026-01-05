@@ -234,11 +234,22 @@ const removeClientFromRoom = (client: Client, reason = "left") => {
     return;
   }
 
+  const player = room.players.get(client.id);
+  if (!player) {
+    client.roomCode = null;
+    return;
+  }
+
   const wasHost = room.hostId === client.id;
+  
+  // Remove player completely
   room.players.delete(client.id);
+  logRoom(room, `player ${reason}`);
+  
   client.roomCode = null;
   touchRoom(room);
 
+  // Check if room is empty
   if (room.players.size === 0) {
     rooms.delete(room.code);
     logRoom(room, "removed (empty)");
@@ -253,7 +264,6 @@ const removeClientFromRoom = (client: Client, reason = "left") => {
   }
 
   broadcastRoom(room, { type: "room-updated", players: buildPlayersList(room) });
-  logRoom(room, `player ${reason}`);
 };
 
 const closeRoom = (room: Room, reason: string) => {
@@ -349,13 +359,30 @@ const handleJoinRoom = (client: Client, message: Extract<RoomClientMessage, { ty
     return;
   }
 
+  // Check if room has already started - reject late join immediately
+  if (room.started) {
+    sendError(
+      client.ws,
+      "room-already-started",
+      "This session is already ongoing, late joining is unsupported for now."
+    );
+    logRoom(room, `player join rejected (room already started)`);
+    return;
+  }
+
+  // Check if room has space
   if (room.players.size >= room.playerCount) {
     sendError(client.ws, "room-full", "Room is full.");
     return;
   }
-
+  
   const index = getNextPlayerIndex(room);
   addPlayerToRoom(room, client, index, false, playerName);
+  logRoom(room, `new player joined index=${index}`);
+
+  client.roomCode = room.code;
+  touchRoom(room);
+
   const players = buildPlayersList(room);
   sendJson(client.ws, {
     type: "room-joined",
@@ -369,24 +396,6 @@ const handleJoinRoom = (client: Client, message: Extract<RoomClientMessage, { ty
   });
 
   broadcastRoom(room, { type: "room-updated", players }, client.id);
-  if (room.started) {
-    sendJson(client.ws, {
-      type: "start",
-      seed: room.seed,
-      startFrame: room.startFrame,
-      inputDelayFrames: room.inputDelayFrames,
-      players
-    });
-    const host = room.players.get(room.hostId);
-    if (host) {
-      sendJson(host.ws, {
-        type: "resync-request",
-        fromFrame: room.startFrame,
-        reason: "late-join",
-        requesterId: client.id
-      });
-    }
-  }
   logRoom(room, `player joined index=${index}`);
 };
 
@@ -431,7 +440,7 @@ const handleResyncRequest = (client: Client, fromFrame: number, reason: ResyncRe
   }
 
   const host = room.players.get(room.hostId);
-  if (host) {
+  if (host && host.ws) {
     sendRelayJson(host.ws, { type: "resync-request", fromFrame, reason, requesterId: client.id });
   }
   touchRoom(room);
@@ -448,7 +457,7 @@ const handleResyncState = (client: Client, message: Extract<RoomClientMessage, {
     return;
   }
   const requester = room.players.get(message.requesterId);
-  if (!requester) {
+  if (!requester || !requester.ws) {
     return;
   }
   if (!Number.isFinite(message.frame) || message.frame < 0 || message.frame > MAX_FRAME_INDEX) {
@@ -484,7 +493,7 @@ const handleResyncChunk = (client: Client, message: Extract<RoomClientMessage, {
     return;
   }
   const requester = room.players.get(message.requesterId);
-  if (!requester) {
+  if (!requester || !requester.ws) {
     return;
   }
   if (!Number.isFinite(message.offset) || message.offset < 0 || message.offset > MAX_SNAPSHOT_BYTES) {
@@ -653,7 +662,7 @@ wss.on("connection", (ws) => {
       const buffer = data instanceof ArrayBuffer
         ? data
         : (data as Buffer).buffer.slice((data as Buffer).byteOffset, (data as Buffer).byteOffset + (data as Buffer).byteLength);
-      handleBinaryMessage(client, buffer);
+      handleBinaryMessage(client, buffer as ArrayBuffer);
       return;
     }
 
