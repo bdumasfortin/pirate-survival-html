@@ -39,7 +39,7 @@ const createId = () => {
 
   if (typeof crypto !== "undefined" && "getRandomValues" in crypto) {
     const values = new Uint32Array(2);
-    crypto.getRandomValues(values);
+    (crypto as Crypto).getRandomValues(values);
     return `${values[0].toString(16)}${values[1].toString(16)}`;
   }
 
