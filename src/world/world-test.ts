@@ -4,7 +4,12 @@ import type { Vec2 } from "../core/types";
 import { itemKindToIndex } from "../game/item-kinds";
 import { resourceNodeTypeToIndex } from "./resource-node-types";
 import type { Island, IslandType, ResourceNodeType, WorldConfig, WorldState } from "./types";
-import { BASE_ISLAND_RADIUS, RESOURCE_NODE_CONFIGS, type ResourceNodeConfig, SPAWN_ZONE_RADIUS } from "./world-config";
+import {
+  getProceduralBaseRadius,
+  getSpawnZoneRadius,
+  RESOURCE_NODE_CONFIGS,
+  type ResourceNodeConfig,
+} from "./world-config";
 
 type TestIslandSpec = {
   center: Vec2;
@@ -30,24 +35,27 @@ const RESOURCE_CONFIG_BY_NODE = RESOURCE_NODE_CONFIGS.reduce(
 );
 
 const TEST_ISLAND_POINT_COUNT = 36;
-const TEST_ISLAND_OFFSET = BASE_ISLAND_RADIUS * 2.6;
-const TEST_ISLAND_DIAGONAL = BASE_ISLAND_RADIUS * 2.2;
-const TEST_SPAWN_RADIUS = BASE_ISLAND_RADIUS * 1.1;
-const TEST_SIDE_RADIUS = BASE_ISLAND_RADIUS * 0.9;
 
-const TEST_ISLAND_SPECS: TestIslandSpec[] = [
-  { center: { x: 0, y: 0 }, radius: TEST_SPAWN_RADIUS, type: "beach", seedOffset: 11 },
-  { center: { x: TEST_ISLAND_OFFSET, y: 0 }, radius: TEST_SIDE_RADIUS, type: "woods", seedOffset: 37 },
-  { center: { x: -TEST_ISLAND_OFFSET, y: 0 }, radius: TEST_SIDE_RADIUS, type: "calmBoss", seedOffset: 59 },
-  { center: { x: 0, y: TEST_ISLAND_OFFSET }, radius: TEST_SIDE_RADIUS, type: "wildBoss", seedOffset: 83 },
-  { center: { x: 0, y: -TEST_ISLAND_OFFSET }, radius: TEST_SIDE_RADIUS, type: "volcanic", seedOffset: 101 },
-  {
-    center: { x: TEST_ISLAND_DIAGONAL, y: -TEST_ISLAND_DIAGONAL },
-    radius: TEST_SIDE_RADIUS,
-    type: "volcanicBoss",
-    seedOffset: 127,
-  },
-];
+const buildTestIslandSpecs = (baseRadius: number): TestIslandSpec[] => {
+  const islandOffset = baseRadius * 2.6;
+  const islandDiagonal = baseRadius * 2.2;
+  const spawnRadius = baseRadius * 1.1;
+  const sideRadius = baseRadius * 0.9;
+
+  return [
+    { center: { x: 0, y: 0 }, radius: spawnRadius, type: "beach", seedOffset: 11 },
+    { center: { x: islandOffset, y: 0 }, radius: sideRadius, type: "woods", seedOffset: 37 },
+    { center: { x: -islandOffset, y: 0 }, radius: sideRadius, type: "calmBoss", seedOffset: 59 },
+    { center: { x: 0, y: islandOffset }, radius: sideRadius, type: "wildBoss", seedOffset: 83 },
+    { center: { x: 0, y: -islandOffset }, radius: sideRadius, type: "volcanic", seedOffset: 101 },
+    {
+      center: { x: islandDiagonal, y: -islandDiagonal },
+      radius: sideRadius,
+      type: "volcanicBoss",
+      seedOffset: 127,
+    },
+  ];
+};
 
 const createCircularIsland = (center: Vec2, radius: number, type: IslandType, seed: number): Island => {
   const points: Vec2[] = [];
@@ -114,7 +122,8 @@ const spawnResource = (ecs: EcsWorld, placement: ResourcePlacement) => {
 };
 
 export const createTestWorld = (config: WorldConfig): WorldState => {
-  const islands = TEST_ISLAND_SPECS.map((spec) =>
+  const baseRadius = getProceduralBaseRadius(config.procedural);
+  const islands = buildTestIslandSpecs(baseRadius).map((spec) =>
     createCircularIsland(spec.center, spec.radius, spec.type, config.seed + spec.seedOffset)
   );
 
@@ -132,7 +141,8 @@ export const spawnTestResources = (ecs: EcsWorld, world: WorldState) => {
   const placements: ResourcePlacement[] = [];
   const spawnIsland = world.islands[0];
   const spawnRadius = getIslandRadius(spawnIsland);
-  const spawnRing = Math.min(spawnRadius * 0.7, Math.max(SPAWN_ZONE_RADIUS + 70, spawnRadius * 0.55));
+  const spawnZoneRadius = getSpawnZoneRadius(world.config.procedural);
+  const spawnRing = Math.min(spawnRadius * 0.7, Math.max(spawnZoneRadius + 70, spawnRadius * 0.55));
 
   addRingPlacements(placements, spawnIsland.center, spawnRing, "tree", 4, 0);
   addRingPlacements(placements, spawnIsland.center, spawnRing * 0.9, "rock", 4, Math.PI / 6);

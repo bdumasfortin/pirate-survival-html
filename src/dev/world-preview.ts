@@ -1,7 +1,7 @@
 import { copyTextToClipboard, generateRandomSeed } from "../app/ui-helpers";
 import { drawIsland, insetPoints } from "../render/render-helpers";
 import type { IslandType, ProceduralWorldConfig, WorldState } from "../world/types";
-import { BIOME_TIERS, SPAWN_ZONE_RADIUS, WORLD_GEN_CONFIG } from "../world/world-config";
+import { BIOME_TIERS, getSpawnZoneRadius, WORLD_GEN_CONFIG } from "../world/world-config";
 import { createWorld } from "../world/world-creation";
 
 type PreviewDependencies = {
@@ -110,11 +110,12 @@ const createRow = (label: string, input: HTMLElement) => {
   return row;
 };
 
-const createNumberInput = (value: number, step = 1) => {
+const createNumberInput = (value: number, step: number | "any" = "any") => {
   const input = document.createElement("input");
   input.type = "number";
   input.value = value.toString();
-  input.step = step.toString();
+  input.step = step === "any" ? "any" : step.toString();
+  input.inputMode = "decimal";
   input.className = "dev-preview-input";
   return input;
 };
@@ -188,8 +189,8 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
   const radiusMaxInput = createNumberInput(currentConfig.radiusMax, 10);
   const edgePaddingInput = createNumberInput(currentConfig.edgePadding, 10);
   const placementAttemptsInput = createNumberInput(currentConfig.placementAttempts, 1);
-  const arcMinInput = createNumberInput(currentConfig.arcMinAngle, 0.05);
-  const arcMaxInput = createNumberInput(currentConfig.arcMaxAngle, 0.05);
+  const arcMinInput = createNumberInput(currentConfig.arcMinAngle, "any");
+  const arcMaxInput = createNumberInput(currentConfig.arcMaxAngle, "any");
 
   configSection.append(
     createRow("Spawn radius", spawnRadiusInput),
@@ -420,8 +421,9 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
       ctx.setLineDash([]);
     }
 
+    const spawnZoneRadius = getSpawnZoneRadius(currentConfig);
     ctx.beginPath();
-    ctx.arc(0, 0, SPAWN_ZONE_RADIUS, 0, Math.PI * 2);
+    ctx.arc(0, 0, spawnZoneRadius, 0, Math.PI * 2);
     ctx.fillStyle = "rgba(184, 139, 101, 0.35)";
     ctx.fill();
 

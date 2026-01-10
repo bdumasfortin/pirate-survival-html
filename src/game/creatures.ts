@@ -4,7 +4,7 @@ import { nextFloat, nextRange, type RngState } from "../core/rng";
 import type { Vec2 } from "../core/types";
 import { isPointInIsland } from "../world/island-geometry";
 import type { Island, WorldState } from "../world/types";
-import { BASE_ISLAND_RADIUS, SPAWN_ZONE_RADIUS } from "../world/world-config";
+import { getProceduralBaseRadius, getSpawnZoneRadius } from "../world/world-config";
 import {
   BEACH_BOSS_CRAB_COUNT,
   CRAB_BEACH_RING_MAX,
@@ -52,12 +52,12 @@ const getIslandRadius = (island: Island) => {
   return sum / island.points.length;
 };
 
-const getIslandAreaScale = (island: Island) => {
+const getIslandAreaScale = (island: Island, baseRadius: number) => {
   const radius = getIslandRadius(island);
   if (radius <= 0) {
     return 1;
   }
-  return Math.pow(radius / BASE_ISLAND_RADIUS, 2);
+  return Math.pow(radius / baseRadius, 2);
 };
 
 const scaleCreatureCount = (count: number, areaScale: number) => Math.max(1, Math.round(count * areaScale));
@@ -270,7 +270,9 @@ export const createEnemies = (ecs: EcsWorld, world: WorldState, rng: RngState) =
 
   const spawnIsland = world.islands[0];
   const spawnCenter = spawnIsland?.center ?? { x: 0, y: 0 };
-  const spawnRadiusSq = SPAWN_ZONE_RADIUS * SPAWN_ZONE_RADIUS;
+  const baseRadius = getProceduralBaseRadius(world.config.procedural);
+  const spawnZoneRadius = getSpawnZoneRadius(world.config.procedural);
+  const spawnRadiusSq = spawnZoneRadius * spawnZoneRadius;
   const rejectSpawnZone = (position: Vec2) => {
     const dx = position.x - spawnCenter.x;
     const dy = position.y - spawnCenter.y;
@@ -279,7 +281,7 @@ export const createEnemies = (ecs: EcsWorld, world: WorldState, rng: RngState) =
 
   world.islands.forEach((island, index) => {
     const reject = index === 0 ? rejectSpawnZone : undefined;
-    const areaScale = getIslandAreaScale(island);
+    const areaScale = getIslandAreaScale(island, baseRadius);
     const islandRadius = getIslandRadius(island);
     const islandArea = Math.PI * islandRadius * islandRadius;
     const positions: Vec2[] = [];
@@ -422,8 +424,8 @@ export const createEnemies = (ecs: EcsWorld, world: WorldState, rng: RngState) =
   });
 
   const spawnAnchor = spawnIsland?.center ?? { x: 0, y: 0 };
-  const spawnRadius = spawnIsland ? getIslandRadius(spawnIsland) : BASE_ISLAND_RADIUS;
-  const distanceScale = spawnRadius / BASE_ISLAND_RADIUS;
+  const spawnRadius = spawnIsland ? getIslandRadius(spawnIsland) : baseRadius;
+  const distanceScale = spawnRadius / baseRadius;
   const minDistance = KRAKEN_SPAWN_MIN_DISTANCE * distanceScale;
   const maxDistance = KRAKEN_SPAWN_MAX_DISTANCE * distanceScale;
   for (let i = 0; i < KRAKEN_SPAWN_COUNT; i += 1) {

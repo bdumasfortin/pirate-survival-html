@@ -15,13 +15,12 @@ import type {
 } from "./types";
 import type { IslandSpec } from "./world-config";
 import {
-  BASE_ISLAND_RADIUS,
-  BOSS_ISLAND_RADIUS,
+  getProceduralBaseRadius,
+  getSpawnZoneRadius,
   ISLAND_SHAPE_CONFIG,
   ISLAND_SHAPE_CONFIG_BY_TYPE,
   RESOURCE_NODE_CONFIGS_BY_TYPE,
   RESOURCE_PLACEMENT_CONFIG,
-  SPAWN_ZONE_RADIUS,
 } from "./world-config";
 
 type Rng = () => number;
@@ -162,12 +161,18 @@ const getRandomPointInIsland = (island: Island, rng: Rng, reject?: (position: Ve
 
 const RESOURCE_MASK = ComponentMask.Position | ComponentMask.Radius | ComponentMask.Tag | ComponentMask.Resource;
 
-const spawnResourcesForIsland = (ecs: EcsWorld, island: Island, seed: number, reject?: (position: Vec2) => boolean) => {
+const spawnResourcesForIsland = (
+  ecs: EcsWorld,
+  island: Island,
+  seed: number,
+  baseRadius: number,
+  reject?: (position: Vec2) => boolean
+) => {
   const rng = createRng(seed);
 
   const configs = RESOURCE_NODE_CONFIGS_BY_TYPE[island.type];
   const islandRadius = getIslandRadius(island);
-  const areaScale = Math.pow(islandRadius / BASE_ISLAND_RADIUS, 2);
+  const areaScale = Math.pow(islandRadius / baseRadius, 2);
   const scaledCounts = configs.map((config) => Math.max(1, Math.round(config.count * areaScale)));
   const totalCount = scaledCounts.reduce((sum, count) => sum + count, 0);
   const islandArea = Math.PI * islandRadius * islandRadius;
@@ -336,7 +341,8 @@ const createIslandSpecs = (seed: number, config: ProceduralWorldConfig): IslandS
   for (let tierIndex = 0; tierIndex < sortedTiers.length; tierIndex += 1) {
     const tier = sortedTiers[tierIndex];
     const bossSeed = Math.floor(rng() * 1_000_000_000) + seed + 113 + tierIndex * 71;
-    placeIsland(BOSS_ISLAND_RADIUS, bossSeed, tier.bossType, tier.ringMin, tier.ringMax);
+    const bossRadius = randomBetween(rng, radiusMin, radiusMax);
+    placeIsland(bossRadius, bossSeed, tier.bossType, tier.ringMin, tier.ringMax);
   }
 
   for (let tierIndex = 0; tierIndex < sortedTiers.length; tierIndex += 1) {
@@ -369,7 +375,9 @@ export const createProceduralWorld = (config: WorldConfig): WorldState => {
 export const spawnProceduralResources = (ecs: EcsWorld, world: WorldState) => {
   const spawnIsland = world.islands[0];
   const spawnCenter = spawnIsland?.center ?? { x: 0, y: 0 };
-  const spawnRadiusSq = SPAWN_ZONE_RADIUS * SPAWN_ZONE_RADIUS;
+  const baseRadius = getProceduralBaseRadius(world.config.procedural);
+  const spawnZoneRadius = getSpawnZoneRadius(world.config.procedural);
+  const spawnRadiusSq = spawnZoneRadius * spawnZoneRadius;
   const rejectSpawnZone = (position: Vec2) => {
     const dx = position.x - spawnCenter.x;
     const dy = position.y - spawnCenter.y;
@@ -378,6 +386,6 @@ export const spawnProceduralResources = (ecs: EcsWorld, world: WorldState) => {
 
   world.islands.forEach((island, index) => {
     const reject = index === 0 ? rejectSpawnZone : undefined;
-    spawnResourcesForIsland(ecs, island, island.seed + 100, reject);
+    spawnResourcesForIsland(ecs, island, island.seed + 100, baseRadius, reject);
   });
 };

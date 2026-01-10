@@ -1,6 +1,6 @@
 import type { Vec2 } from "../core/types";
 import type { ItemKind } from "../game/item-kinds";
-import type { BiomeTierConfig, IslandType, ResourceNodeType, YieldRange } from "./types";
+import type { BiomeTierConfig, IslandType, ProceduralWorldConfig, ResourceNodeType, YieldRange } from "./types";
 
 export type IslandSpec = {
   center: Vec2;
@@ -9,29 +9,27 @@ export type IslandSpec = {
   type: IslandType;
 };
 
-const BASE_ISLAND_RADIUS_MIN = 120;
-const BASE_ISLAND_RADIUS_MAX = 180;
+export const getProceduralBaseRadius = (config: Pick<ProceduralWorldConfig, "radiusMin" | "radiusMax">) =>
+  (config.radiusMin + config.radiusMax) / 2;
 
-export const BASE_ISLAND_RADIUS = (BASE_ISLAND_RADIUS_MIN + BASE_ISLAND_RADIUS_MAX) / 2;
-export const BOSS_ISLAND_RADIUS = BASE_ISLAND_RADIUS;
-export const SPAWN_ZONE_RADIUS = BASE_ISLAND_RADIUS * 0.5;
+export const getSpawnZoneRadius = (config: Pick<ProceduralWorldConfig, "spawnRadius">) => config.spawnRadius * 0.5;
 
 export const WORLD_GEN_CONFIG = {
   spawnRadius: 300,
-  radiusMin: 220,
-  radiusMax: 360,
+  radiusMin: 350,
+  radiusMax: 500,
   edgePadding: 10,
   placementAttempts: 350,
-  arcMinAngle: -Math.PI / 2,
-  arcMaxAngle: 0,
+  arcMinAngle: -1.6,
+  arcMaxAngle: 0.6,
 };
 
 export const BIOME_TIERS: BiomeTierConfig[] = [
   {
     id: "calm",
     name: "Calm belt",
-    ringMin: 390,
-    ringMax: 1710,
+    ringMin: 450,
+    ringMax: 2750,
     islandCount: 6,
     bossType: "calmBoss",
     weights: {
@@ -41,8 +39,8 @@ export const BIOME_TIERS: BiomeTierConfig[] = [
   {
     id: "wild",
     name: "Wild belt",
-    ringMin: 1880,
-    ringMax: 2910,
+    ringMin: 3000,
+    ringMax: 6230,
     islandCount: 10,
     bossType: "wildBoss",
     weights: {
@@ -52,8 +50,8 @@ export const BIOME_TIERS: BiomeTierConfig[] = [
   {
     id: "volcanic",
     name: "Volcanic belt",
-    ringMin: 3120,
-    ringMax: 4300,
+    ringMin: 6500,
+    ringMax: 8500,
     islandCount: 15,
     bossType: "volcanicBoss",
     weights: {

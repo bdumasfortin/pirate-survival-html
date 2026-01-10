@@ -17,7 +17,7 @@ import {
 import { findContainingIsland } from "../world/island-geometry";
 import { resourceNodeTypeFromIndex } from "../world/resource-node-types";
 import type { Island, IslandType, ResourceNodeType } from "../world/types";
-import { SPAWN_ZONE_RADIUS } from "../world/world-config";
+import { getSpawnZoneRadius } from "../world/world-config";
 import { isImageReady, itemImages, propImages, worldImages } from "./assets";
 import { drawIsland, insetPoints } from "./render-helpers";
 import { CAMERA_ZOOM } from "./ui-config";
@@ -322,13 +322,14 @@ const renderSpawnZone = (ctx: CanvasRenderingContext2D, state: GameState, view: 
   if (!spawnIsland) {
     return;
   }
+  const spawnZoneRadius = getSpawnZoneRadius(state.world.config.procedural);
   const { x, y } = spawnIsland.center;
-  if (!isCircleInView(x, y, SPAWN_ZONE_RADIUS, view)) {
+  if (!isCircleInView(x, y, spawnZoneRadius, view)) {
     return;
   }
 
   ctx.beginPath();
-  ctx.arc(x, y, SPAWN_ZONE_RADIUS, 0, Math.PI * 2);
+  ctx.arc(x, y, spawnZoneRadius, 0, Math.PI * 2);
   ctx.fillStyle = SPAWN_ZONE_COLOR;
   ctx.fill();
 };
