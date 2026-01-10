@@ -17,6 +17,7 @@ import {
   type CreatureStats,
   FOREST_WOLF_COUNT,
   KRAKEN_SPAWN_ATTEMPTS,
+  KRAKEN_SPAWN_CHANCE,
   KRAKEN_SPAWN_COUNT,
   KRAKEN_SPAWN_MAX_DISTANCE,
   KRAKEN_SPAWN_MIN_DISTANCE,
@@ -424,11 +425,13 @@ export const createEnemies = (ecs: EcsWorld, world: WorldState, rng: RngState) =
   });
 
   const spawnAnchor = spawnIsland?.center ?? { x: 0, y: 0 };
-  const spawnRadius = spawnIsland ? getIslandRadius(spawnIsland) : baseRadius;
-  const distanceScale = spawnRadius / baseRadius;
-  const minDistance = KRAKEN_SPAWN_MIN_DISTANCE * distanceScale;
-  const maxDistance = KRAKEN_SPAWN_MAX_DISTANCE * distanceScale;
+  const maxRingMax = Math.max(0, ...world.config.procedural.biomeTiers.map((tier) => tier.ringMax));
+  const minDistance = maxRingMax + KRAKEN_SPAWN_MIN_DISTANCE;
+  const maxDistance = maxRingMax + KRAKEN_SPAWN_MAX_DISTANCE;
   for (let i = 0; i < KRAKEN_SPAWN_COUNT; i += 1) {
+    if (nextFloat(rng) > KRAKEN_SPAWN_CHANCE) {
+      continue;
+    }
     const position = randomPointInSea(rng, spawnAnchor, world.islands, minDistance, maxDistance);
     spawnKraken(ecs, rng, position);
   }

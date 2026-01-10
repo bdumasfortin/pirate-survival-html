@@ -31,7 +31,8 @@ export const MAGMA_SLIME_COUNT = 4;
 export const WOLF_BOSS_COUNT = 1;
 export const BEACH_BOSS_CRAB_COUNT = 1;
 export const MAGMA_COLOSSUS_COUNT = 1;
-export const KRAKEN_SPAWN_COUNT = 3;
+export const KRAKEN_SPAWN_COUNT = 1;
+export const KRAKEN_SPAWN_CHANCE = 0.25;
 
 export const CRAB_BEACH_RING_MIN = 0.82;
 export const CRAB_BEACH_RING_MAX = 1.0;

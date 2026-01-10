@@ -13,7 +13,7 @@
 - `src/game/`: game state, simulation, configs, rollback snapshots.
 - `src/systems/`: gameplay systems (movement, crafting, combat, etc.).
 - `src/render/`: canvas renderer, HUD/UI, asset registry.
-- `src/world/`: world generation and resource nodes.
+- `src/world/`: world generation and resource nodes (procedural defaults in `src/world/world-config.json`).
 - `src/net/`: client networking, snapshots, session/transport.
 - `shared/`: protocol types shared by client + server.
 
