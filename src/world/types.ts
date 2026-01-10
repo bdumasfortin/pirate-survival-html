@@ -1,6 +1,6 @@
 import type { Vec2 } from "../core/types";
 
-export type IslandType = "standard" | "forest" | "crabBoss" | "wolfBoss";
+export type IslandType = "beach" | "woods" | "volcanic" | "calmBoss" | "wildBoss" | "volcanicBoss";
 
 export type Island = {
   center: Vec2;
@@ -16,22 +16,33 @@ export type YieldRange = {
   max: number;
 };
 
+export type BiomeTierId = "calm" | "wild" | "volcanic";
+
 export type WorldPreset = "procedural" | "test" | "creative";
 
-export type ProceduralWorldConfig = {
+export type BiomeTierConfig = {
+  id: BiomeTierId;
+  name: string;
+  ringMin: number;
+  ringMax: number;
   islandCount: number;
+  bossType: IslandType;
+  weights: Partial<Record<IslandType, number>>;
+};
+
+export type ProceduralWorldConfig = {
   spawnRadius: number;
   radiusMin: number;
   radiusMax: number;
-  ringMin: number;
-  ringMax: number;
   edgePadding: number;
   placementAttempts: number;
-  islandTypeWeights: Record<IslandType, number>;
+  arcMinAngle: number;
+  arcMaxAngle: number;
+  biomeTiers: BiomeTierConfig[];
 };
 
-export type ProceduralWorldConfigOverrides = Partial<Omit<ProceduralWorldConfig, "islandTypeWeights">> & {
-  islandTypeWeights?: Partial<Record<IslandType, number>>;
+export type ProceduralWorldConfigOverrides = Partial<Omit<ProceduralWorldConfig, "biomeTiers">> & {
+  biomeTiers?: BiomeTierConfig[];
 };
 
 export type WorldConfig = {

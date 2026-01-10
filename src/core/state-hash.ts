@@ -47,19 +47,28 @@ const hashWorldConfig = (hash: number, config: WorldState["config"]) => {
   next = mixHash(next, config.seed);
 
   const procedural = config.procedural;
-  next = mixHash(next, floatToBits(procedural.islandCount));
   next = mixHash(next, floatToBits(procedural.spawnRadius));
   next = mixHash(next, floatToBits(procedural.radiusMin));
   next = mixHash(next, floatToBits(procedural.radiusMax));
-  next = mixHash(next, floatToBits(procedural.ringMin));
-  next = mixHash(next, floatToBits(procedural.ringMax));
   next = mixHash(next, floatToBits(procedural.edgePadding));
   next = mixHash(next, floatToBits(procedural.placementAttempts));
+  next = mixHash(next, floatToBits(procedural.arcMinAngle));
+  next = mixHash(next, floatToBits(procedural.arcMaxAngle));
 
-  const weightEntries = Object.entries(procedural.islandTypeWeights).sort(([a], [b]) => a.localeCompare(b));
-  for (const [type, weight] of weightEntries) {
-    next = hashString(next, type);
-    next = mixHash(next, floatToBits(weight));
+  next = mixHash(next, procedural.biomeTiers.length);
+  for (const tier of procedural.biomeTiers) {
+    next = hashString(next, tier.id);
+    next = hashString(next, tier.name);
+    next = mixHash(next, floatToBits(tier.ringMin));
+    next = mixHash(next, floatToBits(tier.ringMax));
+    next = mixHash(next, floatToBits(tier.islandCount));
+    next = hashString(next, tier.bossType);
+
+    const weightEntries = Object.entries(tier.weights).sort(([a], [b]) => a.localeCompare(b));
+    for (const [type, weight] of weightEntries) {
+      next = hashString(next, type);
+      next = mixHash(next, floatToBits(weight));
+    }
   }
 
   return next;

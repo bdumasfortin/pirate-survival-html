@@ -23,6 +23,7 @@ const ENEMY_LOOT_TABLE: Record<EnemyKind, LootEntry[]> = {
     { kind: "wolfcloak", quantity: 1, offsetScale: 1.2, bossOnly: true },
   ],
   kraken: [{ kind: "krakenring", quantity: 1 }],
+  magmaSlime: [],
 };
 
 const getEnemyLoot = (kind: EnemyKind, isBoss: boolean) =>

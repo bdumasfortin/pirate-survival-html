@@ -28,10 +28,12 @@
 - Deterministic procedural islands generated from a seed.
 - 55 islands placed with separation so they do not touch.
 - Island types:
-  - Standard: grass + sand, crabs, trees, rocks, berry bushes.
-  - Forest: darker grass + sand, wolves, trees, rocks, berry bushes.
-  - Crab Boss: sand only, rocks, boss crab.
-  - Wolf Boss: forest look, wolf boss.
+  - Beach (Calm belt): grass + sand, crabs, trees, rocks, berry bushes.
+  - Woods (Wild belt): darker grass + sand, wolves, trees, rocks, berry bushes.
+  - Volcanic (Volcanic belt): rocky terrain, magma slimes.
+  - CalmBoss: sand only, rocks, Huge Crab boss.
+  - WildBoss: forest look, Dire wolf boss.
+  - VolcanicBoss: volcanic look, Magma colossus boss.
 - Rare krakens roam the sea.
 
 ## Player

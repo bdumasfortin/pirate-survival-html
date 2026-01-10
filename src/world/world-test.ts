@@ -30,15 +30,23 @@ const RESOURCE_CONFIG_BY_NODE = RESOURCE_NODE_CONFIGS.reduce(
 );
 
 const TEST_ISLAND_POINT_COUNT = 36;
-const TEST_ISLAND_OFFSET = BASE_ISLAND_RADIUS * 3;
+const TEST_ISLAND_OFFSET = BASE_ISLAND_RADIUS * 2.6;
+const TEST_ISLAND_DIAGONAL = BASE_ISLAND_RADIUS * 2.2;
 const TEST_SPAWN_RADIUS = BASE_ISLAND_RADIUS * 1.1;
 const TEST_SIDE_RADIUS = BASE_ISLAND_RADIUS * 0.9;
 
 const TEST_ISLAND_SPECS: TestIslandSpec[] = [
-  { center: { x: 0, y: 0 }, radius: TEST_SPAWN_RADIUS, type: "standard", seedOffset: 11 },
-  { center: { x: TEST_ISLAND_OFFSET, y: 0 }, radius: TEST_SIDE_RADIUS, type: "forest", seedOffset: 37 },
-  { center: { x: -TEST_ISLAND_OFFSET, y: 0 }, radius: TEST_SIDE_RADIUS, type: "crabBoss", seedOffset: 59 },
-  { center: { x: 0, y: TEST_ISLAND_OFFSET }, radius: TEST_SIDE_RADIUS, type: "wolfBoss", seedOffset: 83 },
+  { center: { x: 0, y: 0 }, radius: TEST_SPAWN_RADIUS, type: "beach", seedOffset: 11 },
+  { center: { x: TEST_ISLAND_OFFSET, y: 0 }, radius: TEST_SIDE_RADIUS, type: "woods", seedOffset: 37 },
+  { center: { x: -TEST_ISLAND_OFFSET, y: 0 }, radius: TEST_SIDE_RADIUS, type: "calmBoss", seedOffset: 59 },
+  { center: { x: 0, y: TEST_ISLAND_OFFSET }, radius: TEST_SIDE_RADIUS, type: "wildBoss", seedOffset: 83 },
+  { center: { x: 0, y: -TEST_ISLAND_OFFSET }, radius: TEST_SIDE_RADIUS, type: "volcanic", seedOffset: 101 },
+  {
+    center: { x: TEST_ISLAND_DIAGONAL, y: -TEST_ISLAND_DIAGONAL },
+    radius: TEST_SIDE_RADIUS,
+    type: "volcanicBoss",
+    seedOffset: 127,
+  },
 ];
 
 const createCircularIsland = (center: Vec2, radius: number, type: IslandType, seed: number): Island => {
@@ -130,24 +138,36 @@ export const spawnTestResources = (ecs: EcsWorld, world: WorldState) => {
   addRingPlacements(placements, spawnIsland.center, spawnRing * 0.9, "rock", 4, Math.PI / 6);
   addRingPlacements(placements, spawnIsland.center, spawnRing * 0.75, "bush", 3, Math.PI / 4);
 
-  const forestIsland = world.islands[1];
-  if (forestIsland) {
-    const radius = getIslandRadius(forestIsland);
-    addRingPlacements(placements, forestIsland.center, radius * 0.6, "tree", 6, Math.PI / 8);
-    addRingPlacements(placements, forestIsland.center, radius * 0.45, "bush", 4, 0);
+  const woodsIsland = world.islands[1];
+  if (woodsIsland) {
+    const radius = getIslandRadius(woodsIsland);
+    addRingPlacements(placements, woodsIsland.center, radius * 0.6, "tree", 6, Math.PI / 8);
+    addRingPlacements(placements, woodsIsland.center, radius * 0.45, "bush", 4, 0);
   }
 
-  const crabIsland = world.islands[2];
-  if (crabIsland) {
-    const radius = getIslandRadius(crabIsland);
-    addRingPlacements(placements, crabIsland.center, radius * 0.55, "rock", 7, Math.PI / 10);
+  const calmBossIsland = world.islands[2];
+  if (calmBossIsland) {
+    const radius = getIslandRadius(calmBossIsland);
+    addRingPlacements(placements, calmBossIsland.center, radius * 0.55, "rock", 7, Math.PI / 10);
   }
 
-  const wolfIsland = world.islands[3];
-  if (wolfIsland) {
-    const radius = getIslandRadius(wolfIsland);
-    addRingPlacements(placements, wolfIsland.center, radius * 0.55, "tree", 4, Math.PI / 3);
-    addRingPlacements(placements, wolfIsland.center, radius * 0.4, "rock", 3, Math.PI / 5);
+  const wildBossIsland = world.islands[3];
+  if (wildBossIsland) {
+    const radius = getIslandRadius(wildBossIsland);
+    addRingPlacements(placements, wildBossIsland.center, radius * 0.55, "tree", 4, Math.PI / 3);
+    addRingPlacements(placements, wildBossIsland.center, radius * 0.4, "rock", 3, Math.PI / 5);
+  }
+
+  const volcanicIsland = world.islands[4];
+  if (volcanicIsland) {
+    const radius = getIslandRadius(volcanicIsland);
+    addRingPlacements(placements, volcanicIsland.center, radius * 0.5, "rock", 6, Math.PI / 6);
+  }
+
+  const volcanicBossIsland = world.islands[5];
+  if (volcanicBossIsland) {
+    const radius = getIslandRadius(volcanicBossIsland);
+    addRingPlacements(placements, volcanicBossIsland.center, radius * 0.55, "rock", 8, Math.PI / 12);
   }
 
   placements.forEach((placement) => spawnResource(ecs, placement));

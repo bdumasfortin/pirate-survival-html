@@ -1,6 +1,6 @@
 import type { Vec2 } from "../core/types";
 import type { ItemKind } from "../game/item-kinds";
-import type { IslandType, ResourceNodeType, YieldRange } from "./types";
+import type { BiomeTierConfig, IslandType, ResourceNodeType, YieldRange } from "./types";
 
 export type IslandSpec = {
   center: Vec2;
@@ -9,34 +9,81 @@ export type IslandSpec = {
   type: IslandType;
 };
 
-const BASE_ISLAND_RADIUS_MIN = 220;
-const BASE_ISLAND_RADIUS_MAX = 380;
-const ISLAND_SIZE_SCALE = 3;
+const BASE_ISLAND_RADIUS_MIN = 120;
+const BASE_ISLAND_RADIUS_MAX = 180;
+const ISLAND_SIZE_SCALE = 1;
 
 export const BASE_ISLAND_RADIUS = (BASE_ISLAND_RADIUS_MIN + BASE_ISLAND_RADIUS_MAX) / 2;
 export const BOSS_ISLAND_RADIUS = BASE_ISLAND_RADIUS;
-export const BEACH_ISLAND_RADIUS = BOSS_ISLAND_RADIUS;
 export const SPAWN_ZONE_RADIUS = BASE_ISLAND_RADIUS * 0.5;
 
 export const WORLD_GEN_CONFIG = {
-  islandCount: 55,
-  spawnRadius: 420 * ISLAND_SIZE_SCALE,
+  spawnRadius: Math.round(BASE_ISLAND_RADIUS * 1.3),
   radiusMin: BASE_ISLAND_RADIUS_MIN * ISLAND_SIZE_SCALE,
   radiusMax: BASE_ISLAND_RADIUS_MAX * ISLAND_SIZE_SCALE,
-  ringMin: 650 * ISLAND_SIZE_SCALE,
-  ringMax: 2400 * ISLAND_SIZE_SCALE,
-  edgePadding: 180 * ISLAND_SIZE_SCALE,
-  placementAttempts: 120,
+  edgePadding: 90 * ISLAND_SIZE_SCALE,
+  placementAttempts: 160,
+  arcMinAngle: 0,
+  arcMaxAngle: Math.PI / 2,
 };
 
-export const ISLAND_TYPE_WEIGHTS: Record<IslandType, number> = {
-  standard: 5,
-  forest: 5,
-  crabBoss: 1,
-  wolfBoss: 0,
+export const BIOME_TIERS: BiomeTierConfig[] = [
+  {
+    id: "calm",
+    name: "Calm belt",
+    ringMin: 700,
+    ringMax: 1400,
+    islandCount: 5,
+    bossType: "calmBoss",
+    weights: {
+      beach: 1,
+    },
+  },
+  {
+    id: "wild",
+    name: "Wild belt",
+    ringMin: 1500,
+    ringMax: 2500,
+    islandCount: 7,
+    bossType: "wildBoss",
+    weights: {
+      woods: 1,
+    },
+  },
+  {
+    id: "volcanic",
+    name: "Volcanic belt",
+    ringMin: 2600,
+    ringMax: 3600,
+    islandCount: 10,
+    bossType: "volcanicBoss",
+    weights: {
+      volcanic: 1,
+    },
+  },
+];
+
+export type IslandShapeConfig = {
+  pointCountMin: number;
+  pointCountMax: number;
+  waveAMin: number;
+  waveAMax: number;
+  waveBMin: number;
+  waveBMax: number;
+  ampAMin: number;
+  ampAMax: number;
+  ampBMin: number;
+  ampBMax: number;
+  jitterMin: number;
+  jitterMax: number;
+  minRadiusRatio: number;
+  smoothingPassesMin: number;
+  smoothingPassesMax: number;
+  leanMin: number;
+  leanMax: number;
 };
 
-export const ISLAND_SHAPE_CONFIG = {
+export const ISLAND_SHAPE_CONFIG: IslandShapeConfig = {
   pointCountMin: 54,
   pointCountMax: 96,
   waveAMin: 2,
@@ -54,6 +101,60 @@ export const ISLAND_SHAPE_CONFIG = {
   smoothingPassesMax: 3,
   leanMin: 0.7,
   leanMax: 1.35,
+};
+
+export const ISLAND_SHAPE_CONFIG_BY_TYPE: Partial<Record<IslandType, Partial<IslandShapeConfig>>> = {
+  beach: {
+    jitterMin: 0.015,
+    jitterMax: 0.05,
+    smoothingPassesMin: 2,
+  },
+  woods: {
+    pointCountMin: 60,
+    pointCountMax: 110,
+    jitterMin: 0.03,
+    jitterMax: 0.09,
+  },
+  volcanic: {
+    waveAMin: 3,
+    waveAMax: 5,
+    waveBMin: 6,
+    waveBMax: 9,
+    ampAMin: 0.1,
+    ampAMax: 0.22,
+    ampBMin: 0.06,
+    ampBMax: 0.16,
+    jitterMin: 0.05,
+    jitterMax: 0.12,
+    smoothingPassesMin: 1,
+    smoothingPassesMax: 2,
+    minRadiusRatio: 0.14,
+  },
+  calmBoss: {
+    smoothingPassesMin: 2,
+    smoothingPassesMax: 4,
+  },
+  wildBoss: {
+    pointCountMin: 64,
+    pointCountMax: 120,
+    jitterMin: 0.04,
+    jitterMax: 0.1,
+  },
+  volcanicBoss: {
+    waveAMin: 3,
+    waveAMax: 6,
+    waveBMin: 7,
+    waveBMax: 10,
+    ampAMin: 0.12,
+    ampAMax: 0.24,
+    ampBMin: 0.08,
+    ampBMax: 0.18,
+    jitterMin: 0.06,
+    jitterMax: 0.14,
+    smoothingPassesMin: 1,
+    smoothingPassesMax: 2,
+    minRadiusRatio: 0.12,
+  },
 };
 
 export const RESOURCE_PLACEMENT_CONFIG = {
@@ -97,9 +198,13 @@ export const RESOURCE_NODE_CONFIGS: ResourceNodeConfig[] = [
   },
 ];
 
+const ROCK_ONLY_RESOURCES = RESOURCE_NODE_CONFIGS.filter((config) => config.nodeType === "rock");
+
 export const RESOURCE_NODE_CONFIGS_BY_TYPE: Record<IslandType, ResourceNodeConfig[]> = {
-  standard: RESOURCE_NODE_CONFIGS,
-  forest: RESOURCE_NODE_CONFIGS,
-  wolfBoss: RESOURCE_NODE_CONFIGS,
-  crabBoss: RESOURCE_NODE_CONFIGS.filter((config) => config.nodeType === "rock"),
+  beach: RESOURCE_NODE_CONFIGS,
+  woods: RESOURCE_NODE_CONFIGS,
+  volcanic: ROCK_ONLY_RESOURCES,
+  calmBoss: ROCK_ONLY_RESOURCES,
+  wildBoss: RESOURCE_NODE_CONFIGS,
+  volcanicBoss: ROCK_ONLY_RESOURCES,
 };

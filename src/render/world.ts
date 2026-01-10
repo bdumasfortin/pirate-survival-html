@@ -150,10 +150,12 @@ const drawRoundedRect = (
 };
 
 const islandStyles: Record<IslandType, { sand: string; grass?: string }> = {
-  standard: { sand: "#f6e7c1", grass: "#7dbb6a" },
-  forest: { sand: "#f6e7c1", grass: "#4b7a74" },
-  wolfBoss: { sand: "#f6e7c1", grass: "#4b7a74" },
-  crabBoss: { sand: "#f6e7c1" },
+  beach: { sand: "#f6e7c1", grass: "#7dbb6a" },
+  woods: { sand: "#f6e7c1", grass: "#4b7a74" },
+  volcanic: { sand: "#e7c29e", grass: "#5f3a2a" },
+  calmBoss: { sand: "#f6e7c1" },
+  wildBoss: { sand: "#f6e7c1", grass: "#4b7a74" },
+  volcanicBoss: { sand: "#e7c29e", grass: "#5f3a2a" },
 };
 const nodeColors: Record<ResourceNodeType, string> = {
   tree: "#3f7d4a",
@@ -165,6 +167,7 @@ const enemyColors: Record<string, string> = {
   crab: "#d0674b",
   wolf: "#8a6b55",
   kraken: "#2f8aa0",
+  magmaSlime: "#d25a3b",
 };
 
 const {
@@ -302,7 +305,7 @@ const renderIslands = (ctx: CanvasRenderingContext2D, state: GameState, view: Vi
     if (!isRectInView(getIslandBounds(island), view)) {
       return;
     }
-    const style = islandStyles[island.type] ?? islandStyles.standard;
+    const style = islandStyles[island.type] ?? islandStyles.beach;
     ctx.fillStyle = style.sand;
     drawIsland(ctx, island.points);
 

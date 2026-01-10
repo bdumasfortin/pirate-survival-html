@@ -9,7 +9,7 @@ import type {
   WorldState,
 } from "./types";
 import { createProceduralWorld, spawnProceduralResources } from "./world";
-import { ISLAND_TYPE_WEIGHTS, WORLD_GEN_CONFIG } from "./world-config";
+import { BIOME_TIERS, WORLD_GEN_CONFIG } from "./world-config";
 import { createTestWorld, spawnTestResources } from "./world-test";
 
 type WorldGenerator = {
@@ -19,24 +19,32 @@ type WorldGenerator = {
 
 const DEFAULT_PROCEDURAL_CONFIG: ProceduralWorldConfig = {
   ...WORLD_GEN_CONFIG,
-  islandTypeWeights: { ...ISLAND_TYPE_WEIGHTS },
+  biomeTiers: BIOME_TIERS.map((tier) => ({
+    ...tier,
+    weights: { ...tier.weights },
+  })),
 };
 
 const mergeProceduralConfig = (overrides?: ProceduralWorldConfigOverrides): ProceduralWorldConfig => {
   if (!overrides) {
     return {
       ...DEFAULT_PROCEDURAL_CONFIG,
-      islandTypeWeights: { ...DEFAULT_PROCEDURAL_CONFIG.islandTypeWeights },
+      biomeTiers: DEFAULT_PROCEDURAL_CONFIG.biomeTiers.map((tier) => ({
+        ...tier,
+        weights: { ...tier.weights },
+      })),
     };
   }
 
   return {
     ...DEFAULT_PROCEDURAL_CONFIG,
     ...overrides,
-    islandTypeWeights: {
-      ...DEFAULT_PROCEDURAL_CONFIG.islandTypeWeights,
-      ...(overrides.islandTypeWeights ?? {}),
-    },
+    biomeTiers:
+      overrides.biomeTiers ??
+      DEFAULT_PROCEDURAL_CONFIG.biomeTiers.map((tier) => ({
+        ...tier,
+        weights: { ...tier.weights },
+      })),
   };
 };
 
