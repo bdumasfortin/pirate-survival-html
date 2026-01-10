@@ -55,6 +55,39 @@ const hashWorldConfig = (hash: number, config: WorldState["config"]) => {
   next = mixHash(next, floatToBits(procedural.arcMinAngle));
   next = mixHash(next, floatToBits(procedural.arcMaxAngle));
 
+  const shape = procedural.islandShapeConfig;
+  next = mixHash(next, floatToBits(shape.pointCountMin));
+  next = mixHash(next, floatToBits(shape.pointCountMax));
+  next = mixHash(next, floatToBits(shape.waveAMin));
+  next = mixHash(next, floatToBits(shape.waveAMax));
+  next = mixHash(next, floatToBits(shape.waveBMin));
+  next = mixHash(next, floatToBits(shape.waveBMax));
+  next = mixHash(next, floatToBits(shape.ampAMin));
+  next = mixHash(next, floatToBits(shape.ampAMax));
+  next = mixHash(next, floatToBits(shape.ampBMin));
+  next = mixHash(next, floatToBits(shape.ampBMax));
+  next = mixHash(next, floatToBits(shape.jitterMin));
+  next = mixHash(next, floatToBits(shape.jitterMax));
+  next = mixHash(next, floatToBits(shape.minRadiusRatio));
+  next = mixHash(next, floatToBits(shape.smoothingPassesMin));
+  next = mixHash(next, floatToBits(shape.smoothingPassesMax));
+  next = mixHash(next, floatToBits(shape.leanMin));
+  next = mixHash(next, floatToBits(shape.leanMax));
+
+  const overrideEntries = Object.entries(procedural.islandShapeOverrides).sort(([a], [b]) => a.localeCompare(b));
+  for (const [type, override] of overrideEntries) {
+    next = hashString(next, type);
+    const entries = Object.entries(override).sort(([a], [b]) => a.localeCompare(b));
+    for (const [key, value] of entries) {
+      next = hashString(next, key);
+      next = mixHash(next, floatToBits(value));
+    }
+  }
+
+  const placement = procedural.resourcePlacement;
+  next = mixHash(next, floatToBits(placement.radiusScale));
+  next = mixHash(next, floatToBits(placement.attempts));
+
   next = mixHash(next, procedural.biomeTiers.length);
   for (const tier of procedural.biomeTiers) {
     next = hashString(next, tier.id);

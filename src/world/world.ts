@@ -14,14 +14,7 @@ import type {
   YieldRange,
 } from "./types";
 import type { IslandSpec } from "./world-config";
-import {
-  getProceduralBaseRadius,
-  getSpawnZoneRadius,
-  ISLAND_SHAPE_CONFIG,
-  ISLAND_SHAPE_CONFIG_BY_TYPE,
-  RESOURCE_NODE_CONFIGS_BY_TYPE,
-  RESOURCE_PLACEMENT_CONFIG,
-} from "./world-config";
+import { getProceduralBaseRadius, getSpawnZoneRadius, RESOURCE_NODE_CONFIGS_BY_TYPE } from "./world-config";
 
 type Rng = () => number;
 
@@ -56,12 +49,12 @@ const smoothPoints = (points: Vec2[], passes: number) => {
   return current;
 };
 
-const getShapeConfig = (type: IslandType) => ({
-  ...ISLAND_SHAPE_CONFIG,
-  ...(ISLAND_SHAPE_CONFIG_BY_TYPE[type] ?? {}),
+const getShapeConfig = (type: IslandType, config: ProceduralWorldConfig) => ({
+  ...config.islandShapeConfig,
+  ...(config.islandShapeOverrides[type] ?? {}),
 });
 
-const createIsland = (spec: IslandSpec): Island => {
+const createIsland = (spec: IslandSpec, config: ProceduralWorldConfig): Island => {
   const { center, baseRadius, seed, type } = spec;
   const rng = createRng(seed);
   const {
@@ -82,7 +75,7 @@ const createIsland = (spec: IslandSpec): Island => {
     smoothingPassesMax,
     leanMin,
     leanMax,
-  } = getShapeConfig(type);
+  } = getShapeConfig(type, config);
   const pointCount = Math.round(randomBetween(rng, pointCountMin, pointCountMax));
   const waveA = Math.max(1, Math.round(randomBetween(rng, waveAMin, waveAMax)));
   let waveB = Math.max(2, Math.round(randomBetween(rng, waveBMin, waveBMax)));
@@ -139,11 +132,16 @@ const rollYield = (rng: Rng, range: YieldRange) => {
   return Math.floor(rng() * (range.max - range.min + 1)) + range.min;
 };
 
-const getRandomPointInIsland = (island: Island, rng: Rng, reject?: (position: Vec2) => boolean) => {
-  const islandRadius = getIslandRadius(island) * RESOURCE_PLACEMENT_CONFIG.radiusScale;
+const getRandomPointInIsland = (
+  island: Island,
+  rng: Rng,
+  resourcePlacement: ProceduralWorldConfig["resourcePlacement"],
+  reject?: (position: Vec2) => boolean
+) => {
+  const islandRadius = getIslandRadius(island) * resourcePlacement.radiusScale;
   const position: Vec2 | null = null;
 
-  for (let attempt = 0; attempt < RESOURCE_PLACEMENT_CONFIG.attempts; attempt += 1) {
+  for (let attempt = 0; attempt < resourcePlacement.attempts; attempt += 1) {
     const angle = rng() * Math.PI * 2;
     const radius = Math.sqrt(rng());
     const candidate = {
@@ -166,6 +164,7 @@ const spawnResourcesForIsland = (
   island: Island,
   seed: number,
   baseRadius: number,
+  resourcePlacement: ProceduralWorldConfig["resourcePlacement"],
   reject?: (position: Vec2) => boolean
 ) => {
   const rng = createRng(seed);
@@ -196,15 +195,15 @@ const spawnResourcesForIsland = (
     const count = scaledCounts[configIndex] ?? config.count;
     const minSpacing = Math.max(config.radius * 2.2, meanSpacing * 0.6);
     for (let i = 0; i < count; i += 1) {
-      let position = getRandomPointInIsland(island, rng, reject);
+      let position = getRandomPointInIsland(island, rng, resourcePlacement, reject);
       if (!position) {
         continue;
       }
-      for (let attempt = 0; attempt < RESOURCE_PLACEMENT_CONFIG.attempts; attempt += 1) {
+      for (let attempt = 0; attempt < resourcePlacement.attempts; attempt += 1) {
         if (isFarEnough(position, minSpacing)) {
           break;
         }
-        position = getRandomPointInIsland(island, rng, reject);
+        position = getRandomPointInIsland(island, rng, resourcePlacement, reject);
         if (!position) {
           break;
         }
@@ -230,11 +229,11 @@ const spawnResourcesForIsland = (
   }
 };
 
-const getMaxRadiusRatio = () => {
+const getMaxRadiusRatio = (config: ProceduralWorldConfig) => {
   const configs = [
-    ISLAND_SHAPE_CONFIG,
-    ...Object.values(ISLAND_SHAPE_CONFIG_BY_TYPE).map((override) => ({
-      ...ISLAND_SHAPE_CONFIG,
+    config.islandShapeConfig,
+    ...Object.values(config.islandShapeOverrides).map((override) => ({
+      ...config.islandShapeConfig,
       ...override,
     })),
   ];
@@ -297,7 +296,7 @@ const createIslandSpecs = (seed: number, config: ProceduralWorldConfig): IslandS
   const rng = createRng(seed);
   const { spawnRadius, radiusMin, radiusMax, edgePadding, placementAttempts, arcMinAngle, arcMaxAngle, biomeTiers } =
     config;
-  const maxRadiusRatio = getMaxRadiusRatio();
+  const maxRadiusRatio = getMaxRadiusRatio(config);
   const specs: IslandSpec[] = [
     {
       center: { x: 0, y: 0 },
@@ -360,11 +359,12 @@ const createIslandSpecs = (seed: number, config: ProceduralWorldConfig): IslandS
   return specs;
 };
 
-const createIslands = (specs: IslandSpec[]) => specs.map((spec) => createIsland(spec));
+const createIslands = (specs: IslandSpec[], config: ProceduralWorldConfig) =>
+  specs.map((spec) => createIsland(spec, config));
 
 export const createProceduralWorld = (config: WorldConfig): WorldState => {
   const specs = createIslandSpecs(config.seed, config.procedural);
-  const islands = createIslands(specs);
+  const islands = createIslands(specs, config.procedural);
 
   return {
     config,
@@ -386,6 +386,13 @@ export const spawnProceduralResources = (ecs: EcsWorld, world: WorldState) => {
 
   world.islands.forEach((island, index) => {
     const reject = index === 0 ? rejectSpawnZone : undefined;
-    spawnResourcesForIsland(ecs, island, island.seed + 100, baseRadius, reject);
+    spawnResourcesForIsland(
+      ecs,
+      island,
+      island.seed + 100,
+      baseRadius,
+      world.config.procedural.resourcePlacement,
+      reject
+    );
   });
 };

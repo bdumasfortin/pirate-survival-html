@@ -40,8 +40,18 @@ const tierColors: Record<string, string> = {
   volcanic: "rgba(199, 96, 63, 0.7)",
 };
 
+const cloneShapeOverrides = (
+  overrides: ProceduralWorldConfig["islandShapeOverrides"]
+): ProceduralWorldConfig["islandShapeOverrides"] =>
+  Object.fromEntries(
+    Object.entries(overrides).map(([key, value]) => [key, { ...value }])
+  ) as ProceduralWorldConfig["islandShapeOverrides"];
+
 const createDefaultConfig = (): ProceduralWorldConfig => ({
   ...WORLD_GEN_CONFIG,
+  islandShapeConfig: { ...WORLD_GEN_CONFIG.islandShapeConfig },
+  islandShapeOverrides: cloneShapeOverrides(WORLD_GEN_CONFIG.islandShapeOverrides),
+  resourcePlacement: { ...WORLD_GEN_CONFIG.resourcePlacement },
   biomeTiers: BIOME_TIERS.map((tier) => ({
     ...tier,
     weights: { ...tier.weights },
@@ -202,6 +212,60 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
     createRow("Arc max angle", arcMaxInput)
   );
 
+  const shapeSection = document.createElement("div");
+  shapeSection.className = "dev-preview-section";
+  shapeSection.append(createSectionTitle("Island shape"));
+
+  const pointCountMinInput = createNumberInput(currentConfig.islandShapeConfig.pointCountMin, 1);
+  const pointCountMaxInput = createNumberInput(currentConfig.islandShapeConfig.pointCountMax, 1);
+  const waveAMinInput = createNumberInput(currentConfig.islandShapeConfig.waveAMin, 1);
+  const waveAMaxInput = createNumberInput(currentConfig.islandShapeConfig.waveAMax, 1);
+  const waveBMinInput = createNumberInput(currentConfig.islandShapeConfig.waveBMin, 1);
+  const waveBMaxInput = createNumberInput(currentConfig.islandShapeConfig.waveBMax, 1);
+  const ampAMinInput = createNumberInput(currentConfig.islandShapeConfig.ampAMin, "any");
+  const ampAMaxInput = createNumberInput(currentConfig.islandShapeConfig.ampAMax, "any");
+  const ampBMinInput = createNumberInput(currentConfig.islandShapeConfig.ampBMin, "any");
+  const ampBMaxInput = createNumberInput(currentConfig.islandShapeConfig.ampBMax, "any");
+  const jitterMinInput = createNumberInput(currentConfig.islandShapeConfig.jitterMin, "any");
+  const jitterMaxInput = createNumberInput(currentConfig.islandShapeConfig.jitterMax, "any");
+  const minRadiusRatioInput = createNumberInput(currentConfig.islandShapeConfig.minRadiusRatio, "any");
+  const smoothingMinInput = createNumberInput(currentConfig.islandShapeConfig.smoothingPassesMin, 1);
+  const smoothingMaxInput = createNumberInput(currentConfig.islandShapeConfig.smoothingPassesMax, 1);
+  const leanMinInput = createNumberInput(currentConfig.islandShapeConfig.leanMin, "any");
+  const leanMaxInput = createNumberInput(currentConfig.islandShapeConfig.leanMax, "any");
+
+  shapeSection.append(
+    createRow("Points min", pointCountMinInput),
+    createRow("Points max", pointCountMaxInput),
+    createRow("Wave A min", waveAMinInput),
+    createRow("Wave A max", waveAMaxInput),
+    createRow("Wave B min", waveBMinInput),
+    createRow("Wave B max", waveBMaxInput),
+    createRow("Amp A min", ampAMinInput),
+    createRow("Amp A max", ampAMaxInput),
+    createRow("Amp B min", ampBMinInput),
+    createRow("Amp B max", ampBMaxInput),
+    createRow("Jitter min", jitterMinInput),
+    createRow("Jitter max", jitterMaxInput),
+    createRow("Min radius ratio", minRadiusRatioInput),
+    createRow("Smoothing min", smoothingMinInput),
+    createRow("Smoothing max", smoothingMaxInput),
+    createRow("Lean min", leanMinInput),
+    createRow("Lean max", leanMaxInput)
+  );
+
+  const placementSection = document.createElement("div");
+  placementSection.className = "dev-preview-section";
+  placementSection.append(createSectionTitle("Resource placement"));
+
+  const placementRadiusScaleInput = createNumberInput(currentConfig.resourcePlacement.radiusScale, "any");
+  const resourceAttemptsInput = createNumberInput(currentConfig.resourcePlacement.attempts, 1);
+
+  placementSection.append(
+    createRow("Radius scale", placementRadiusScaleInput),
+    createRow("Attempts", resourceAttemptsInput)
+  );
+
   const tiersSection = document.createElement("div");
   tiersSection.className = "dev-preview-section";
   tiersSection.append(createSectionTitle("Biome tiers"));
@@ -251,7 +315,18 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
     tiersSection.append(tierGroup);
   });
 
-  panel.append(header, seedRow, stats, status, actions, options, configSection, tiersSection);
+  panel.append(
+    header,
+    seedRow,
+    stats,
+    status,
+    actions,
+    options,
+    configSection,
+    shapeSection,
+    placementSection,
+    tiersSection
+  );
   document.body.appendChild(panel);
 
   let world = createWorld({ seed: currentSeed, preset: "procedural", procedural: currentConfig });
@@ -279,10 +354,62 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
     placementAttemptsInput.value = currentConfig.placementAttempts.toString();
     arcMinInput.value = currentConfig.arcMinAngle.toString();
     arcMaxInput.value = currentConfig.arcMaxAngle.toString();
+
+    const shape = currentConfig.islandShapeConfig;
+    shape.pointCountMin = Math.max(3, Math.round(parseNumber(pointCountMinInput.value, shape.pointCountMin)));
+    shape.pointCountMax = Math.max(
+      shape.pointCountMin,
+      Math.round(parseNumber(pointCountMaxInput.value, shape.pointCountMax))
+    );
+    shape.waveAMin = Math.max(1, Math.round(parseNumber(waveAMinInput.value, shape.waveAMin)));
+    shape.waveAMax = Math.max(shape.waveAMin, Math.round(parseNumber(waveAMaxInput.value, shape.waveAMax)));
+    shape.waveBMin = Math.max(2, Math.round(parseNumber(waveBMinInput.value, shape.waveBMin)));
+    shape.waveBMax = Math.max(shape.waveBMin, Math.round(parseNumber(waveBMaxInput.value, shape.waveBMax)));
+    shape.ampAMin = Math.max(0, parseNumber(ampAMinInput.value, shape.ampAMin));
+    shape.ampAMax = Math.max(shape.ampAMin, parseNumber(ampAMaxInput.value, shape.ampAMax));
+    shape.ampBMin = Math.max(0, parseNumber(ampBMinInput.value, shape.ampBMin));
+    shape.ampBMax = Math.max(shape.ampBMin, parseNumber(ampBMaxInput.value, shape.ampBMax));
+    shape.jitterMin = Math.max(0, parseNumber(jitterMinInput.value, shape.jitterMin));
+    shape.jitterMax = Math.max(shape.jitterMin, parseNumber(jitterMaxInput.value, shape.jitterMax));
+    shape.minRadiusRatio = Math.max(0.05, parseNumber(minRadiusRatioInput.value, shape.minRadiusRatio));
+    shape.smoothingPassesMin = Math.max(0, Math.round(parseNumber(smoothingMinInput.value, shape.smoothingPassesMin)));
+    shape.smoothingPassesMax = Math.max(
+      shape.smoothingPassesMin,
+      Math.round(parseNumber(smoothingMaxInput.value, shape.smoothingPassesMax))
+    );
+    shape.leanMin = Math.max(0.1, parseNumber(leanMinInput.value, shape.leanMin));
+    shape.leanMax = Math.max(shape.leanMin, parseNumber(leanMaxInput.value, shape.leanMax));
+
+    pointCountMinInput.value = shape.pointCountMin.toString();
+    pointCountMaxInput.value = shape.pointCountMax.toString();
+    waveAMinInput.value = shape.waveAMin.toString();
+    waveAMaxInput.value = shape.waveAMax.toString();
+    waveBMinInput.value = shape.waveBMin.toString();
+    waveBMaxInput.value = shape.waveBMax.toString();
+    ampAMinInput.value = shape.ampAMin.toString();
+    ampAMaxInput.value = shape.ampAMax.toString();
+    ampBMinInput.value = shape.ampBMin.toString();
+    ampBMaxInput.value = shape.ampBMax.toString();
+    jitterMinInput.value = shape.jitterMin.toString();
+    jitterMaxInput.value = shape.jitterMax.toString();
+    minRadiusRatioInput.value = shape.minRadiusRatio.toString();
+    smoothingMinInput.value = shape.smoothingPassesMin.toString();
+    smoothingMaxInput.value = shape.smoothingPassesMax.toString();
+    leanMinInput.value = shape.leanMin.toString();
+    leanMaxInput.value = shape.leanMax.toString();
+
+    const placement = currentConfig.resourcePlacement;
+    placement.radiusScale = Math.max(0.1, parseNumber(placementRadiusScaleInput.value, placement.radiusScale));
+    placement.attempts = Math.max(1, Math.round(parseNumber(resourceAttemptsInput.value, placement.attempts)));
+    placementRadiusScaleInput.value = placement.radiusScale.toString();
+    resourceAttemptsInput.value = placement.attempts.toString();
   };
 
   const buildConfigSnapshot = (): ProceduralWorldConfig => ({
     ...currentConfig,
+    islandShapeConfig: { ...currentConfig.islandShapeConfig },
+    islandShapeOverrides: cloneShapeOverrides(currentConfig.islandShapeOverrides),
+    resourcePlacement: { ...currentConfig.resourcePlacement },
     biomeTiers: currentConfig.biomeTiers.map((tier) => ({
       ...tier,
       weights: { ...tier.weights },
@@ -374,6 +501,25 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
   placementAttemptsInput.addEventListener("input", scheduleRegenerate);
   arcMinInput.addEventListener("input", scheduleRegenerate);
   arcMaxInput.addEventListener("input", scheduleRegenerate);
+  pointCountMinInput.addEventListener("input", scheduleRegenerate);
+  pointCountMaxInput.addEventListener("input", scheduleRegenerate);
+  waveAMinInput.addEventListener("input", scheduleRegenerate);
+  waveAMaxInput.addEventListener("input", scheduleRegenerate);
+  waveBMinInput.addEventListener("input", scheduleRegenerate);
+  waveBMaxInput.addEventListener("input", scheduleRegenerate);
+  ampAMinInput.addEventListener("input", scheduleRegenerate);
+  ampAMaxInput.addEventListener("input", scheduleRegenerate);
+  ampBMinInput.addEventListener("input", scheduleRegenerate);
+  ampBMaxInput.addEventListener("input", scheduleRegenerate);
+  jitterMinInput.addEventListener("input", scheduleRegenerate);
+  jitterMaxInput.addEventListener("input", scheduleRegenerate);
+  minRadiusRatioInput.addEventListener("input", scheduleRegenerate);
+  smoothingMinInput.addEventListener("input", scheduleRegenerate);
+  smoothingMaxInput.addEventListener("input", scheduleRegenerate);
+  leanMinInput.addEventListener("input", scheduleRegenerate);
+  leanMaxInput.addEventListener("input", scheduleRegenerate);
+  placementRadiusScaleInput.addEventListener("input", scheduleRegenerate);
+  resourceAttemptsInput.addEventListener("input", scheduleRegenerate);
 
   seedInput.addEventListener("input", scheduleRegenerate);
   seedButton.addEventListener("click", () => {

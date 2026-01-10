@@ -16,6 +16,33 @@ export type YieldRange = {
   max: number;
 };
 
+export type IslandShapeConfig = {
+  pointCountMin: number;
+  pointCountMax: number;
+  waveAMin: number;
+  waveAMax: number;
+  waveBMin: number;
+  waveBMax: number;
+  ampAMin: number;
+  ampAMax: number;
+  ampBMin: number;
+  ampBMax: number;
+  jitterMin: number;
+  jitterMax: number;
+  minRadiusRatio: number;
+  smoothingPassesMin: number;
+  smoothingPassesMax: number;
+  leanMin: number;
+  leanMax: number;
+};
+
+export type IslandShapeOverrides = Partial<Record<IslandType, Partial<IslandShapeConfig>>>;
+
+export type ResourcePlacementConfig = {
+  radiusScale: number;
+  attempts: number;
+};
+
 export type BiomeTierId = "calm" | "wild" | "volcanic";
 
 export type WorldPreset = "procedural" | "test" | "creative";
@@ -38,11 +65,19 @@ export type ProceduralWorldConfig = {
   placementAttempts: number;
   arcMinAngle: number;
   arcMaxAngle: number;
+  islandShapeConfig: IslandShapeConfig;
+  islandShapeOverrides: IslandShapeOverrides;
+  resourcePlacement: ResourcePlacementConfig;
   biomeTiers: BiomeTierConfig[];
 };
 
-export type ProceduralWorldConfigOverrides = Partial<Omit<ProceduralWorldConfig, "biomeTiers">> & {
+export type ProceduralWorldConfigOverrides = Partial<
+  Omit<ProceduralWorldConfig, "biomeTiers" | "islandShapeConfig" | "islandShapeOverrides" | "resourcePlacement">
+> & {
   biomeTiers?: BiomeTierConfig[];
+  islandShapeConfig?: Partial<IslandShapeConfig>;
+  islandShapeOverrides?: IslandShapeOverrides;
+  resourcePlacement?: Partial<ResourcePlacementConfig>;
 };
 
 export type WorldConfig = {

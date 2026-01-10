@@ -1,6 +1,15 @@
 import type { Vec2 } from "../core/types";
 import type { ItemKind } from "../game/item-kinds";
-import type { BiomeTierConfig, IslandType, ProceduralWorldConfig, ResourceNodeType, YieldRange } from "./types";
+import type {
+  BiomeTierConfig,
+  IslandShapeConfig,
+  IslandShapeOverrides,
+  IslandType,
+  ProceduralWorldConfig,
+  ResourceNodeType,
+  ResourcePlacementConfig,
+  YieldRange,
+} from "./types";
 
 export type IslandSpec = {
   center: Vec2;
@@ -14,6 +23,33 @@ export const getProceduralBaseRadius = (config: Pick<ProceduralWorldConfig, "rad
 
 export const getSpawnZoneRadius = (config: Pick<ProceduralWorldConfig, "spawnRadius">) => config.spawnRadius * 0.5;
 
+export const ISLAND_SHAPE_CONFIG: IslandShapeConfig = {
+  pointCountMin: 54,
+  pointCountMax: 96,
+  waveAMin: 2,
+  waveAMax: 4,
+  waveBMin: 4,
+  waveBMax: 7,
+  ampAMin: 0.08,
+  ampAMax: 0.18,
+  ampBMin: 0.04,
+  ampBMax: 0.12,
+  jitterMin: 0.02,
+  jitterMax: 0.08,
+  minRadiusRatio: 0.18,
+  smoothingPassesMin: 1,
+  smoothingPassesMax: 3,
+  leanMin: 0.7,
+  leanMax: 1.35,
+};
+
+export const ISLAND_SHAPE_CONFIG_BY_TYPE: IslandShapeOverrides = {};
+
+export const RESOURCE_PLACEMENT_CONFIG: ResourcePlacementConfig = {
+  radiusScale: 0.78,
+  attempts: 40,
+};
+
 export const WORLD_GEN_CONFIG = {
   spawnRadius: 300,
   radiusMin: 350,
@@ -22,6 +58,9 @@ export const WORLD_GEN_CONFIG = {
   placementAttempts: 350,
   arcMinAngle: -1.6,
   arcMaxAngle: 0.6,
+  islandShapeConfig: { ...ISLAND_SHAPE_CONFIG },
+  islandShapeOverrides: { ...ISLAND_SHAPE_CONFIG_BY_TYPE },
+  resourcePlacement: { ...RESOURCE_PLACEMENT_CONFIG },
 };
 
 export const BIOME_TIERS: BiomeTierConfig[] = [
@@ -59,105 +98,6 @@ export const BIOME_TIERS: BiomeTierConfig[] = [
     },
   },
 ];
-
-export type IslandShapeConfig = {
-  pointCountMin: number;
-  pointCountMax: number;
-  waveAMin: number;
-  waveAMax: number;
-  waveBMin: number;
-  waveBMax: number;
-  ampAMin: number;
-  ampAMax: number;
-  ampBMin: number;
-  ampBMax: number;
-  jitterMin: number;
-  jitterMax: number;
-  minRadiusRatio: number;
-  smoothingPassesMin: number;
-  smoothingPassesMax: number;
-  leanMin: number;
-  leanMax: number;
-};
-
-export const ISLAND_SHAPE_CONFIG: IslandShapeConfig = {
-  pointCountMin: 54,
-  pointCountMax: 96,
-  waveAMin: 2,
-  waveAMax: 4,
-  waveBMin: 4,
-  waveBMax: 7,
-  ampAMin: 0.08,
-  ampAMax: 0.18,
-  ampBMin: 0.04,
-  ampBMax: 0.12,
-  jitterMin: 0.02,
-  jitterMax: 0.08,
-  minRadiusRatio: 0.18,
-  smoothingPassesMin: 1,
-  smoothingPassesMax: 3,
-  leanMin: 0.7,
-  leanMax: 1.35,
-};
-
-export const ISLAND_SHAPE_CONFIG_BY_TYPE: Partial<Record<IslandType, Partial<IslandShapeConfig>>> = {
-  beach: {
-    jitterMin: 0.015,
-    jitterMax: 0.05,
-    smoothingPassesMin: 2,
-  },
-  woods: {
-    pointCountMin: 60,
-    pointCountMax: 110,
-    jitterMin: 0.03,
-    jitterMax: 0.09,
-  },
-  volcanic: {
-    waveAMin: 3,
-    waveAMax: 5,
-    waveBMin: 6,
-    waveBMax: 9,
-    ampAMin: 0.1,
-    ampAMax: 0.22,
-    ampBMin: 0.06,
-    ampBMax: 0.16,
-    jitterMin: 0.05,
-    jitterMax: 0.12,
-    smoothingPassesMin: 1,
-    smoothingPassesMax: 2,
-    minRadiusRatio: 0.14,
-  },
-  calmBoss: {
-    smoothingPassesMin: 2,
-    smoothingPassesMax: 4,
-  },
-  wildBoss: {
-    pointCountMin: 64,
-    pointCountMax: 120,
-    jitterMin: 0.04,
-    jitterMax: 0.1,
-  },
-  volcanicBoss: {
-    waveAMin: 3,
-    waveAMax: 6,
-    waveBMin: 7,
-    waveBMax: 10,
-    ampAMin: 0.12,
-    ampAMax: 0.24,
-    ampBMin: 0.08,
-    ampBMax: 0.18,
-    jitterMin: 0.06,
-    jitterMax: 0.14,
-    smoothingPassesMin: 1,
-    smoothingPassesMax: 2,
-    minRadiusRatio: 0.12,
-  },
-};
-
-export const RESOURCE_PLACEMENT_CONFIG = {
-  radiusScale: 0.78,
-  attempts: 40,
-};
 
 export type ResourceNodeConfig = {
   nodeType: ResourceNodeType;
