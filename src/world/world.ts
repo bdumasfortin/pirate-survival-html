@@ -1,22 +1,19 @@
 import type { EcsWorld } from "../core/ecs";
 import { ComponentMask, createEntity, EntityTag } from "../core/ecs";
-import { normalizeSeed } from "../core/seed";
 import type { Vec2 } from "../core/types";
 import { itemKindToIndex } from "../game/item-kinds";
 import { isPointInIsland } from "./island-geometry";
 import { resourceNodeTypeToIndex } from "./resource-node-types";
-import type { Island, IslandType, WorldState, YieldRange } from "./types";
+import type { Island, IslandType, ProceduralWorldConfig, WorldConfig, WorldState, YieldRange } from "./types";
 import type { IslandSpec } from "./world-config";
 import {
   BASE_ISLAND_RADIUS,
   BEACH_ISLAND_RADIUS,
   BOSS_ISLAND_RADIUS,
   ISLAND_SHAPE_CONFIG,
-  ISLAND_TYPE_WEIGHTS,
   RESOURCE_NODE_CONFIGS_BY_TYPE,
   RESOURCE_PLACEMENT_CONFIG,
   SPAWN_ZONE_RADIUS,
-  WORLD_GEN_CONFIG,
 } from "./world-config";
 
 type Rng = () => number;
@@ -237,8 +234,8 @@ const isIslandSeparated = (candidate: IslandSpec, existing: IslandSpec[], paddin
   return true;
 };
 
-const pickIslandType = (rng: Rng): IslandType => {
-  const entries = Object.entries(ISLAND_TYPE_WEIGHTS) as [IslandType, number][];
+const pickIslandType = (rng: Rng, weights: Record<IslandType, number>): IslandType => {
+  const entries = Object.entries(weights) as [IslandType, number][];
   const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
   const roll = rng() * total;
   let acc = 0;
@@ -253,10 +250,9 @@ const pickIslandType = (rng: Rng): IslandType => {
   return "standard";
 };
 
-const createIslandSpecs = (seed: number): IslandSpec[] => {
+const createIslandSpecs = (seed: number, config: ProceduralWorldConfig): IslandSpec[] => {
   const rng = createRng(seed);
-  const { islandCount, spawnRadius, radiusMin, radiusMax, ringMin, ringMax, edgePadding, placementAttempts } =
-    WORLD_GEN_CONFIG;
+  const { islandCount, spawnRadius, radiusMin, radiusMax, ringMin, ringMax, edgePadding, placementAttempts } = config;
   const specs: IslandSpec[] = [
     {
       center: { x: 0, y: 0 },
@@ -312,7 +308,7 @@ const createIslandSpecs = (seed: number): IslandSpec[] => {
 
   for (let i = specs.length; i < islandCount; i += 1) {
     const islandSeed = Math.floor(rng() * 1_000_000_000) + seed + i * 37;
-    const type = pickIslandType(rng);
+    const type = pickIslandType(rng, config.islandTypeWeights);
     const baseRadius = type === "crabBoss" ? BEACH_ISLAND_RADIUS : randomBetween(rng, radiusMin, radiusMax);
     placeIsland(baseRadius, islandSeed, type);
   }
@@ -322,18 +318,17 @@ const createIslandSpecs = (seed: number): IslandSpec[] => {
 
 const createIslands = (specs: IslandSpec[]) => specs.map((spec) => createIsland(spec));
 
-export const createWorld = (seed: string | number): WorldState => {
-  const normalizedSeed = normalizeSeed(seed);
-  const specs = createIslandSpecs(normalizedSeed);
-
+export const createProceduralWorld = (config: WorldConfig): WorldState => {
+  const specs = createIslandSpecs(config.seed, config.procedural);
   const islands = createIslands(specs);
 
   return {
+    config,
     islands,
   };
 };
 
-export const spawnWorldResources = (ecs: EcsWorld, world: WorldState) => {
+export const spawnProceduralResources = (ecs: EcsWorld, world: WorldState) => {
   const spawnIsland = world.islands[0];
   const spawnCenter = spawnIsland?.center ?? { x: 0, y: 0 };
   const spawnRadiusSq = SPAWN_ZONE_RADIUS * SPAWN_ZONE_RADIUS;

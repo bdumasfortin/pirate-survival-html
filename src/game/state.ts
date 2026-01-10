@@ -1,9 +1,8 @@
 import { ComponentMask, createEcsWorld, createEntity, type EcsWorld, type EntityId, EntityTag } from "../core/ecs";
 import { createRng, type RngState } from "../core/rng";
-import { normalizeSeed } from "../core/seed";
 import type { Vec2 } from "../core/types";
-import type { WorldState } from "../world/types";
-import { createWorld, spawnWorldResources } from "../world/world";
+import type { WorldConfigInput, WorldState } from "../world/types";
+import { createWorld, spawnWorldResources } from "../world/world-creation";
 import { type CraftingState, createCraftingState } from "./crafting";
 import { createEnemies } from "./creatures";
 import { addToInventory } from "./inventory";
@@ -37,7 +36,12 @@ const seedDevInventory = (ecs: EcsWorld, playerId: EntityId) => {
   addToInventory(ecs, playerId, "krakenring", 1);
 };
 
-export const createInitialState = (seed: string | number, playerCount = 1, localPlayerIndex = 0): GameState => {
+export const createInitialState = (
+  seed: string | number,
+  playerCount = 1,
+  localPlayerIndex = 0,
+  worldConfig?: WorldConfigInput
+): GameState => {
   const clampedPlayerCount = Math.max(1, Math.floor(playerCount));
   const clampedLocalIndex = Math.max(0, Math.min(localPlayerIndex, clampedPlayerCount - 1));
   const ecs = createEcsWorld();
@@ -94,9 +98,8 @@ export const createInitialState = (seed: string | number, playerCount = 1, local
     attackEffects.push(null);
   }
 
-  const normalizedSeed = normalizeSeed(seed);
-  const world = createWorld(normalizedSeed);
-  const rng = createRng(normalizedSeed);
+  const world = createWorld({ seed, ...worldConfig });
+  const rng = createRng(world.config.seed);
   spawnWorldResources(ecs, world);
   createEnemies(ecs, world, rng);
 

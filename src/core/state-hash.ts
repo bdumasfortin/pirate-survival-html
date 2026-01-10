@@ -41,8 +41,32 @@ const hashIntArray = (hash: number, array: ArrayLike<number>, count: number) => 
   return next;
 };
 
-const hashWorld = (hash: number, world: WorldState) => {
+const hashWorldConfig = (hash: number, config: WorldState["config"]) => {
   let next = hash;
+  next = hashString(next, config.preset);
+  next = mixHash(next, config.seed);
+
+  const procedural = config.procedural;
+  next = mixHash(next, floatToBits(procedural.islandCount));
+  next = mixHash(next, floatToBits(procedural.spawnRadius));
+  next = mixHash(next, floatToBits(procedural.radiusMin));
+  next = mixHash(next, floatToBits(procedural.radiusMax));
+  next = mixHash(next, floatToBits(procedural.ringMin));
+  next = mixHash(next, floatToBits(procedural.ringMax));
+  next = mixHash(next, floatToBits(procedural.edgePadding));
+  next = mixHash(next, floatToBits(procedural.placementAttempts));
+
+  const weightEntries = Object.entries(procedural.islandTypeWeights).sort(([a], [b]) => a.localeCompare(b));
+  for (const [type, weight] of weightEntries) {
+    next = hashString(next, type);
+    next = mixHash(next, floatToBits(weight));
+  }
+
+  return next;
+};
+
+const hashWorld = (hash: number, world: WorldState) => {
+  let next = hashWorldConfig(hash, world.config);
   for (const island of world.islands) {
     next = hashString(next, island.type);
     next = mixHash(next, island.seed);
