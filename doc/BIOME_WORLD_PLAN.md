@@ -71,15 +71,15 @@
 ## Initial tuning (starting point)
 
 - Tier ring ranges (tweak later):
-  - Calm belt: 700-1400
-  - Wild belt: 1500-2500
-  - Volcanic belt: 2600-3600
+  - Calm belt: 350-1300
+  - Wild belt: 1500-2370
+  - Volcanic belt: 2550-3370
 - Island counts (including spawn + boss):
-  - Calm belt: 5
-  - Wild belt: 7
-  - Volcanic belt: 10
+  - Calm belt: 6
+  - Wild belt: 10
+  - Volcanic belt: 15
 - Island size reduction:
-  - Reduce base radius range to 120-180 with smaller padding as a starting point.
+  - Base radius range set to 120-180 with edge padding 10.
 
 ## Runtime integration
 

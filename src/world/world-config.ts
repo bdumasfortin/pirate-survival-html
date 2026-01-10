@@ -11,29 +11,28 @@ export type IslandSpec = {
 
 const BASE_ISLAND_RADIUS_MIN = 120;
 const BASE_ISLAND_RADIUS_MAX = 180;
-const ISLAND_SIZE_SCALE = 1;
 
 export const BASE_ISLAND_RADIUS = (BASE_ISLAND_RADIUS_MIN + BASE_ISLAND_RADIUS_MAX) / 2;
 export const BOSS_ISLAND_RADIUS = BASE_ISLAND_RADIUS;
 export const SPAWN_ZONE_RADIUS = BASE_ISLAND_RADIUS * 0.5;
 
 export const WORLD_GEN_CONFIG = {
-  spawnRadius: Math.round(BASE_ISLAND_RADIUS * 1.3),
-  radiusMin: BASE_ISLAND_RADIUS_MIN * ISLAND_SIZE_SCALE,
-  radiusMax: BASE_ISLAND_RADIUS_MAX * ISLAND_SIZE_SCALE,
-  edgePadding: 90 * ISLAND_SIZE_SCALE,
-  placementAttempts: 160,
-  arcMinAngle: 0,
-  arcMaxAngle: Math.PI / 2,
+  spawnRadius: 300,
+  radiusMin: 220,
+  radiusMax: 360,
+  edgePadding: 10,
+  placementAttempts: 350,
+  arcMinAngle: -Math.PI / 2,
+  arcMaxAngle: 0,
 };
 
 export const BIOME_TIERS: BiomeTierConfig[] = [
   {
     id: "calm",
     name: "Calm belt",
-    ringMin: 700,
-    ringMax: 1400,
-    islandCount: 5,
+    ringMin: 390,
+    ringMax: 1710,
+    islandCount: 6,
     bossType: "calmBoss",
     weights: {
       beach: 1,
@@ -42,9 +41,9 @@ export const BIOME_TIERS: BiomeTierConfig[] = [
   {
     id: "wild",
     name: "Wild belt",
-    ringMin: 1500,
-    ringMax: 2500,
-    islandCount: 7,
+    ringMin: 1880,
+    ringMax: 2910,
+    islandCount: 10,
     bossType: "wildBoss",
     weights: {
       woods: 1,
@@ -53,9 +52,9 @@ export const BIOME_TIERS: BiomeTierConfig[] = [
   {
     id: "volcanic",
     name: "Volcanic belt",
-    ringMin: 2600,
-    ringMax: 3600,
-    islandCount: 10,
+    ringMin: 3120,
+    ringMax: 4300,
+    islandCount: 15,
     bossType: "volcanicBoss",
     weights: {
       volcanic: 1,
