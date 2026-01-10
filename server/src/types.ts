@@ -1,5 +1,7 @@
 import type { WebSocket } from "ws";
 
+import type { WorldPreset } from "../../shared/room-protocol.js";
+
 export type Client = {
   id: string;
   ws: WebSocket;
@@ -23,6 +25,7 @@ export type Room = {
   id: string;
   code: string;
   seed: string;
+  worldPreset: WorldPreset;
   inputDelayFrames: number;
   playerCount: number;
   started: boolean;

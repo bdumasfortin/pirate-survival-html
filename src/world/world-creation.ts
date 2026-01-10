@@ -10,6 +10,7 @@ import type {
 } from "./types";
 import { createProceduralWorld, spawnProceduralResources } from "./world";
 import { ISLAND_TYPE_WEIGHTS, WORLD_GEN_CONFIG } from "./world-config";
+import { createTestWorld, spawnTestResources } from "./world-test";
 
 type WorldGenerator = {
   createWorld: (config: WorldConfig) => WorldState;
@@ -50,11 +51,16 @@ const proceduralGenerator: WorldGenerator = {
   spawnResources: (ecs, world) => spawnProceduralResources(ecs, world),
 };
 
+const testGenerator: WorldGenerator = {
+  createWorld: (config) => createTestWorld(config),
+  spawnResources: (ecs, world) => spawnTestResources(ecs, world),
+};
+
 const fallbackGenerator = proceduralGenerator;
 
 const WORLD_GENERATORS: Record<WorldPreset, WorldGenerator> = {
   procedural: proceduralGenerator,
-  test: fallbackGenerator,
+  test: testGenerator,
   creative: fallbackGenerator,
 };
 

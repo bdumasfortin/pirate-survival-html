@@ -12,7 +12,9 @@ export const validateMessageStructure = (message: unknown): message is RoomClien
 
   switch (msg.type) {
     case "create-room":
-      return typeof msg.playerName === "string";
+      return (
+        typeof msg.playerName === "string" && (msg.worldPreset === undefined || typeof msg.worldPreset === "string")
+      );
     case "join-room":
       return typeof msg.code === "string" && typeof msg.playerName === "string";
     case "leave-room":

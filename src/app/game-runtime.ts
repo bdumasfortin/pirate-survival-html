@@ -108,7 +108,12 @@ export const startGame = async (
   clearResyncSendState();
 
   const sessionSeed = session.seed ?? seed;
-  const state = createInitialState(sessionSeed, session.expectedPlayerCount, session.localPlayerIndex);
+  const state = createInitialState(
+    sessionSeed,
+    session.expectedPlayerCount,
+    session.localPlayerIndex,
+    options.worldConfig
+  );
   setHudSeed(sessionSeed);
   const liveInput = createInputState();
   const frameInputs = Array.from({ length: session.expectedPlayerCount }, () => createInputState());

@@ -1,10 +1,11 @@
-import type { RoomPlayerInfo } from "../../shared/room-protocol";
+import type { RoomPlayerInfo, WorldPreset } from "../../shared/room-protocol";
 import type { InputState } from "../core/input";
 import type { InputFrame } from "../core/input-buffer";
 import type { InputSyncState } from "../core/input-sync";
 import type { RollbackBuffer } from "../game/rollback";
 import type { GameState } from "../game/state";
 import type { Transport } from "../net/transport";
+import type { WorldConfigInput } from "../world/types";
 
 export type RoomConnectionState = {
   role: "host" | "client";
@@ -15,6 +16,7 @@ export type RoomConnectionState = {
   playerCount: number;
   inputDelayFrames: number;
   seed: string | null;
+  worldPreset: WorldPreset | null;
   players: RoomPlayerInfo[];
   transport: Transport | null;
   hasSentStart: boolean;
@@ -72,6 +74,7 @@ export type StartGameOptions = {
   inputDelayFrames?: number;
   transport?: Transport | null;
   debugRemoteTransport?: Transport | null;
+  worldConfig?: WorldConfigInput;
 };
 
 export type NetworkStartOptions = {
@@ -79,4 +82,5 @@ export type NetworkStartOptions = {
   inputDelayFrames?: number;
   ui?: RoomUiState | null;
   playerName?: string;
+  worldPreset?: WorldPreset;
 };

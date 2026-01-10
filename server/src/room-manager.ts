@@ -6,12 +6,14 @@ import {
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
   type RoomPlayerInfo,
+  type WorldPreset,
 } from "../../shared/room-protocol.js";
 import type { Client, Room, RoomPlayer } from "./types.js";
 
 export const FIXED_ROOM_PLAYER_COUNT = DEFAULT_ROOM_PLAYER_COUNT;
 export const ROOM_START_FRAME = 0;
 export const MAX_PLAYER_NAME_LENGTH = 16;
+export const DEFAULT_WORLD_PRESET: WorldPreset = "procedural";
 
 export const createId = (): string => {
   if (typeof randomUUID === "function") {
@@ -21,6 +23,13 @@ export const createId = (): string => {
 };
 
 export const createSeed = (): string => randomBytes(8).toString("hex");
+
+export const normalizeWorldPreset = (value?: string): WorldPreset => {
+  if (value === "test" || value === "creative") {
+    return value;
+  }
+  return DEFAULT_WORLD_PRESET;
+};
 
 export const sanitizePlayerName = (value: string): string => {
   const trimmed = value.trim();
@@ -111,13 +120,15 @@ export const createRoom = (
   playerName: string,
   rooms: Map<string, Room>,
   seed?: string,
-  inputDelayFrames?: number
+  inputDelayFrames?: number,
+  worldPreset?: WorldPreset
 ): Room => {
   const now = Date.now();
   const room: Room = {
     id: createId(),
     code: generateRoomCode(rooms),
     seed: seed ?? createSeed(),
+    worldPreset: normalizeWorldPreset(worldPreset),
     inputDelayFrames: Math.max(0, Math.floor(inputDelayFrames ?? DEFAULT_INPUT_DELAY_FRAMES)),
     playerCount: FIXED_ROOM_PLAYER_COUNT,
     started: false,

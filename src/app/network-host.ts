@@ -21,6 +21,7 @@ export const startNetworkHost = (seed: string, options: NetworkStartOptions, dep
   const inputDelayFrames = options.inputDelayFrames ?? REQUESTED_INPUT_DELAY_FRAMES;
   const serverUrl = options.serverUrl ?? WS_SERVER_URL;
   const playerName = sanitizePlayerName(options.playerName ?? deps.getPlayerNameValue(), 16);
+  const worldPreset = options.worldPreset ?? "procedural";
   const ui = options.ui ?? null;
 
   ui?.setStatus("Connecting to room server...");
@@ -35,6 +36,7 @@ export const startNetworkHost = (seed: string, options: NetworkStartOptions, dep
     playerCount,
     inputDelayFrames,
     seed,
+    worldPreset,
     players: [],
     transport: null,
     hasSentStart: false,
@@ -78,6 +80,7 @@ export const startNetworkHost = (seed: string, options: NetworkStartOptions, dep
       playerCount,
       seed,
       inputDelayFrames,
+      worldPreset,
     });
     scheduleRoomRequestTimeout(roomState, socket, "create");
   });

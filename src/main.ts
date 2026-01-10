@@ -22,6 +22,8 @@ const menuOverlay = document.getElementById("seed-menu") as HTMLElement | null;
 const loadingOverlay = document.getElementById("loading-overlay") as HTMLElement | null;
 const seedInput = document.getElementById("seed-input") as HTMLInputElement | null;
 const seedInputMulti = document.getElementById("seed-input-mp") as HTMLInputElement | null;
+const worldPresetSelect = document.getElementById("world-preset") as HTMLSelectElement | null;
+const worldPresetSelectMulti = document.getElementById("world-preset-mp") as HTMLSelectElement | null;
 const randomSeedButton = document.getElementById("seed-random") as HTMLButtonElement | null;
 const randomSeedButtonMulti = document.getElementById("seed-random-mp") as HTMLButtonElement | null;
 const startButton = document.getElementById("start-game") as HTMLButtonElement | null;
@@ -145,6 +147,8 @@ initMenu({
   startButton,
   seedInputMulti,
   randomSeedButtonMulti,
+  worldPresetSelect,
+  worldPresetSelectMulti,
   roomStatus,
   roomCodeDisplay,
   roomPlayerCount,

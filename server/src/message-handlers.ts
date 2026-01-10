@@ -123,7 +123,7 @@ export const handleCreateRoom = (
     return;
   }
 
-  const room = createRoom(client, playerName, rooms, message.seed, message.inputDelayFrames);
+  const room = createRoom(client, playerName, rooms, message.seed, message.inputDelayFrames, message.worldPreset);
   addPlayerToRoom(room, client, 0, true, playerName);
   rooms.set(room.code, room);
 
@@ -134,6 +134,7 @@ export const handleCreateRoom = (
     playerIndex: 0,
     playerCount: room.playerCount,
     seed: room.seed,
+    worldPreset: room.worldPreset,
     inputDelayFrames: room.inputDelayFrames,
     players: buildPlayersList(room),
   });
@@ -209,6 +210,7 @@ export const handleJoinRoom = (
     playerIndex: index,
     playerCount: room.playerCount,
     seed: room.seed,
+    worldPreset: room.worldPreset,
     inputDelayFrames: room.inputDelayFrames,
     players,
   });
@@ -237,6 +239,7 @@ export const handleStartRoom = (client: Client, rooms: Map<string, Room>): void 
   const message: RoomServerMessage = {
     type: "start",
     seed: room.seed,
+    worldPreset: room.worldPreset,
     startFrame: room.startFrame,
     inputDelayFrames: room.inputDelayFrames,
     players: buildPlayersList(room),
