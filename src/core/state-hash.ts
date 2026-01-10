@@ -74,10 +74,6 @@ const hashWorldConfig = (hash: number, config: WorldState["config"]) => {
   next = mixHash(next, floatToBits(shape.leanMin));
   next = mixHash(next, floatToBits(shape.leanMax));
 
-  const placement = procedural.resourcePlacement;
-  next = mixHash(next, floatToBits(placement.radiusScale));
-  next = mixHash(next, floatToBits(placement.attempts));
-
   next = mixHash(next, procedural.biomeTiers.length);
   for (const tier of procedural.biomeTiers) {
     next = hashString(next, tier.id);

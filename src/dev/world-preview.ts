@@ -43,7 +43,6 @@ const tierColors: Record<string, string> = {
 const createDefaultConfig = (): ProceduralWorldConfig => ({
   ...WORLD_GEN_CONFIG,
   islandShapeConfig: { ...WORLD_GEN_CONFIG.islandShapeConfig },
-  resourcePlacement: { ...WORLD_GEN_CONFIG.resourcePlacement },
   biomeTiers: BIOME_TIERS.map((tier) => ({
     ...tier,
     weights: { ...tier.weights },
@@ -246,18 +245,6 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
     createRow("Lean max", leanMaxInput)
   );
 
-  const placementSection = document.createElement("div");
-  placementSection.className = "dev-preview-section";
-  placementSection.append(createSectionTitle("Resource placement"));
-
-  const placementRadiusScaleInput = createNumberInput(currentConfig.resourcePlacement.radiusScale, "any");
-  const resourceAttemptsInput = createNumberInput(currentConfig.resourcePlacement.attempts, 1);
-
-  placementSection.append(
-    createRow("Radius scale", placementRadiusScaleInput),
-    createRow("Attempts", resourceAttemptsInput)
-  );
-
   const tiersSection = document.createElement("div");
   tiersSection.className = "dev-preview-section";
   tiersSection.append(createSectionTitle("Biome tiers"));
@@ -307,18 +294,7 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
     tiersSection.append(tierGroup);
   });
 
-  panel.append(
-    header,
-    seedRow,
-    stats,
-    status,
-    actions,
-    options,
-    configSection,
-    shapeSection,
-    placementSection,
-    tiersSection
-  );
+  panel.append(header, seedRow, stats, status, actions, options, configSection, shapeSection, tiersSection);
   document.body.appendChild(panel);
 
   let world = createWorld({ seed: currentSeed, preset: "procedural", procedural: currentConfig });
@@ -389,18 +365,11 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
     smoothingMaxInput.value = shape.smoothingPassesMax.toString();
     leanMinInput.value = shape.leanMin.toString();
     leanMaxInput.value = shape.leanMax.toString();
-
-    const placement = currentConfig.resourcePlacement;
-    placement.radiusScale = Math.max(0.1, parseNumber(placementRadiusScaleInput.value, placement.radiusScale));
-    placement.attempts = Math.max(1, Math.round(parseNumber(resourceAttemptsInput.value, placement.attempts)));
-    placementRadiusScaleInput.value = placement.radiusScale.toString();
-    resourceAttemptsInput.value = placement.attempts.toString();
   };
 
   const buildConfigSnapshot = (): ProceduralWorldConfig => ({
     ...currentConfig,
     islandShapeConfig: { ...currentConfig.islandShapeConfig },
-    resourcePlacement: { ...currentConfig.resourcePlacement },
     biomeTiers: currentConfig.biomeTiers.map((tier) => ({
       ...tier,
       weights: { ...tier.weights },
@@ -509,8 +478,6 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
   smoothingMaxInput.addEventListener("input", scheduleRegenerate);
   leanMinInput.addEventListener("input", scheduleRegenerate);
   leanMaxInput.addEventListener("input", scheduleRegenerate);
-  placementRadiusScaleInput.addEventListener("input", scheduleRegenerate);
-  resourceAttemptsInput.addEventListener("input", scheduleRegenerate);
 
   seedInput.addEventListener("input", scheduleRegenerate);
   seedButton.addEventListener("click", () => {

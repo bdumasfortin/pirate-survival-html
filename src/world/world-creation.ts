@@ -24,7 +24,6 @@ const DEFAULT_PROCEDURAL_CONFIG: ProceduralWorldConfig = {
     weights: { ...tier.weights },
   })),
   islandShapeConfig: { ...WORLD_GEN_CONFIG.islandShapeConfig },
-  resourcePlacement: { ...WORLD_GEN_CONFIG.resourcePlacement },
 };
 
 const mergeProceduralConfig = (overrides?: ProceduralWorldConfigOverrides): ProceduralWorldConfig => {
@@ -36,7 +35,6 @@ const mergeProceduralConfig = (overrides?: ProceduralWorldConfigOverrides): Proc
         weights: { ...tier.weights },
       })),
       islandShapeConfig: { ...DEFAULT_PROCEDURAL_CONFIG.islandShapeConfig },
-      resourcePlacement: { ...DEFAULT_PROCEDURAL_CONFIG.resourcePlacement },
     };
   }
 
@@ -52,10 +50,6 @@ const mergeProceduralConfig = (overrides?: ProceduralWorldConfigOverrides): Proc
     islandShapeConfig: {
       ...DEFAULT_PROCEDURAL_CONFIG.islandShapeConfig,
       ...(overrides.islandShapeConfig ?? {}),
-    },
-    resourcePlacement: {
-      ...DEFAULT_PROCEDURAL_CONFIG.resourcePlacement,
-      ...(overrides.resourcePlacement ?? {}),
     },
   };
 };

@@ -19,6 +19,11 @@ export const WORLD_GEN_CONFIG = worldConfigData as ProceduralWorldConfig;
 
 export const BIOME_TIERS = WORLD_GEN_CONFIG.biomeTiers;
 
+export const RESOURCE_PLACEMENT_CONFIG = {
+  radiusScale: 0.78,
+  attempts: 40,
+};
+
 export type ResourceNodeConfig = {
   nodeType: ResourceNodeType;
   kind: ItemKind;

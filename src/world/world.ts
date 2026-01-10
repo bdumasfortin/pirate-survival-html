@@ -14,7 +14,12 @@ import type {
   YieldRange,
 } from "./types";
 import type { IslandSpec } from "./world-config";
-import { getProceduralBaseRadius, getSpawnZoneRadius, RESOURCE_NODE_CONFIGS_BY_TYPE } from "./world-config";
+import {
+  getProceduralBaseRadius,
+  getSpawnZoneRadius,
+  RESOURCE_NODE_CONFIGS_BY_TYPE,
+  RESOURCE_PLACEMENT_CONFIG,
+} from "./world-config";
 
 type Rng = () => number;
 
@@ -129,16 +134,11 @@ const rollYield = (rng: Rng, range: YieldRange) => {
   return Math.floor(rng() * (range.max - range.min + 1)) + range.min;
 };
 
-const getRandomPointInIsland = (
-  island: Island,
-  rng: Rng,
-  resourcePlacement: ProceduralWorldConfig["resourcePlacement"],
-  reject?: (position: Vec2) => boolean
-) => {
-  const islandRadius = getIslandRadius(island) * resourcePlacement.radiusScale;
+const getRandomPointInIsland = (island: Island, rng: Rng, reject?: (position: Vec2) => boolean) => {
+  const islandRadius = getIslandRadius(island) * RESOURCE_PLACEMENT_CONFIG.radiusScale;
   const position: Vec2 | null = null;
 
-  for (let attempt = 0; attempt < resourcePlacement.attempts; attempt += 1) {
+  for (let attempt = 0; attempt < RESOURCE_PLACEMENT_CONFIG.attempts; attempt += 1) {
     const angle = rng() * Math.PI * 2;
     const radius = Math.sqrt(rng());
     const candidate = {
@@ -161,7 +161,6 @@ const spawnResourcesForIsland = (
   island: Island,
   seed: number,
   baseRadius: number,
-  resourcePlacement: ProceduralWorldConfig["resourcePlacement"],
   reject?: (position: Vec2) => boolean
 ) => {
   const rng = createRng(seed);
@@ -192,15 +191,15 @@ const spawnResourcesForIsland = (
     const count = scaledCounts[configIndex] ?? config.count;
     const minSpacing = Math.max(config.radius * 2.2, meanSpacing * 0.6);
     for (let i = 0; i < count; i += 1) {
-      let position = getRandomPointInIsland(island, rng, resourcePlacement, reject);
+      let position = getRandomPointInIsland(island, rng, reject);
       if (!position) {
         continue;
       }
-      for (let attempt = 0; attempt < resourcePlacement.attempts; attempt += 1) {
+      for (let attempt = 0; attempt < RESOURCE_PLACEMENT_CONFIG.attempts; attempt += 1) {
         if (isFarEnough(position, minSpacing)) {
           break;
         }
-        position = getRandomPointInIsland(island, rng, resourcePlacement, reject);
+        position = getRandomPointInIsland(island, rng, reject);
         if (!position) {
           break;
         }
@@ -377,13 +376,6 @@ export const spawnProceduralResources = (ecs: EcsWorld, world: WorldState) => {
 
   world.islands.forEach((island, index) => {
     const reject = index === 0 ? rejectSpawnZone : undefined;
-    spawnResourcesForIsland(
-      ecs,
-      island,
-      island.seed + 100,
-      baseRadius,
-      world.config.procedural.resourcePlacement,
-      reject
-    );
+    spawnResourcesForIsland(ecs, island, island.seed + 100, baseRadius, reject);
   });
 };

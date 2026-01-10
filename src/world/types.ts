@@ -36,11 +36,6 @@ export type IslandShapeConfig = {
   leanMax: number;
 };
 
-export type ResourcePlacementConfig = {
-  radiusScale: number;
-  attempts: number;
-};
-
 export type BiomeTierId = "calm" | "wild" | "volcanic";
 
 export type WorldPreset = "procedural" | "test" | "creative";
@@ -64,16 +59,14 @@ export type ProceduralWorldConfig = {
   arcMinAngle: number;
   arcMaxAngle: number;
   islandShapeConfig: IslandShapeConfig;
-  resourcePlacement: ResourcePlacementConfig;
   biomeTiers: BiomeTierConfig[];
 };
 
 export type ProceduralWorldConfigOverrides = Partial<
-  Omit<ProceduralWorldConfig, "biomeTiers" | "islandShapeConfig" | "resourcePlacement">
+  Omit<ProceduralWorldConfig, "biomeTiers" | "islandShapeConfig">
 > & {
   biomeTiers?: BiomeTierConfig[];
   islandShapeConfig?: Partial<IslandShapeConfig>;
-  resourcePlacement?: Partial<ResourcePlacementConfig>;
 };
 
 export type WorldConfig = {
