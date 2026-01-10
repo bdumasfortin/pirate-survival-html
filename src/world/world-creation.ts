@@ -9,13 +9,7 @@ import type {
   WorldState,
 } from "./types";
 import { createProceduralWorld, spawnProceduralResources } from "./world";
-import {
-  BIOME_TIERS,
-  ISLAND_SHAPE_CONFIG,
-  ISLAND_SHAPE_CONFIG_BY_TYPE,
-  RESOURCE_PLACEMENT_CONFIG,
-  WORLD_GEN_CONFIG,
-} from "./world-config";
+import { BIOME_TIERS, WORLD_GEN_CONFIG } from "./world-config";
 import { createTestWorld, spawnTestResources } from "./world-test";
 
 type WorldGenerator = {
@@ -23,22 +17,14 @@ type WorldGenerator = {
   spawnResources: (ecs: EcsWorld, world: WorldState) => void;
 };
 
-const cloneShapeOverrides = (
-  overrides: ProceduralWorldConfig["islandShapeOverrides"]
-): ProceduralWorldConfig["islandShapeOverrides"] =>
-  Object.fromEntries(
-    Object.entries(overrides).map(([key, value]) => [key, { ...value }])
-  ) as ProceduralWorldConfig["islandShapeOverrides"];
-
 const DEFAULT_PROCEDURAL_CONFIG: ProceduralWorldConfig = {
   ...WORLD_GEN_CONFIG,
   biomeTiers: BIOME_TIERS.map((tier) => ({
     ...tier,
     weights: { ...tier.weights },
   })),
-  islandShapeConfig: { ...ISLAND_SHAPE_CONFIG },
-  islandShapeOverrides: cloneShapeOverrides(ISLAND_SHAPE_CONFIG_BY_TYPE),
-  resourcePlacement: { ...RESOURCE_PLACEMENT_CONFIG },
+  islandShapeConfig: { ...WORLD_GEN_CONFIG.islandShapeConfig },
+  resourcePlacement: { ...WORLD_GEN_CONFIG.resourcePlacement },
 };
 
 const mergeProceduralConfig = (overrides?: ProceduralWorldConfigOverrides): ProceduralWorldConfig => {
@@ -50,7 +36,6 @@ const mergeProceduralConfig = (overrides?: ProceduralWorldConfigOverrides): Proc
         weights: { ...tier.weights },
       })),
       islandShapeConfig: { ...DEFAULT_PROCEDURAL_CONFIG.islandShapeConfig },
-      islandShapeOverrides: cloneShapeOverrides(DEFAULT_PROCEDURAL_CONFIG.islandShapeOverrides),
       resourcePlacement: { ...DEFAULT_PROCEDURAL_CONFIG.resourcePlacement },
     };
   }
@@ -68,8 +53,6 @@ const mergeProceduralConfig = (overrides?: ProceduralWorldConfigOverrides): Proc
       ...DEFAULT_PROCEDURAL_CONFIG.islandShapeConfig,
       ...(overrides.islandShapeConfig ?? {}),
     },
-    islandShapeOverrides:
-      overrides.islandShapeOverrides ?? cloneShapeOverrides(DEFAULT_PROCEDURAL_CONFIG.islandShapeOverrides),
     resourcePlacement: {
       ...DEFAULT_PROCEDURAL_CONFIG.resourcePlacement,
       ...(overrides.resourcePlacement ?? {}),

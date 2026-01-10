@@ -49,10 +49,7 @@ const smoothPoints = (points: Vec2[], passes: number) => {
   return current;
 };
 
-const getShapeConfig = (type: IslandType, config: ProceduralWorldConfig) => ({
-  ...config.islandShapeConfig,
-  ...(config.islandShapeOverrides[type] ?? {}),
-});
+const getShapeConfig = (config: ProceduralWorldConfig) => config.islandShapeConfig;
 
 const createIsland = (spec: IslandSpec, config: ProceduralWorldConfig): Island => {
   const { center, baseRadius, seed, type } = spec;
@@ -75,7 +72,7 @@ const createIsland = (spec: IslandSpec, config: ProceduralWorldConfig): Island =
     smoothingPassesMax,
     leanMin,
     leanMax,
-  } = getShapeConfig(type, config);
+  } = getShapeConfig(config);
   const pointCount = Math.round(randomBetween(rng, pointCountMin, pointCountMax));
   const waveA = Math.max(1, Math.round(randomBetween(rng, waveAMin, waveAMax)));
   let waveB = Math.max(2, Math.round(randomBetween(rng, waveBMin, waveBMax)));
@@ -230,13 +227,7 @@ const spawnResourcesForIsland = (
 };
 
 const getMaxRadiusRatio = (config: ProceduralWorldConfig) => {
-  const configs = [
-    config.islandShapeConfig,
-    ...Object.values(config.islandShapeOverrides).map((override) => ({
-      ...config.islandShapeConfig,
-      ...override,
-    })),
-  ];
+  const configs = [config.islandShapeConfig];
   let maxAmplitude = 0;
   let maxLean = 0;
   let minLean = Number.POSITIVE_INFINITY;

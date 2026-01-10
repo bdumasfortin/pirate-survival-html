@@ -74,16 +74,6 @@ const hashWorldConfig = (hash: number, config: WorldState["config"]) => {
   next = mixHash(next, floatToBits(shape.leanMin));
   next = mixHash(next, floatToBits(shape.leanMax));
 
-  const overrideEntries = Object.entries(procedural.islandShapeOverrides).sort(([a], [b]) => a.localeCompare(b));
-  for (const [type, override] of overrideEntries) {
-    next = hashString(next, type);
-    const entries = Object.entries(override).sort(([a], [b]) => a.localeCompare(b));
-    for (const [key, value] of entries) {
-      next = hashString(next, key);
-      next = mixHash(next, floatToBits(value));
-    }
-  }
-
   const placement = procedural.resourcePlacement;
   next = mixHash(next, floatToBits(placement.radiusScale));
   next = mixHash(next, floatToBits(placement.attempts));

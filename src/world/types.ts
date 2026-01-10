@@ -36,8 +36,6 @@ export type IslandShapeConfig = {
   leanMax: number;
 };
 
-export type IslandShapeOverrides = Partial<Record<IslandType, Partial<IslandShapeConfig>>>;
-
 export type ResourcePlacementConfig = {
   radiusScale: number;
   attempts: number;
@@ -66,17 +64,15 @@ export type ProceduralWorldConfig = {
   arcMinAngle: number;
   arcMaxAngle: number;
   islandShapeConfig: IslandShapeConfig;
-  islandShapeOverrides: IslandShapeOverrides;
   resourcePlacement: ResourcePlacementConfig;
   biomeTiers: BiomeTierConfig[];
 };
 
 export type ProceduralWorldConfigOverrides = Partial<
-  Omit<ProceduralWorldConfig, "biomeTiers" | "islandShapeConfig" | "islandShapeOverrides" | "resourcePlacement">
+  Omit<ProceduralWorldConfig, "biomeTiers" | "islandShapeConfig" | "resourcePlacement">
 > & {
   biomeTiers?: BiomeTierConfig[];
   islandShapeConfig?: Partial<IslandShapeConfig>;
-  islandShapeOverrides?: IslandShapeOverrides;
   resourcePlacement?: Partial<ResourcePlacementConfig>;
 };
 

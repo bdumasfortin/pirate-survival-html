@@ -40,17 +40,9 @@ const tierColors: Record<string, string> = {
   volcanic: "rgba(199, 96, 63, 0.7)",
 };
 
-const cloneShapeOverrides = (
-  overrides: ProceduralWorldConfig["islandShapeOverrides"]
-): ProceduralWorldConfig["islandShapeOverrides"] =>
-  Object.fromEntries(
-    Object.entries(overrides).map(([key, value]) => [key, { ...value }])
-  ) as ProceduralWorldConfig["islandShapeOverrides"];
-
 const createDefaultConfig = (): ProceduralWorldConfig => ({
   ...WORLD_GEN_CONFIG,
   islandShapeConfig: { ...WORLD_GEN_CONFIG.islandShapeConfig },
-  islandShapeOverrides: cloneShapeOverrides(WORLD_GEN_CONFIG.islandShapeOverrides),
   resourcePlacement: { ...WORLD_GEN_CONFIG.resourcePlacement },
   biomeTiers: BIOME_TIERS.map((tier) => ({
     ...tier,
@@ -408,7 +400,6 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
   const buildConfigSnapshot = (): ProceduralWorldConfig => ({
     ...currentConfig,
     islandShapeConfig: { ...currentConfig.islandShapeConfig },
-    islandShapeOverrides: cloneShapeOverrides(currentConfig.islandShapeOverrides),
     resourcePlacement: { ...currentConfig.resourcePlacement },
     biomeTiers: currentConfig.biomeTiers.map((tier) => ({
       ...tier,
