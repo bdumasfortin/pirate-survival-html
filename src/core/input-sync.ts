@@ -1,12 +1,12 @@
 import type { InputState } from "./input";
 import {
   createInputBuffer,
+  type InputBuffer,
+  type InputFrame,
   loadInputFrame,
   readInputFrame,
   storeInputFrame,
   storeInputFrameData,
-  type InputBuffer,
-  type InputFrame
 } from "./input-buffer";
 
 export type InputSyncState = {
@@ -15,10 +15,14 @@ export type InputSyncState = {
   buffers: InputBuffer[];
 };
 
-export const createInputSyncState = (playerCount: number, localPlayerIndex: number, capacity: number): InputSyncState => ({
+export const createInputSyncState = (
+  playerCount: number,
+  localPlayerIndex: number,
+  capacity: number
+): InputSyncState => ({
   playerCount,
   localPlayerIndex,
-  buffers: Array.from({ length: playerCount }, () => createInputBuffer(capacity))
+  buffers: Array.from({ length: playerCount }, () => createInputBuffer(capacity)),
 });
 
 export const storeLocalInputFrame = (sync: InputSyncState, frame: number, input: InputState) => {
@@ -58,14 +62,16 @@ export const applyRemoteInputFrame = (
   }
 
   const existing = readInputFrame(buffer, frame);
-  if (existing &&
+  if (
+    existing &&
     existing.buttons === inputFrame.buttons &&
     existing.craftIndex === inputFrame.craftIndex &&
     existing.craftScroll === inputFrame.craftScroll &&
     existing.inventoryIndex === inputFrame.inventoryIndex &&
     existing.inventoryScroll === inputFrame.inventoryScroll &&
     existing.mouseX === inputFrame.mouseX &&
-    existing.mouseY === inputFrame.mouseY) {
+    existing.mouseY === inputFrame.mouseY
+  ) {
     return null;
   }
 

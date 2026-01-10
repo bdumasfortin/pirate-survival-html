@@ -1,10 +1,10 @@
+import { ComponentMask, destroyEntity, type EntityId, forEachEntity, isEntityAlive } from "../core/ecs";
 import type { InputState } from "../core/input";
-import type { GameState } from "../game/state";
-import { ComponentMask, destroyEntity, forEachEntity, isEntityAlive, type EntityId } from "../core/ecs";
-import { RAFT_INTERACTION_DISTANCE, RAFT_SHORE_BUFFER } from "../game/raft-config";
-import { getStructurePreviewRadius } from "../game/structure-items";
-import { spawnProp } from "../game/props";
 import { propKindFromIndex } from "../game/prop-kinds";
+import { spawnProp } from "../game/props";
+import { RAFT_INTERACTION_DISTANCE, RAFT_SHORE_BUFFER } from "../game/raft-config";
+import type { GameState } from "../game/state";
+import { getStructurePreviewRadius } from "../game/structure-items";
 import { findClosestIslandEdge } from "../world/island-geometry";
 
 const PROP_MASK = ComponentMask.Prop | ComponentMask.Position;
@@ -58,7 +58,7 @@ export const updateRaft = (state: GameState, playerIndex: number, playerId: Enti
     ecs.playerIsOnRaft[playerId] = 0;
     const toLand = {
       x: closest.island.center.x - closest.point.x,
-      y: closest.island.center.y - closest.point.y
+      y: closest.island.center.y - closest.point.y,
     };
     const length = Math.hypot(toLand.x, toLand.y) || 1;
     const offset = radius + RAFT_SHORE_BUFFER;
@@ -70,7 +70,7 @@ export const updateRaft = (state: GameState, playerIndex: number, playerId: Enti
 
     const toWater = {
       x: closest.point.x - closest.island.center.x,
-      y: closest.point.y - closest.island.center.y
+      y: closest.point.y - closest.island.center.y,
     };
     const raftOffset = radius + RAFT_SHORE_BUFFER;
     const raftX = closest.point.x + (toWater.x / length) * raftOffset;

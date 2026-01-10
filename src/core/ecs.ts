@@ -7,7 +7,7 @@ export enum EntityTag {
   Enemy = 2,
   Resource = 3,
   GroundItem = 4,
-  Prop = 5
+  Prop = 5,
 }
 
 export const INVENTORY_SLOT_COUNT = 9;
@@ -24,7 +24,7 @@ export const ComponentMask = {
   Inventory: 1 << 7,
   Equipment: 1 << 8,
   GroundItem: 1 << 9,
-  Prop: 1 << 10
+  Prop: 1 << 10,
 } as const;
 
 export type Vec2Store = {
@@ -146,7 +146,8 @@ export type EcsSnapshot = {
   propKind: Uint8Array;
 };
 
-export const DEFAULT_ENTITY_MASK = ComponentMask.Position |
+export const DEFAULT_ENTITY_MASK =
+  ComponentMask.Position |
   ComponentMask.PrevPosition |
   ComponentMask.Velocity |
   ComponentMask.Radius |
@@ -154,7 +155,7 @@ export const DEFAULT_ENTITY_MASK = ComponentMask.Position |
 
 const createVec2Store = (capacity: number): Vec2Store => ({
   x: new Float32Array(capacity),
-  y: new Float32Array(capacity)
+  y: new Float32Array(capacity),
 });
 
 const resizeVec2Store = (store: Vec2Store, capacity: number): Vec2Store => {
@@ -299,7 +300,7 @@ export const createEcsWorld = (capacity = 64): EcsWorld => ({
   groundItemKind: new Uint8Array(capacity),
   groundItemQuantity: new Int16Array(capacity),
   groundItemDroppedAt: new Float32Array(capacity),
-  propKind: new Uint8Array(capacity)
+  propKind: new Uint8Array(capacity),
 });
 
 export const ensureCapacity = (world: EcsWorld, id: number) => {
@@ -335,11 +336,9 @@ export const destroyEntity = (world: EcsWorld, id: EntityId) => {
   world.tag[id] = 0;
 };
 
-export const isEntityAlive = (world: EcsWorld, id: EntityId) =>
-  id >= 0 && id < world.nextId && world.alive[id] === 1;
+export const isEntityAlive = (world: EcsWorld, id: EntityId) => id >= 0 && id < world.nextId && world.alive[id] === 1;
 
-export const hasComponents = (world: EcsWorld, id: EntityId, mask: number) =>
-  (world.mask[id] & mask) === mask;
+export const hasComponents = (world: EcsWorld, id: EntityId, mask: number) => (world.mask[id] & mask) === mask;
 
 export const readVec2 = (store: Vec2Store, id: EntityId, out: Vec2) => {
   out.x = store.x[id];
@@ -372,7 +371,7 @@ const cloneFloat32 = (source: Float32Array) => new Float32Array(source);
 const cloneInt16 = (source: Int16Array) => new Int16Array(source);
 const cloneVec2Store = (store: Vec2Store): Vec2Store => ({
   x: cloneFloat32(store.x),
-  y: cloneFloat32(store.y)
+  y: cloneFloat32(store.y),
 });
 
 export const createEcsSnapshot = (world: EcsWorld): EcsSnapshot => ({
@@ -429,7 +428,7 @@ export const createEcsSnapshot = (world: EcsWorld): EcsSnapshot => ({
   groundItemKind: cloneUint8(world.groundItemKind),
   groundItemQuantity: cloneInt16(world.groundItemQuantity),
   groundItemDroppedAt: cloneFloat32(world.groundItemDroppedAt),
-  propKind: cloneUint8(world.propKind)
+  propKind: cloneUint8(world.propKind),
 });
 
 export const restoreEcsSnapshot = (world: EcsWorld, snapshot: EcsSnapshot) => {

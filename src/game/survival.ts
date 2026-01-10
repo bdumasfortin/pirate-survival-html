@@ -15,5 +15,5 @@ export const createSurvivalStats = (): SurvivalStats => ({
   maxHunger: 100,
   armor: 0,
   maxArmor: 0,
-  armorRegenTimer: 0
+  armorRegenTimer: 0,
 });

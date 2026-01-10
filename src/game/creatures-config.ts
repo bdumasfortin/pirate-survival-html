@@ -49,7 +49,7 @@ export const CRAB_DEFAULT_STATS: CreatureStats = {
   attackRange: 20,
   attackCooldown: 1.2,
   wanderTimerMin: 1.5,
-  wanderTimerMax: 3.5
+  wanderTimerMax: 3.5,
 };
 
 export const CRAB_BOSS_STATS: CreatureStats = {
@@ -62,7 +62,7 @@ export const CRAB_BOSS_STATS: CreatureStats = {
   attackRange: 60,
   attackCooldown: 1.4,
   wanderTimerMin: 1.8,
-  wanderTimerMax: 3.8
+  wanderTimerMax: 3.8,
 };
 
 export const WOLF_DEFAULT_STATS: CreatureStats = {
@@ -75,7 +75,7 @@ export const WOLF_DEFAULT_STATS: CreatureStats = {
   attackRange: 24,
   attackCooldown: 1.05,
   wanderTimerMin: 1.2,
-  wanderTimerMax: 2.8
+  wanderTimerMax: 2.8,
 };
 
 export const WOLF_BOSS_STATS: CreatureStats = {
@@ -88,7 +88,7 @@ export const WOLF_BOSS_STATS: CreatureStats = {
   attackRange: 34,
   attackCooldown: 1.2,
   wanderTimerMin: 1.6,
-  wanderTimerMax: 3.4
+  wanderTimerMax: 3.4,
 };
 
 export const WOLF_SPAWN_RADIUS_SCALE = 0.7;
@@ -102,7 +102,7 @@ export const KRAKEN_STATS: KrakenStats = {
   speed: 26,
   attackCooldown: 1.4,
   wanderTimerMin: 1.8,
-  wanderTimerMax: 3.6
+  wanderTimerMax: 3.6,
 };
 
 export const KRAKEN_SPAWN_MIN_DISTANCE = 520;

@@ -1,15 +1,15 @@
+import { type EntityId, isEntityAlive } from "../core/ecs";
 import { consumeDrop, type InputState } from "../core/input";
-import type { GameState } from "../game/state";
-import { isEntityAlive, type EntityId } from "../core/ecs";
 import { spawnGroundItem } from "../game/ground-items";
+import { GROUND_ITEM_DROP_OFFSET } from "../game/ground-items-config";
 import {
   clearInventorySlot,
   getInventorySelectedIndex,
   getInventorySlotKind,
   getInventorySlotQuantity,
-  setInventorySlotQuantity
+  setInventorySlotQuantity,
 } from "../game/inventory";
-import { GROUND_ITEM_DROP_OFFSET } from "../game/ground-items-config";
+import type { GameState } from "../game/state";
 
 export const dropSelectedItem = (state: GameState, playerId: EntityId, input: InputState) => {
   if (!consumeDrop(input)) {
@@ -36,7 +36,7 @@ export const dropSelectedItem = (state: GameState, playerId: EntityId, input: In
     1,
     {
       x: ecs.position.x[playerId] + Math.cos(angle) * offset,
-      y: ecs.position.y[playerId] + Math.sin(angle) * offset
+      y: ecs.position.y[playerId] + Math.sin(angle) * offset,
     },
     state.time
   );

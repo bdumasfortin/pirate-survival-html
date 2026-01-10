@@ -1,8 +1,8 @@
-import type { EntityId, EcsSnapshot } from "../core/ecs";
+import type { EcsSnapshot, EntityId } from "../core/ecs";
 import { createEcsSnapshot, restoreEcsSnapshot } from "../core/ecs";
+import type { WorldState } from "../world/types";
 import type { CraftingState } from "./crafting";
 import type { AttackEffect, GameState } from "./state";
-import type { WorldState } from "../world/types";
 
 export type GameStateSnapshot = {
   time: number;
@@ -32,13 +32,13 @@ const cloneAttackEffect = (effect: AttackEffect | null): AttackEffect | null => 
     radius: effect.radius,
     spread: effect.spread,
     timer: effect.timer,
-    duration: effect.duration
+    duration: effect.duration,
   };
 };
 
 const cloneCraftingState = (crafting: CraftingState): CraftingState => ({
   isOpen: crafting.isOpen,
-  selectedIndex: crafting.selectedIndex
+  selectedIndex: crafting.selectedIndex,
 });
 
 const cloneCraftingStates = (crafting: CraftingState[]) => crafting.map((entry) => cloneCraftingState(entry));
@@ -53,7 +53,7 @@ export const createGameStateSnapshot = (state: GameState): GameStateSnapshot => 
   world: state.world,
   rngState: state.rng.state,
   crafting: cloneCraftingStates(state.crafting),
-  attackEffects: cloneAttackEffects(state.attackEffects)
+  attackEffects: cloneAttackEffects(state.attackEffects),
 });
 
 export const restoreGameStateSnapshot = (state: GameState, snapshot: GameStateSnapshot) => {
@@ -73,7 +73,7 @@ export const createRollbackBuffer = (capacity: number): RollbackBuffer => {
   return {
     capacity,
     frames,
-    snapshots: Array.from({ length: capacity }, () => null)
+    snapshots: Array.from({ length: capacity }, () => null),
   };
 };
 

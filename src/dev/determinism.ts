@@ -1,8 +1,8 @@
-import { applyInputFrame, InputBits, type InputFrame } from "../core/input-buffer";
 import { createInputState } from "../core/input";
+import { applyInputFrame, InputBits, type InputFrame } from "../core/input-buffer";
 import { hashGameState } from "../core/state-hash";
-import { createInitialState } from "../game/state";
 import { simulateFrame } from "../game/sim";
+import { createInitialState } from "../game/state";
 
 const buildTestInputFrame = (frame: number): InputFrame => {
   let buttons = 0;
@@ -34,7 +34,7 @@ const buildTestInputFrame = (frame: number): InputFrame => {
     inventoryIndex: -1,
     inventoryScroll: 0,
     mouseX: 0,
-    mouseY: 0
+    mouseY: 0,
   };
 };
 

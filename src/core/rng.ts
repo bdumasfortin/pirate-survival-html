@@ -3,7 +3,7 @@ export type RngState = {
 };
 
 export const createRng = (seed: number): RngState => ({
-  state: seed >>> 0
+  state: seed >>> 0,
 });
 
 export const nextFloat = (rng: RngState) => {

@@ -9,7 +9,7 @@ import {
   CRAFT_PANEL_SECTION_GAP,
   CRAFT_PANEL_WIDTH,
   CRAFT_TILE_GAP,
-  CRAFT_TILE_SIZE
+  CRAFT_TILE_SIZE,
 } from "./ui-config";
 
 export type CraftButtonRect = {
@@ -32,7 +32,11 @@ export type CraftingLayout = {
   selectedIndex: number;
 };
 
-export const getCraftingLayout = (state: GameState, screenWidth: number, screenHeight: number): CraftingLayout | null => {
+export const getCraftingLayout = (
+  state: GameState,
+  screenWidth: number,
+  screenHeight: number
+): CraftingLayout | null => {
   const crafting = state.crafting[state.localPlayerIndex];
   if (!crafting?.isOpen || recipes.length === 0) {
     return null;
@@ -49,10 +53,8 @@ export const getCraftingLayout = (state: GameState, screenWidth: number, screenH
   const ingredientCount = selectedRecipe?.inputs.length ?? 0;
   const listHeight = ingredientCount > 0 ? ingredientCount * CRAFT_INGREDIENT_ROW_HEIGHT : 0;
   const panelWidth = Math.max(CRAFT_PANEL_WIDTH, CRAFT_TILE_SIZE + CRAFT_PANEL_PADDING * 2);
-  const panelHeight = CRAFT_PANEL_PADDING * 2 +
-    listHeight +
-    (ingredientCount > 0 ? CRAFT_PANEL_SECTION_GAP : 0) +
-    CRAFT_BUTTON_HEIGHT;
+  const panelHeight =
+    CRAFT_PANEL_PADDING * 2 + listHeight + (ingredientCount > 0 ? CRAFT_PANEL_SECTION_GAP : 0) + CRAFT_BUTTON_HEIGHT;
   const panelX = (screenWidth - panelWidth) / 2;
   const panelY = rowY + rowHeight + CRAFT_PANEL_GAP;
   const buttonX = panelX + (panelWidth - CRAFT_BUTTON_WIDTH) / 2;
@@ -71,8 +73,8 @@ export const getCraftingLayout = (state: GameState, screenWidth: number, screenH
       x: buttonX,
       y: buttonY,
       width: CRAFT_BUTTON_WIDTH,
-      height: CRAFT_BUTTON_HEIGHT
+      height: CRAFT_BUTTON_HEIGHT,
     },
-    selectedIndex
+    selectedIndex,
   };
 };

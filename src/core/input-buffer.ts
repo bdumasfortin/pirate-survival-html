@@ -12,7 +12,7 @@ export const InputBits = {
   CloseCraft: 1 << 8,
   HasMouse: 1 << 9,
   Teleport: 1 << 10,
-  Craft: 1 << 11
+  Craft: 1 << 11,
 } as const;
 
 export type InputFrame = {
@@ -75,7 +75,7 @@ export const createInputBuffer = (capacity: number): InputBuffer => {
     inventoryIndex: new Int16Array(capacity),
     inventoryScroll: new Int16Array(capacity),
     mouseX: new Int32Array(capacity),
-    mouseY: new Int32Array(capacity)
+    mouseY: new Int32Array(capacity),
   };
 };
 
@@ -128,7 +128,7 @@ const buildInputFrame = (input: InputState): InputFrame => {
     inventoryIndex: inventoryIndex === null ? -1 : inventoryIndex,
     inventoryScroll: input.inventoryScrollQueued,
     mouseX: input.mouseScreen ? Math.round(input.mouseScreen.x) : 0,
-    mouseY: input.mouseScreen ? Math.round(input.mouseScreen.y) : 0
+    mouseY: input.mouseScreen ? Math.round(input.mouseScreen.y) : 0,
   };
 };
 
@@ -197,7 +197,7 @@ export const readInputFrame = (buffer: InputBuffer, frame: number): InputFrame |
     inventoryIndex: buffer.inventoryIndex[index],
     inventoryScroll: buffer.inventoryScroll[index],
     mouseX: buffer.mouseX[index],
-    mouseY: buffer.mouseY[index]
+    mouseY: buffer.mouseY[index],
   };
 };
 

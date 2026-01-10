@@ -17,7 +17,7 @@ export const drawIsland = (ctx: CanvasRenderingContext2D, points: Vec2[]) => {
 export const insetPoints = (points: Vec2[], center: Vec2, factor: number) =>
   points.map((point) => ({
     x: center.x + (point.x - center.x) * factor,
-    y: center.y + (point.y - center.y) * factor
+    y: center.y + (point.y - center.y) * factor,
   }));
 
 export const drawRoundedRect = (

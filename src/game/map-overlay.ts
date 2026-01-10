@@ -32,7 +32,7 @@ export const getMapLayout = (innerWidth: number, innerHeight: number) => {
     panelY,
     panelWidth: MAP_SIZE,
     panelHeight: MAP_SIZE,
-    padding: MAP_PADDING
+    padding: MAP_PADDING,
   };
 };
 

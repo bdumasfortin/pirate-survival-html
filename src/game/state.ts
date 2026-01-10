@@ -1,13 +1,13 @@
-import { ComponentMask, createEcsWorld, createEntity, EntityTag, type EcsWorld, type EntityId } from "../core/ecs";
+import { ComponentMask, createEcsWorld, createEntity, type EcsWorld, type EntityId, EntityTag } from "../core/ecs";
 import { createRng, type RngState } from "../core/rng";
 import { normalizeSeed } from "../core/seed";
-import { createCraftingState, type CraftingState } from "./crafting";
+import type { Vec2 } from "../core/types";
+import type { WorldState } from "../world/types";
+import { createWorld, spawnWorldResources } from "../world/world";
+import { type CraftingState, createCraftingState } from "./crafting";
 import { createEnemies } from "./creatures";
 import { addToInventory } from "./inventory";
 import { createSurvivalStats } from "./survival";
-import { createWorld, spawnWorldResources } from "../world/world";
-import type { WorldState } from "../world/types";
-import type { Vec2 } from "../core/types";
 
 export type AttackEffect = {
   origin: Vec2;
@@ -41,7 +41,8 @@ export const createInitialState = (seed: string | number, playerCount = 1, local
   const clampedPlayerCount = Math.max(1, Math.floor(playerCount));
   const clampedLocalIndex = Math.max(0, Math.min(localPlayerIndex, clampedPlayerCount - 1));
   const ecs = createEcsWorld();
-  const playerMask = ComponentMask.Position |
+  const playerMask =
+    ComponentMask.Position |
     ComponentMask.PrevPosition |
     ComponentMask.Velocity |
     ComponentMask.Radius |
@@ -107,7 +108,6 @@ export const createInitialState = (seed: string | number, playerCount = 1, local
     world,
     rng,
     crafting: craftingStates,
-    attackEffects
+    attackEffects,
   };
 };
-

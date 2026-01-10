@@ -54,8 +54,8 @@ export const isPointInPolygon = (point: Vec2, polygon: Vec2[]) => {
     const xj = polygon[j].x;
     const yj = polygon[j].y;
 
-    const intersect = yi > point.y !== yj > point.y &&
-      point.x < ((xj - xi) * (point.y - yi)) / (yj - yi + Number.EPSILON) + xi;
+    const intersect =
+      yi > point.y !== yj > point.y && point.x < ((xj - xi) * (point.y - yi)) / (yj - yi + Number.EPSILON) + xi;
 
     if (intersect) {
       inside = !inside;
@@ -76,8 +76,8 @@ const isPointInPolygonArrays = (point: Vec2, xs: Float32Array, ys: Float32Array)
     const yi = ys[i];
     const xj = xs[j];
     const yj = ys[j];
-    const intersects = yi > point.y !== yj > point.y &&
-      point.x < ((xj - xi) * (point.y - yi)) / (yj - yi || Number.EPSILON) + xi;
+    const intersects =
+      yi > point.y !== yj > point.y && point.x < ((xj - xi) * (point.y - yi)) / (yj - yi || Number.EPSILON) + xi;
 
     if (intersects) {
       inside = !inside;

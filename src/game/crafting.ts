@@ -1,6 +1,6 @@
-import type { ItemKind } from "./item-kinds";
-import { addToInventory, getAvailableSpace, getTotalOfKind, removeFromInventory } from "./inventory";
 import type { EcsWorld, EntityId } from "../core/ecs";
+import { addToInventory, getAvailableSpace, getTotalOfKind, removeFromInventory } from "./inventory";
+import type { ItemKind } from "./item-kinds";
 
 export type RecipeIngredient = {
   kind: ItemKind;
@@ -21,7 +21,7 @@ export type CraftingState = {
 
 export const createCraftingState = (): CraftingState => ({
   isOpen: false,
-  selectedIndex: 0
+  selectedIndex: 0,
 });
 
 export const recipes: Recipe[] = [
@@ -30,19 +30,19 @@ export const recipes: Recipe[] = [
     name: "Raft",
     inputs: [
       { kind: "wood", amount: 8 },
-      { kind: "rock", amount: 2 }
+      { kind: "rock", amount: 2 },
     ],
-    output: { kind: "raft", amount: 1 }
+    output: { kind: "raft", amount: 1 },
   },
   {
     id: "sword",
     name: "Sword",
     inputs: [
       { kind: "rock", amount: 4 },
-      { kind: "wood", amount: 2 }
+      { kind: "wood", amount: 2 },
     ],
-    output: { kind: "sword", amount: 1 }
-  }
+    output: { kind: "sword", amount: 1 },
+  },
 ];
 
 export const canCraft = (ecs: EcsWorld, entityId: EntityId, recipe: Recipe) =>

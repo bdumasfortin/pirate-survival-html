@@ -5,14 +5,7 @@ import { itemKindFromIndex, itemKindToIndex } from "./item-kinds";
 
 export type EquipmentSlotType = "helmet" | "cloak" | "chest" | "legs" | "boots" | "ring";
 
-export const EQUIPMENT_SLOT_ORDER: EquipmentSlotType[] = [
-  "helmet",
-  "cloak",
-  "chest",
-  "legs",
-  "boots",
-  "ring"
-];
+export const EQUIPMENT_SLOT_ORDER: EquipmentSlotType[] = ["helmet", "cloak", "chest", "legs", "boots", "ring"];
 
 const EQUIPMENT_SLOT_INDEX: Record<EquipmentSlotType, number> = {
   helmet: 0,
@@ -20,7 +13,7 @@ const EQUIPMENT_SLOT_INDEX: Record<EquipmentSlotType, number> = {
   chest: 2,
   legs: 3,
   boots: 4,
-  ring: 5
+  ring: 5,
 };
 
 const getSlotOffset = (entityId: EntityId, slotIndex: number) => entityId * EQUIPMENT_SLOT_COUNT + slotIndex;
@@ -45,12 +38,21 @@ export const getEquipmentSlotKindIndex = (ecs: EcsWorld, entityId: EntityId, slo
   return ecs.equipmentKind[offset];
 };
 
-export const getEquipmentSlotKind = (ecs: EcsWorld, entityId: EntityId, slotType: EquipmentSlotType): ItemKind | null => {
+export const getEquipmentSlotKind = (
+  ecs: EcsWorld,
+  entityId: EntityId,
+  slotType: EquipmentSlotType
+): ItemKind | null => {
   const kindIndex = getEquipmentSlotKindIndex(ecs, entityId, slotType);
   return kindIndex === 0 ? null : itemKindFromIndex(kindIndex);
 };
 
-export const setEquipmentSlotKind = (ecs: EcsWorld, entityId: EntityId, slotType: EquipmentSlotType, kind: ItemKind | null) => {
+export const setEquipmentSlotKind = (
+  ecs: EcsWorld,
+  entityId: EntityId,
+  slotType: EquipmentSlotType,
+  kind: ItemKind | null
+) => {
   const offset = getSlotOffset(entityId, getEquipmentSlotIndex(slotType));
   ecs.equipmentKind[offset] = kind ? itemKindToIndex(kind) : 0;
 };
@@ -67,4 +69,3 @@ export const getEquippedItemCount = (ecs: EcsWorld, entityId: EntityId) => {
 
   return count;
 };
-

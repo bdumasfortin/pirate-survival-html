@@ -42,7 +42,7 @@ export const createInputState = (): InputState => ({
   inventoryIndexQueued: null,
   inventoryScrollQueued: 0,
   mouseScreen: null,
-  mouseWorld: null
+  mouseWorld: null,
 });
 
 export const bindKeyboard = (state: InputState) => {

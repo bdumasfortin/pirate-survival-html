@@ -1,9 +1,9 @@
+import { ComponentMask, destroyEntity, type EcsWorld, type EntityId, forEachEntity, isEntityAlive } from "../core/ecs";
 import { consumeInteract, type InputState } from "../core/input";
-import { ComponentMask, destroyEntity, forEachEntity, isEntityAlive, type EcsWorld, type EntityId } from "../core/ecs";
 import { nextInt, type RngState } from "../core/rng";
 import { addToInventory } from "../game/inventory";
-import type { GameState } from "../game/state";
 import { itemKindFromIndex } from "../game/item-kinds";
+import type { GameState } from "../game/state";
 
 export const GATHER_RANGE = 10;
 const RESOURCE_MASK = ComponentMask.Resource | ComponentMask.Position | ComponentMask.Radius;

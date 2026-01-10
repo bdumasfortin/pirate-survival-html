@@ -1,10 +1,20 @@
+import { ComponentMask, type EntityId, forEachEntity, isEntityAlive } from "../core/ecs";
 import type { InputState } from "../core/input";
-import { ComponentMask, forEachEntity, isEntityAlive, type EntityId } from "../core/ecs";
-import type { GameState } from "../game/state";
+import {
+  getInventorySelectedIndex,
+  getInventorySlotKind,
+  getInventorySlotQuantity,
+  setInventorySlotQuantity,
+} from "../game/inventory";
 import type { ItemKind } from "../game/item-kinds";
-import { getInventorySelectedIndex, getInventorySlotKind, getInventorySlotQuantity, setInventorySlotQuantity } from "../game/inventory";
-import { getStructurePreviewRadius, getStructurePropKind, getStructureSurface, isStructureItem } from "../game/structure-items";
 import { spawnProp } from "../game/props";
+import type { GameState } from "../game/state";
+import {
+  getStructurePreviewRadius,
+  getStructurePropKind,
+  getStructureSurface,
+  isStructureItem,
+} from "../game/structure-items";
 import { findContainingIsland } from "../world/island-geometry";
 
 const STRUCTURE_PLACEMENT_DISTANCE = 6;
@@ -18,7 +28,14 @@ const isPlacementSurfaceValid = (state: GameState, kind: ItemKind, x: number, y:
   return !isOnLand;
 };
 
-const isStructurePlacementValid = (state: GameState, playerId: EntityId, kind: ItemKind, x: number, y: number, radius: number) => {
+const isStructurePlacementValid = (
+  state: GameState,
+  playerId: EntityId,
+  kind: ItemKind,
+  x: number,
+  y: number,
+  radius: number
+) => {
   const ecs = state.ecs;
   if (ecs.playerIsOnRaft[playerId]) {
     return false;

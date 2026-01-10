@@ -1,14 +1,14 @@
-import type { GameState } from "../game/state";
+import { ComponentMask, type EntityId, forEachEntity, isEntityAlive } from "../core/ecs";
 import type { Vec2 } from "../core/types";
-import type { Island } from "../world/types";
-import { ComponentMask, forEachEntity, isEntityAlive, type EntityId } from "../core/ecs";
+import type { GameState } from "../game/state";
 import {
   closestPointOnPolygon,
   findClosestIslandEdge,
   findContainingIsland,
-  isPointInIsland
+  isPointInIsland,
 } from "../world/island-geometry";
 import { resourceNodeTypeFromIndex } from "../world/resource-node-types";
+import type { Island } from "../world/types";
 
 const trySlide = (position: Vec2, prev: Vec2, island: Island) => {
   const slideX = { x: position.x, y: prev.y };
@@ -28,14 +28,14 @@ const pushPlayerOutOfIsland = (position: Vec2, radius: number, island: Island) =
   const closest = closestPointOnPolygon(position, island.points);
   const toWater = {
     x: closest.point.x - island.center.x,
-    y: closest.point.y - island.center.y
+    y: closest.point.y - island.center.y,
   };
   const length = Math.hypot(toWater.x, toWater.y) || 1;
   const buffer = 0.5;
 
   return {
     x: closest.point.x + (toWater.x / length) * (radius + buffer),
-    y: closest.point.y + (toWater.y / length) * (radius + buffer)
+    y: closest.point.y + (toWater.y / length) * (radius + buffer),
   };
 };
 
@@ -82,7 +82,7 @@ export const constrainPlayerToIslands = (state: GameState, playerId: EntityId) =
   const closest = closestPointOnPolygon(position, targetIsland.points);
   const toCenter = {
     x: targetIsland.center.x - closest.point.x,
-    y: targetIsland.center.y - closest.point.y
+    y: targetIsland.center.y - closest.point.y,
   };
   const length = Math.hypot(toCenter.x, toCenter.y) || 1;
   const buffer = 0.5;

@@ -1,6 +1,6 @@
+import { type EntityId, INVENTORY_SLOT_COUNT, isEntityAlive } from "../core/ecs";
 import type { InputState } from "../core/input";
 import { consumeInventoryIndex, consumeInventoryScroll } from "../core/input";
-import { INVENTORY_SLOT_COUNT, isEntityAlive, type EntityId } from "../core/ecs";
 import type { GameState } from "../game/state";
 
 const clampIndex = (index: number, length: number) => {

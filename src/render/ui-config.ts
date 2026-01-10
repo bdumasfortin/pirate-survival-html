@@ -35,4 +35,3 @@ export const CRAFT_BUTTON_RADIUS = 10;
 export const ACTION_PROMPT_FONT_SIZE = 18;
 export const ACTION_PROMPT_PADDING_X = 16;
 export const ACTION_PROMPT_PADDING_Y = 8;
-

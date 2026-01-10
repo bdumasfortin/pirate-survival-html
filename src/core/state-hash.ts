@@ -1,7 +1,7 @@
-import { EQUIPMENT_SLOT_COUNT, INVENTORY_SLOT_COUNT, type EcsSnapshot, type EcsWorld } from "./ecs";
 import type { GameStateSnapshot } from "../game/rollback";
 import type { GameState } from "../game/state";
 import type { WorldState } from "../world/types";
+import { type EcsSnapshot, type EcsWorld, EQUIPMENT_SLOT_COUNT, INVENTORY_SLOT_COUNT } from "./ecs";
 
 const FLOAT_BUFFER = new ArrayBuffer(4);
 const FLOAT_VIEW = new DataView(FLOAT_BUFFER);
@@ -181,7 +181,7 @@ export const hashGameState = (state: GameState) =>
     world: state.world,
     crafting: state.crafting,
     attackEffects: state.attackEffects,
-    ecs: state.ecs
+    ecs: state.ecs,
   });
 
 export const hashGameStateSnapshot = (snapshot: GameStateSnapshot) =>
@@ -192,5 +192,5 @@ export const hashGameStateSnapshot = (snapshot: GameStateSnapshot) =>
     world: snapshot.world,
     crafting: snapshot.crafting,
     attackEffects: snapshot.attackEffects,
-    ecs: snapshot.ecs
+    ecs: snapshot.ecs,
   });

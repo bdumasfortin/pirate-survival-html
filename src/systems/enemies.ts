@@ -1,14 +1,14 @@
-import type { GameState } from "../game/state";
+import { ComponentMask, destroyEntity, type EntityId, forEachEntity, isEntityAlive } from "../core/ecs";
 import { clamp, normalize } from "../core/math";
 import { nextFloat, nextRange } from "../core/rng";
-import { ComponentMask, destroyEntity, forEachEntity, isEntityAlive, type EntityId } from "../core/ecs";
-import { ENEMY_KIND_TO_INDEX } from "../game/enemy-kinds";
-import { closestPointOnPolygon, findContainingIsland, isPointInIsland } from "../world/island-geometry";
 import { CRAB_HIT_FLASH_DURATION, DAMAGE_FLASH_DURATION } from "../game/combat-config";
 import { KRAKEN_STATS } from "../game/creatures-config";
-import { getEquippedItemCount } from "../game/equipment";
-import { ARMOR_PER_PIECE, ARMOR_REGEN_DELAY } from "../game/survival-config";
+import { ENEMY_KIND_TO_INDEX } from "../game/enemy-kinds";
 import { dropEnemyLoot } from "../game/enemy-loot";
+import { getEquippedItemCount } from "../game/equipment";
+import type { GameState } from "../game/state";
+import { ARMOR_PER_PIECE, ARMOR_REGEN_DELAY } from "../game/survival-config";
+import { closestPointOnPolygon, findContainingIsland, isPointInIsland } from "../world/island-geometry";
 
 const WANDER_SPEED_SCALE = 0.4;
 const CHASE_ACCEL_FACTOR = 6;
@@ -36,7 +36,7 @@ const buildLivingPlayers = (state: GameState) => {
       index,
       x: ecs.position.x[playerId],
       y: ecs.position.y[playerId],
-      radius: ecs.radius[playerId]
+      radius: ecs.radius[playerId],
     });
   }
   return livingPlayers;
@@ -59,22 +59,13 @@ const findClosestPlayer = (players: LivingPlayer[], x: number, y: number) => {
 
 const applyKrakenLandCorrection = (state: GameState, id: EntityId) => {
   const ecs = state.ecs;
-  const containingIsland = findContainingIsland(
-    { x: ecs.position.x[id], y: ecs.position.y[id] },
-    state.world.islands
-  );
+  const containingIsland = findContainingIsland({ x: ecs.position.x[id], y: ecs.position.y[id] }, state.world.islands);
   if (!containingIsland) {
     return;
   }
 
-  const closest = closestPointOnPolygon(
-    { x: ecs.position.x[id], y: ecs.position.y[id] },
-    containingIsland.points
-  );
-  const dir = normalize(
-    closest.point.x - containingIsland.center.x,
-    closest.point.y - containingIsland.center.y
-  );
+  const closest = closestPointOnPolygon({ x: ecs.position.x[id], y: ecs.position.y[id] }, containingIsland.points);
+  const dir = normalize(closest.point.x - containingIsland.center.x, closest.point.y - containingIsland.center.y);
   const offset = ecs.radius[id] + 2;
   ecs.position.x[id] = closest.point.x + dir.x * offset;
   ecs.position.y[id] = closest.point.y + dir.y * offset;
@@ -231,9 +222,8 @@ export const updateEnemies = (state: GameState, delta: number) => {
   const livingPlayers = buildLivingPlayers(state);
   forEachEntity(ecs, ENEMY_MASK, (id) => {
     ecs.enemyHitTimer[id] = Math.max(0, ecs.enemyHitTimer[id] - delta);
-    const target = livingPlayers.length > 0
-      ? findClosestPlayer(livingPlayers, ecs.position.x[id], ecs.position.y[id])
-      : null;
+    const target =
+      livingPlayers.length > 0 ? findClosestPlayer(livingPlayers, ecs.position.x[id], ecs.position.y[id]) : null;
 
     if (ecs.enemyKind[id] === ENEMY_KIND_TO_INDEX.kraken) {
       updateKraken(state, id, target, delta);

@@ -1,15 +1,15 @@
+import { ComponentMask, type EntityId, forEachEntity, isEntityAlive } from "../core/ecs";
 import type { InputState } from "../core/input";
-import { ComponentMask, forEachEntity, isEntityAlive, type EntityId } from "../core/ecs";
 import { normalize } from "../core/math";
-import type { GameState } from "../game/state";
 import {
   ATTACK_EFFECT_DURATION,
   PLAYER_ATTACK_CONE_SPREAD,
   PLAYER_ATTACK_COOLDOWN,
   PLAYER_ATTACK_DAMAGE,
-  PLAYER_ATTACK_RANGE
+  PLAYER_ATTACK_RANGE,
 } from "../game/combat-config";
 import { getInventorySelectedIndex, getInventorySlotKind, getInventorySlotQuantity } from "../game/inventory";
+import type { GameState } from "../game/state";
 import { applyEnemyDamage } from "./enemies";
 
 const ENEMY_MASK = ComponentMask.Enemy | ComponentMask.Position | ComponentMask.Radius;
@@ -22,12 +22,7 @@ const canUseSword = (state: GameState, playerId: EntityId) => {
   return slotKind === "sword" && slotQuantity > 0;
 };
 
-const updateAttackEffect = (
-  state: GameState,
-  playerIndex: number,
-  playerId: EntityId,
-  input: InputState
-) => {
+const updateAttackEffect = (state: GameState, playerIndex: number, playerId: EntityId, input: InputState) => {
   const ecs = state.ecs;
   const playerX = ecs.position.x[playerId];
   const playerY = ecs.position.y[playerId];
@@ -47,13 +42,13 @@ const updateAttackEffect = (
   state.attackEffects[playerIndex] = {
     origin: {
       x: playerX,
-      y: playerY
+      y: playerY,
     },
     angle,
     radius: coneRadius,
     spread: coneSpread,
     timer: ATTACK_EFFECT_DURATION,
-    duration: ATTACK_EFFECT_DURATION
+    duration: ATTACK_EFFECT_DURATION,
   };
 
   return { x: playerX, y: playerY, reach: coneRadius };

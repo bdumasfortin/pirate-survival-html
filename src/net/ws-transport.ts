@@ -23,9 +23,12 @@ export const createWebSocketTransport = (url: string, onJsonMessage: (payload: s
     }
 
     if (event.data instanceof Blob) {
-      event.data.arrayBuffer().then((buffer) => handler?.(buffer)).catch(() => {
-        // Ignore malformed binary messages.
-      });
+      event.data
+        .arrayBuffer()
+        .then((buffer) => handler?.(buffer))
+        .catch(() => {
+          // Ignore malformed binary messages.
+        });
     }
   });
 
@@ -40,7 +43,7 @@ export const createWebSocketTransport = (url: string, onJsonMessage: (payload: s
     },
     close: () => {
       socket.close();
-    }
+    },
   };
 
   return { socket, transport };

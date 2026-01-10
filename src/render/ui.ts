@@ -1,17 +1,20 @@
-import type { GameState } from "../game/state";
-import { EQUIPMENT_SLOT_ORDER, getEquipmentSlotKind, type EquipmentSlotType } from "../game/equipment";
-import type { ResourceNodeType } from "../world/types";
-import type { ItemKind } from "../game/item-kinds";
-import { findClosestIslandEdge } from "../world/island-geometry";
-import { canCraft, recipes } from "../game/crafting";
-import type { Recipe } from "../game/crafting";
-import { getNearestGatherableResource } from "../systems/gathering";
+import { ComponentMask, EntityTag, forEachEntity, INVENTORY_SLOT_COUNT, isEntityAlive } from "../core/ecs";
 import { DAMAGE_FLASH_DURATION } from "../game/combat-config";
-import { RAFT_INTERACTION_DISTANCE } from "../game/raft-config";
-import { ComponentMask, EntityTag, INVENTORY_SLOT_COUNT, forEachEntity, isEntityAlive } from "../core/ecs";
+import type { Recipe } from "../game/crafting";
+import { canCraft, recipes } from "../game/crafting";
 import { getDayCycleInfo } from "../game/day-night";
+import { EQUIPMENT_SLOT_ORDER, type EquipmentSlotType, getEquipmentSlotKind } from "../game/equipment";
+import { getInventorySelectedIndex, getInventorySlotKind, getInventorySlotQuantity } from "../game/inventory";
+import type { ItemKind } from "../game/item-kinds";
 import { getMapLayout, getWorldBounds, isMapOverlayEnabled } from "../game/map-overlay";
+import { propKindFromIndex } from "../game/prop-kinds";
+import { RAFT_INTERACTION_DISTANCE } from "../game/raft-config";
+import type { GameState } from "../game/state";
+import { getStructurePreviewRadius } from "../game/structure-items";
+import { getNearestGatherableResource } from "../systems/gathering";
+import { findClosestIslandEdge } from "../world/island-geometry";
 import { resourceNodeTypeFromIndex } from "../world/resource-node-types";
+import type { ResourceNodeType } from "../world/types";
 import { equipmentPlaceholderImages, isImageReady, itemImages } from "./assets";
 import { getCraftingLayout } from "./crafting-layout";
 import { drawRoundedRect } from "./render-helpers";
@@ -39,15 +42,8 @@ import {
   INVENTORY_CORNER_RADIUS,
   INVENTORY_SLOT_GAP,
   INVENTORY_SLOT_SIZE,
-  UI_FONT
+  UI_FONT,
 } from "./ui-config";
-import {
-  getInventorySelectedIndex,
-  getInventorySlotKind,
-  getInventorySlotQuantity
-} from "../game/inventory";
-import { propKindFromIndex } from "../game/prop-kinds";
-import { getStructurePreviewRadius } from "../game/structure-items";
 
 const itemColors: Record<ItemKind, string> = {
   wood: "#a06a3b",
@@ -59,13 +55,13 @@ const itemColors: Record<ItemKind, string> = {
   wolfmeat: "#b96c54",
   crabhelmet: "#6f87b7",
   wolfcloak: "#7d6d4f",
-  krakenring: "#5aa1c9"
+  krakenring: "#5aa1c9",
 };
 
 const promptLabels: Record<ResourceNodeType, string> = {
   tree: "E to chop",
   rock: "E to pick up",
-  bush: "E to collect"
+  bush: "E to collect",
 };
 
 const ARMOR_BAR_GAP = 16;
@@ -115,8 +111,7 @@ const renderInventory = (ctx: CanvasRenderingContext2D, state: GameState) => {
     return;
   }
 
-  const totalWidth = INVENTORY_SLOT_COUNT * INVENTORY_SLOT_SIZE +
-    (INVENTORY_SLOT_COUNT - 1) * INVENTORY_SLOT_GAP;
+  const totalWidth = INVENTORY_SLOT_COUNT * INVENTORY_SLOT_SIZE + (INVENTORY_SLOT_COUNT - 1) * INVENTORY_SLOT_GAP;
   const startX = (innerWidth - totalWidth) / 2;
   const startY = innerHeight - INVENTORY_BAR_PADDING - INVENTORY_SLOT_SIZE;
   const selectedIndex = getInventorySelectedIndex(ecs, playerId);
@@ -168,13 +163,7 @@ const renderInventory = (ctx: CanvasRenderingContext2D, state: GameState) => {
         );
       } else {
         ctx.beginPath();
-        ctx.arc(
-          x + INVENTORY_SLOT_SIZE / 2,
-          y + INVENTORY_SLOT_SIZE / 2,
-          INVENTORY_SLOT_SIZE * 0.22,
-          0,
-          Math.PI * 2
-        );
+        ctx.arc(x + INVENTORY_SLOT_SIZE / 2, y + INVENTORY_SLOT_SIZE / 2, INVENTORY_SLOT_SIZE * 0.22, 0, Math.PI * 2);
         ctx.fillStyle = color;
         ctx.fill();
       }
@@ -205,14 +194,7 @@ const renderEquipment = (ctx: CanvasRenderingContext2D, state: GameState) => {
   ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
   ctx.shadowBlur = 10;
   ctx.fillStyle = "rgba(12, 22, 26, 0.6)";
-  drawRoundedRect(
-    ctx,
-    startX - 12,
-    startY - 12,
-    totalWidth + 24,
-    totalHeight + 24,
-    14
-  );
+  drawRoundedRect(ctx, startX - 12, startY - 12, totalWidth + 24, totalHeight + 24, 14);
   ctx.fill();
   ctx.restore();
 
@@ -395,8 +377,7 @@ const renderSurvivalBars = (ctx: CanvasRenderingContext2D, state: GameState) => 
   if (playerId === undefined || !isEntityAlive(ecs, playerId)) {
     return;
   }
-  const inventoryWidth = INVENTORY_SLOT_COUNT * INVENTORY_SLOT_SIZE +
-    (INVENTORY_SLOT_COUNT - 1) * INVENTORY_SLOT_GAP;
+  const inventoryWidth = INVENTORY_SLOT_COUNT * INVENTORY_SLOT_SIZE + (INVENTORY_SLOT_COUNT - 1) * INVENTORY_SLOT_GAP;
   const startX = (innerWidth - inventoryWidth) / 2;
   const inventoryTop = innerHeight - INVENTORY_BAR_PADDING - INVENTORY_SLOT_SIZE - INVENTORY_BAR_MARGIN;
   const y = Math.max(HUD_MARGIN, inventoryTop - BAR_HEIGHT - 18);
@@ -543,13 +524,7 @@ const renderCraftingMenu = (ctx: CanvasRenderingContext2D, state: GameState) => 
       ctx.drawImage(ingredientIcon, iconX, iconY, ingredientIconSize, ingredientIconSize);
     } else {
       ctx.beginPath();
-      ctx.arc(
-        iconX + ingredientIconSize / 2,
-        iconY + ingredientIconSize / 2,
-        ingredientIconSize * 0.4,
-        0,
-        Math.PI * 2
-      );
+      ctx.arc(iconX + ingredientIconSize / 2, iconY + ingredientIconSize / 2, ingredientIconSize * 0.4, 0, Math.PI * 2);
       ctx.fillStyle = itemColors[input.kind];
       ctx.fill();
       ctx.fillStyle = "#f0d58b";
@@ -688,7 +663,7 @@ const countEntitiesByTag = (state: GameState) => {
     enemies: 0,
     resources: 0,
     groundItems: 0,
-    props: 0
+    props: 0,
   };
 
   for (let id = 0; id < ecs.nextId; id += 1) {
@@ -744,7 +719,7 @@ const renderDebugOverlay = (ctx: CanvasRenderingContext2D, state: GameState) => 
     `Islands: ${state.world.islands.length}`,
     `Entities: ${counts.total} (next ${ecs.nextId})`,
     `Enemies: ${counts.enemies}  Resources: ${counts.resources}`,
-    `Ground: ${counts.groundItems}  Props: ${counts.props}`
+    `Ground: ${counts.groundItems}  Props: ${counts.props}`,
   ];
 
   if (playerId !== undefined && isEntityAlive(ecs, playerId)) {
@@ -760,7 +735,9 @@ const renderDebugOverlay = (ctx: CanvasRenderingContext2D, state: GameState) => 
       const armor = Math.round(ecs.playerArmor[playerId]);
       lines.push(`Armor: ${armor}/${maxArmor}`);
     }
-    lines.push(`Dead: ${ecs.playerIsDead[playerId] ? "yes" : "no"}  Raft: ${ecs.playerIsOnRaft[playerId] ? "yes" : "no"}`);
+    lines.push(
+      `Dead: ${ecs.playerIsDead[playerId] ? "yes" : "no"}  Raft: ${ecs.playerIsOnRaft[playerId] ? "yes" : "no"}`
+    );
   } else {
     lines.push("X: --");
     lines.push("Y: --");
@@ -796,12 +773,7 @@ const renderDebugOverlay = (ctx: CanvasRenderingContext2D, state: GameState) => 
 };
 const renderHints = (ctx: CanvasRenderingContext2D) => {
   const { innerWidth, innerHeight } = window;
-  const lines = [
-    "Q to drop item",
-    "C opens crafting menu",
-    "M toggles map",
-    "T toggle debug"
-  ];
+  const lines = ["Q to drop item", "C opens crafting menu", "M toggles map", "T toggle debug"];
   const fontSize = 14;
   const lineHeight = fontSize + 6;
   const paddingX = 12;
@@ -897,6 +869,3 @@ export const renderHud = (ctx: CanvasRenderingContext2D, state: GameState) => {
   renderDamageFlash(ctx, state);
   renderDeathOverlay(ctx, state);
 };
-
-
-
