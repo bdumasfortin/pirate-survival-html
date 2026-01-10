@@ -12,9 +12,9 @@ import { RAFT_INTERACTION_DISTANCE } from "../game/raft-config";
 import type { GameState } from "../game/state";
 import { getStructurePreviewRadius } from "../game/structure-items";
 import { getNearestGatherableResource } from "../systems/gathering";
-import { findClosestIslandEdge } from "../world/island-geometry";
+import { findClosestIslandEdge, findContainingIsland } from "../world/island-geometry";
 import { resourceNodeTypeFromIndex } from "../world/resource-node-types";
-import type { ResourceNodeType } from "../world/types";
+import type { BiomeTierConfig, ResourceNodeType } from "../world/types";
 import { equipmentPlaceholderImages, isImageReady, itemImages } from "./assets";
 import { getCraftingLayout } from "./crafting-layout";
 import { drawRoundedRect } from "./render-helpers";
@@ -695,6 +695,15 @@ const countEntitiesByTag = (state: GameState) => {
   return counts;
 };
 
+const getBiomeTierForDistance = (distance: number, tiers: BiomeTierConfig[]) => {
+  for (const tier of tiers) {
+    if (distance >= tier.ringMin && distance <= tier.ringMax) {
+      return tier;
+    }
+  }
+  return null;
+};
+
 const renderDebugOverlay = (ctx: CanvasRenderingContext2D, state: GameState) => {
   if (!debugOverlayEnabled) {
     return;
@@ -728,8 +737,15 @@ const renderDebugOverlay = (ctx: CanvasRenderingContext2D, state: GameState) => 
     const hunger = Math.round(ecs.playerHunger[playerId]);
     const maxHunger = Math.round(ecs.playerMaxHunger[playerId]);
     const maxArmor = Math.round(ecs.playerMaxArmor[playerId]);
-    lines.push(`X: ${Math.round(ecs.position.x[playerId])}`);
-    lines.push(`Y: ${Math.round(ecs.position.y[playerId])}`);
+    const position = { x: ecs.position.x[playerId], y: ecs.position.y[playerId] };
+    const spawnCenter = state.world.islands[0]?.center ?? { x: 0, y: 0 };
+    const distanceFromSpawn = Math.hypot(position.x - spawnCenter.x, position.y - spawnCenter.y);
+    const biomeTier = getBiomeTierForDistance(distanceFromSpawn, state.world.config.procedural.biomeTiers);
+    const island = findContainingIsland(position, state.world.islands);
+    lines.push(`X: ${Math.round(position.x)}`);
+    lines.push(`Y: ${Math.round(position.y)}`);
+    lines.push(`Island: ${island?.type ?? "sea"}`);
+    lines.push(`Biome: ${biomeTier?.name ?? "none"}`);
     lines.push(`HP: ${health}/${maxHealth}  Hunger: ${hunger}/${maxHunger}`);
     if (maxArmor > 0) {
       const armor = Math.round(ecs.playerArmor[playerId]);

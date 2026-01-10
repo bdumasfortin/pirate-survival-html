@@ -1,9 +1,13 @@
 # TO DO
 
-- [ ] Code standards and refactoring
-- [ ] First iteration of the skill progression system
+- [ ] Visuals for volcanic mobs
+- [ ] Slimes "jumping" to move
 - [ ] Pick-upable wood on the ground
 - [ ] Axe to chop wood from trees
+- [ ] Rocks and mineral nodes
+- [ ] Pickaxe to mine nodes
+- [ ] Boss abilities
+- [ ] First iteration of the skill progression system
 - [ ] Softer transition between beach land colors
 - [ ] Shore vs deep water color change
 - [ ] Establish some progression milestones (bosses, rare loot, upgrades, etc.).
@@ -11,4 +15,3 @@
 - [ ] SFX/Ambiance
 - [ ] Implement resources nodes respawning
 - [ ] Implement creature respawning
-- [ ] Add testing tools

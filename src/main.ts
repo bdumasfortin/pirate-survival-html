@@ -22,6 +22,8 @@ const menuOverlay = document.getElementById("seed-menu") as HTMLElement | null;
 const loadingOverlay = document.getElementById("loading-overlay") as HTMLElement | null;
 const seedInput = document.getElementById("seed-input") as HTMLInputElement | null;
 const seedInputMulti = document.getElementById("seed-input-mp") as HTMLInputElement | null;
+const worldPresetSelect = document.getElementById("world-preset") as HTMLSelectElement | null;
+const worldPresetSelectMulti = document.getElementById("world-preset-mp") as HTMLSelectElement | null;
 const randomSeedButton = document.getElementById("seed-random") as HTMLButtonElement | null;
 const randomSeedButtonMulti = document.getElementById("seed-random-mp") as HTMLButtonElement | null;
 const startButton = document.getElementById("start-game") as HTMLButtonElement | null;
@@ -137,53 +139,71 @@ const startNetworkClientWithDeps = (roomCode: string, options: import("./app/typ
   });
 };
 
-initMenu({
-  menuOverlay,
-  loadingOverlay,
-  seedInput,
-  randomSeedButton,
-  startButton,
-  seedInputMulti,
-  randomSeedButtonMulti,
-  roomStatus,
-  roomCodeDisplay,
-  roomPlayerCount,
-  createRoomButton,
-  joinRoomButton,
-  startRoomButton,
-  leaveRoomButton,
-  copyJoinLinkButton,
-  multiCreateButton,
-  multiJoinButton,
-  modeSoloButton,
-  modeMultiButton,
-  serverUrlInput,
-  roomCodeInput,
-  playerNameInput,
-  roomForm,
-  roomScreen,
-  roomStatusForm,
-  roomStatusFormBox,
-  multiPanel,
-  soloPanel,
-  resumeButton,
-  exitToMenuButton,
-  inGameMenu,
-  getSeedValue,
-  getPlayerNameValue,
-  getServerUrlValue,
-  setInGameMenuVisible,
-  returnToMainMenu,
-  startGame: async (seed, options) => {
-    await startGame(seed, options ?? {}, {
+const startApp = async () => {
+  if (import.meta.env.DEV && window.location.hash === "#world-preview") {
+    const { startWorldPreview } = await import("./dev/world-preview");
+    startWorldPreview({
+      ctx,
       menuOverlay,
       loadingOverlay,
       netIndicator,
-      setInGameMenuVisible,
-      ctx,
+      inGameMenu,
     });
-  },
-  startNetworkHost: startNetworkHostWithDeps,
-  startNetworkClient: startNetworkClientWithDeps,
-  setRoomScreen: setRoomScreenRef,
-});
+    return;
+  }
+
+  initMenu({
+    menuOverlay,
+    loadingOverlay,
+    seedInput,
+    randomSeedButton,
+    startButton,
+    seedInputMulti,
+    randomSeedButtonMulti,
+    worldPresetSelect,
+    worldPresetSelectMulti,
+    roomStatus,
+    roomCodeDisplay,
+    roomPlayerCount,
+    createRoomButton,
+    joinRoomButton,
+    startRoomButton,
+    leaveRoomButton,
+    copyJoinLinkButton,
+    multiCreateButton,
+    multiJoinButton,
+    modeSoloButton,
+    modeMultiButton,
+    serverUrlInput,
+    roomCodeInput,
+    playerNameInput,
+    roomForm,
+    roomScreen,
+    roomStatusForm,
+    roomStatusFormBox,
+    multiPanel,
+    soloPanel,
+    resumeButton,
+    exitToMenuButton,
+    inGameMenu,
+    getSeedValue,
+    getPlayerNameValue,
+    getServerUrlValue,
+    setInGameMenuVisible,
+    returnToMainMenu,
+    startGame: async (seed, options) => {
+      await startGame(seed, options ?? {}, {
+        menuOverlay,
+        loadingOverlay,
+        netIndicator,
+        setInGameMenuVisible,
+        ctx,
+      });
+    },
+    startNetworkHost: startNetworkHostWithDeps,
+    startNetworkClient: startNetworkClientWithDeps,
+    setRoomScreen: setRoomScreenRef,
+  });
+};
+
+void startApp();

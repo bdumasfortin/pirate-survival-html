@@ -46,6 +46,7 @@ export const startNetworkClient = (
     playerCount: 0,
     inputDelayFrames,
     seed: null,
+    worldPreset: null,
     players: [],
     transport: null,
     hasSentStart: false,

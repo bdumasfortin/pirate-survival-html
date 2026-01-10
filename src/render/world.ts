@@ -17,7 +17,7 @@ import {
 import { findContainingIsland } from "../world/island-geometry";
 import { resourceNodeTypeFromIndex } from "../world/resource-node-types";
 import type { Island, IslandType, ResourceNodeType } from "../world/types";
-import { SPAWN_ZONE_RADIUS } from "../world/world-config";
+import { getSpawnZoneRadius } from "../world/world-config";
 import { isImageReady, itemImages, propImages, worldImages } from "./assets";
 import { drawIsland, insetPoints } from "./render-helpers";
 import { CAMERA_ZOOM } from "./ui-config";
@@ -150,10 +150,12 @@ const drawRoundedRect = (
 };
 
 const islandStyles: Record<IslandType, { sand: string; grass?: string }> = {
-  standard: { sand: "#f6e7c1", grass: "#7dbb6a" },
-  forest: { sand: "#f6e7c1", grass: "#4b7a74" },
-  wolfBoss: { sand: "#f6e7c1", grass: "#4b7a74" },
-  crabBoss: { sand: "#f6e7c1" },
+  beach: { sand: "#f6e7c1", grass: "#7dbb6a" },
+  woods: { sand: "#f6e7c1", grass: "#4b7a74" },
+  volcanic: { sand: "#e7c29e", grass: "#5f3a2a" },
+  calmBoss: { sand: "#f6e7c1" },
+  wildBoss: { sand: "#f6e7c1", grass: "#4b7a74" },
+  volcanicBoss: { sand: "#e7c29e", grass: "#5f3a2a" },
 };
 const nodeColors: Record<ResourceNodeType, string> = {
   tree: "#3f7d4a",
@@ -165,6 +167,7 @@ const enemyColors: Record<string, string> = {
   crab: "#d0674b",
   wolf: "#8a6b55",
   kraken: "#2f8aa0",
+  magmaSlime: "#d25a3b",
 };
 
 const {
@@ -302,7 +305,7 @@ const renderIslands = (ctx: CanvasRenderingContext2D, state: GameState, view: Vi
     if (!isRectInView(getIslandBounds(island), view)) {
       return;
     }
-    const style = islandStyles[island.type] ?? islandStyles.standard;
+    const style = islandStyles[island.type] ?? islandStyles.beach;
     ctx.fillStyle = style.sand;
     drawIsland(ctx, island.points);
 
@@ -319,13 +322,14 @@ const renderSpawnZone = (ctx: CanvasRenderingContext2D, state: GameState, view: 
   if (!spawnIsland) {
     return;
   }
+  const spawnZoneRadius = getSpawnZoneRadius(state.world.config.procedural);
   const { x, y } = spawnIsland.center;
-  if (!isCircleInView(x, y, SPAWN_ZONE_RADIUS, view)) {
+  if (!isCircleInView(x, y, spawnZoneRadius, view)) {
     return;
   }
 
   ctx.beginPath();
-  ctx.arc(x, y, SPAWN_ZONE_RADIUS, 0, Math.PI * 2);
+  ctx.arc(x, y, spawnZoneRadius, 0, Math.PI * 2);
   ctx.fillStyle = SPAWN_ZONE_COLOR;
   ctx.fill();
 };

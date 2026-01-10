@@ -1,22 +1,24 @@
 import type { EcsWorld } from "../core/ecs";
 import { ComponentMask, createEntity, EntityTag } from "../core/ecs";
-import { normalizeSeed } from "../core/seed";
 import type { Vec2 } from "../core/types";
 import { itemKindToIndex } from "../game/item-kinds";
 import { isPointInIsland } from "./island-geometry";
 import { resourceNodeTypeToIndex } from "./resource-node-types";
-import type { Island, IslandType, WorldState, YieldRange } from "./types";
+import type {
+  BiomeTierConfig,
+  Island,
+  IslandType,
+  ProceduralWorldConfig,
+  WorldConfig,
+  WorldState,
+  YieldRange,
+} from "./types";
 import type { IslandSpec } from "./world-config";
 import {
-  BASE_ISLAND_RADIUS,
-  BEACH_ISLAND_RADIUS,
-  BOSS_ISLAND_RADIUS,
-  ISLAND_SHAPE_CONFIG,
-  ISLAND_TYPE_WEIGHTS,
+  getProceduralBaseRadius,
+  getSpawnZoneRadius,
   RESOURCE_NODE_CONFIGS_BY_TYPE,
   RESOURCE_PLACEMENT_CONFIG,
-  SPAWN_ZONE_RADIUS,
-  WORLD_GEN_CONFIG,
 } from "./world-config";
 
 type Rng = () => number;
@@ -52,7 +54,9 @@ const smoothPoints = (points: Vec2[], passes: number) => {
   return current;
 };
 
-const createIsland = (spec: IslandSpec): Island => {
+const getShapeConfig = (config: ProceduralWorldConfig) => config.islandShapeConfig;
+
+const createIsland = (spec: IslandSpec, config: ProceduralWorldConfig): Island => {
   const { center, baseRadius, seed, type } = spec;
   const rng = createRng(seed);
   const {
@@ -73,7 +77,7 @@ const createIsland = (spec: IslandSpec): Island => {
     smoothingPassesMax,
     leanMin,
     leanMax,
-  } = ISLAND_SHAPE_CONFIG;
+  } = getShapeConfig(config);
   const pointCount = Math.round(randomBetween(rng, pointCountMin, pointCountMax));
   const waveA = Math.max(1, Math.round(randomBetween(rng, waveAMin, waveAMax)));
   let waveB = Math.max(2, Math.round(randomBetween(rng, waveBMin, waveBMax)));
@@ -152,12 +156,18 @@ const getRandomPointInIsland = (island: Island, rng: Rng, reject?: (position: Ve
 
 const RESOURCE_MASK = ComponentMask.Position | ComponentMask.Radius | ComponentMask.Tag | ComponentMask.Resource;
 
-const spawnResourcesForIsland = (ecs: EcsWorld, island: Island, seed: number, reject?: (position: Vec2) => boolean) => {
+const spawnResourcesForIsland = (
+  ecs: EcsWorld,
+  island: Island,
+  seed: number,
+  baseRadius: number,
+  reject?: (position: Vec2) => boolean
+) => {
   const rng = createRng(seed);
 
   const configs = RESOURCE_NODE_CONFIGS_BY_TYPE[island.type];
   const islandRadius = getIslandRadius(island);
-  const areaScale = Math.pow(islandRadius / BASE_ISLAND_RADIUS, 2);
+  const areaScale = Math.pow(islandRadius / baseRadius, 2);
   const scaledCounts = configs.map((config) => Math.max(1, Math.round(config.count * areaScale)));
   const totalCount = scaledCounts.reduce((sum, count) => sum + count, 0);
   const islandArea = Math.PI * islandRadius * islandRadius;
@@ -215,30 +225,41 @@ const spawnResourcesForIsland = (ecs: EcsWorld, island: Island, seed: number, re
   }
 };
 
-const getMaxRadiusRatio = () => {
-  const amplitudeMax = ISLAND_SHAPE_CONFIG.ampAMax + ISLAND_SHAPE_CONFIG.ampBMax + ISLAND_SHAPE_CONFIG.jitterMax;
-  const stretchMax = Math.max(ISLAND_SHAPE_CONFIG.leanMax, 1 / ISLAND_SHAPE_CONFIG.leanMin);
-  return (1 + amplitudeMax) * stretchMax;
+const getMaxRadiusRatio = (config: ProceduralWorldConfig) => {
+  const configs = [config.islandShapeConfig];
+  let maxAmplitude = 0;
+  let maxLean = 0;
+  let minLean = Number.POSITIVE_INFINITY;
+
+  for (const config of configs) {
+    maxAmplitude = Math.max(maxAmplitude, config.ampAMax + config.ampBMax + config.jitterMax);
+    maxLean = Math.max(maxLean, config.leanMax);
+    minLean = Math.min(minLean, config.leanMin);
+  }
+
+  const stretchMax = Math.max(maxLean, 1 / Math.max(0.01, minLean));
+  return (1 + maxAmplitude) * stretchMax;
 };
 
-const isIslandSeparated = (candidate: IslandSpec, existing: IslandSpec[], padding: number) => {
-  const maxRadiusRatio = getMaxRadiusRatio();
+const getSeparationScore = (candidate: IslandSpec, existing: IslandSpec[], padding: number, maxRadiusRatio: number) => {
   const candidateRadius = candidate.baseRadius * maxRadiusRatio;
+  let minGap = Number.POSITIVE_INFINITY;
 
   for (const other of existing) {
     const otherRadius = other.baseRadius * maxRadiusRatio;
     const distance = Math.hypot(candidate.center.x - other.center.x, candidate.center.y - other.center.y);
-
-    if (distance < candidateRadius + otherRadius + padding) {
-      return false;
-    }
+    const gap = distance - (candidateRadius + otherRadius + padding);
+    minGap = Math.min(minGap, gap);
   }
 
-  return true;
+  return minGap === Number.POSITIVE_INFINITY ? 0 : minGap;
 };
 
-const pickIslandType = (rng: Rng): IslandType => {
-  const entries = Object.entries(ISLAND_TYPE_WEIGHTS) as [IslandType, number][];
+const pickIslandType = (rng: Rng, weights: Partial<Record<IslandType, number>>, fallback: IslandType): IslandType => {
+  const entries = Object.entries(weights).filter(([, weight]) => (weight ?? 0) > 0) as [IslandType, number][];
+  if (entries.length === 0) {
+    return fallback;
+  }
   const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
   const roll = rng() * total;
   let acc = 0;
@@ -250,93 +271,103 @@ const pickIslandType = (rng: Rng): IslandType => {
     }
   }
 
-  return "standard";
+  return fallback;
 };
 
-const createIslandSpecs = (seed: number): IslandSpec[] => {
+const getTierCounts = (tier: BiomeTierConfig) => {
+  const total = Math.max(0, Math.floor(tier.islandCount));
+  const spawnCount = tier.id === "calm" ? 1 : 0;
+  const bossCount = 1;
+  const nonBossCount = Math.max(0, total - spawnCount - bossCount);
+  return { total, spawnCount, bossCount, nonBossCount };
+};
+
+const createIslandSpecs = (seed: number, config: ProceduralWorldConfig): IslandSpec[] => {
   const rng = createRng(seed);
-  const { islandCount, spawnRadius, radiusMin, radiusMax, ringMin, ringMax, edgePadding, placementAttempts } =
-    WORLD_GEN_CONFIG;
+  const { spawnRadius, radiusMin, radiusMax, edgePadding, placementAttempts, arcMinAngle, arcMaxAngle, biomeTiers } =
+    config;
+  const maxRadiusRatio = getMaxRadiusRatio(config);
   const specs: IslandSpec[] = [
     {
       center: { x: 0, y: 0 },
       baseRadius: spawnRadius,
       seed: seed + 1,
-      type: "standard",
+      type: "beach",
     },
   ];
 
-  const placeIsland = (baseRadius: number, islandSeed: number, type: IslandType) => {
-    let placed = false;
-    let ringOffset = 0;
-    let attempts = 0;
-    let candidate: IslandSpec = {
-      center: { x: 0, y: 0 },
-      baseRadius,
-      seed: islandSeed,
-      type,
-    };
+  const placeIsland = (baseRadius: number, islandSeed: number, type: IslandType, ringMin: number, ringMax: number) => {
+    const paddingLevels = [edgePadding, edgePadding * 0.6, edgePadding * 0.3, 0];
+    const sizeScales = [1, 0.85, 0.7];
 
-    while (!placed) {
-      const angle = rng() * Math.PI * 2;
-      const ring = randomBetween(rng, ringMin, ringMax) + ringOffset;
-      candidate = {
-        center: {
-          x: Math.cos(angle) * ring,
-          y: Math.sin(angle) * ring,
-        },
-        baseRadius,
-        seed: islandSeed,
-        type,
-      };
+    for (const sizeScale of sizeScales) {
+      const scaledRadius = baseRadius * sizeScale;
+      for (const padding of paddingLevels) {
+        for (let attempt = 0; attempt < placementAttempts; attempt += 1) {
+          const angle = randomBetween(rng, arcMinAngle, arcMaxAngle);
+          const ring = randomBetween(rng, ringMin, ringMax);
+          const candidate: IslandSpec = {
+            center: {
+              x: Math.cos(angle) * ring,
+              y: Math.sin(angle) * ring,
+            },
+            baseRadius: scaledRadius,
+            seed: islandSeed,
+            type,
+          };
 
-      if (isIslandSeparated(candidate, specs, edgePadding)) {
-        placed = true;
-      } else {
-        attempts += 1;
-        if (attempts >= placementAttempts) {
-          ringOffset += edgePadding;
-          attempts = 0;
+          if (getSeparationScore(candidate, specs, padding, maxRadiusRatio) >= 0) {
+            specs.push(candidate);
+            return;
+          }
         }
       }
     }
-
-    specs.push(candidate);
   };
 
-  if (islandCount > 1) {
-    const bossRadius = BOSS_ISLAND_RADIUS;
-    const bossSeed = Math.floor(rng() * 1_000_000_000) + seed + 113;
-    placeIsland(bossRadius, bossSeed, "wolfBoss");
+  const sortedTiers = [...biomeTiers].sort((a, b) => a.ringMin - b.ringMin);
+
+  for (let tierIndex = 0; tierIndex < sortedTiers.length; tierIndex += 1) {
+    const tier = sortedTiers[tierIndex];
+    const bossSeed = Math.floor(rng() * 1_000_000_000) + seed + 113 + tierIndex * 71;
+    const bossRadius = randomBetween(rng, radiusMin, radiusMax);
+    placeIsland(bossRadius, bossSeed, tier.bossType, tier.ringMin, tier.ringMax);
   }
 
-  for (let i = specs.length; i < islandCount; i += 1) {
-    const islandSeed = Math.floor(rng() * 1_000_000_000) + seed + i * 37;
-    const type = pickIslandType(rng);
-    const baseRadius = type === "crabBoss" ? BEACH_ISLAND_RADIUS : randomBetween(rng, radiusMin, radiusMax);
-    placeIsland(baseRadius, islandSeed, type);
+  for (let tierIndex = 0; tierIndex < sortedTiers.length; tierIndex += 1) {
+    const tier = sortedTiers[tierIndex];
+    const counts = getTierCounts(tier);
+    const fallbackType = (Object.keys(tier.weights)[0] as IslandType | undefined) ?? "beach";
+    for (let i = 0; i < counts.nonBossCount; i += 1) {
+      const islandSeed = Math.floor(rng() * 1_000_000_000) + seed + (tierIndex + 1) * 10_000 + i * 37;
+      const type = pickIslandType(rng, tier.weights, fallbackType);
+      const baseRadius = randomBetween(rng, radiusMin, radiusMax);
+      placeIsland(baseRadius, islandSeed, type, tier.ringMin, tier.ringMax);
+    }
   }
 
   return specs;
 };
 
-const createIslands = (specs: IslandSpec[]) => specs.map((spec) => createIsland(spec));
+const createIslands = (specs: IslandSpec[], config: ProceduralWorldConfig) =>
+  specs.map((spec) => createIsland(spec, config));
 
-export const createWorld = (seed: string | number): WorldState => {
-  const normalizedSeed = normalizeSeed(seed);
-  const specs = createIslandSpecs(normalizedSeed);
-
-  const islands = createIslands(specs);
+export const createProceduralWorld = (config: WorldConfig): WorldState => {
+  const specs = createIslandSpecs(config.seed, config.procedural);
+  const islands = createIslands(specs, config.procedural);
 
   return {
+    config,
     islands,
   };
 };
 
-export const spawnWorldResources = (ecs: EcsWorld, world: WorldState) => {
+export const spawnProceduralResources = (ecs: EcsWorld, world: WorldState) => {
   const spawnIsland = world.islands[0];
   const spawnCenter = spawnIsland?.center ?? { x: 0, y: 0 };
-  const spawnRadiusSq = SPAWN_ZONE_RADIUS * SPAWN_ZONE_RADIUS;
+  const baseRadius = getProceduralBaseRadius(world.config.procedural);
+  const spawnZoneRadius = getSpawnZoneRadius(world.config.procedural);
+  const spawnRadiusSq = spawnZoneRadius * spawnZoneRadius;
   const rejectSpawnZone = (position: Vec2) => {
     const dx = position.x - spawnCenter.x;
     const dy = position.y - spawnCenter.y;
@@ -345,6 +376,6 @@ export const spawnWorldResources = (ecs: EcsWorld, world: WorldState) => {
 
   world.islands.forEach((island, index) => {
     const reject = index === 0 ? rejectSpawnZone : undefined;
-    spawnResourcesForIsland(ecs, island, island.seed + 100, reject);
+    spawnResourcesForIsland(ecs, island, island.seed + 100, baseRadius, reject);
   });
 };

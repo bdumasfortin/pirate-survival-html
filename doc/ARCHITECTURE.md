@@ -13,7 +13,7 @@
 - `src/net/` client networking (transport, room protocol, snapshot encoding).
 - `src/systems/` update logic (movement, collisions, gathering, survival, crafting, combat).
 - `src/render/` draw routines, camera, HUD, asset registry, UI constants.
-- `src/world/` world generation, islands, resource nodes, and world configs.
+- `src/world/` world generation, islands, resource nodes, and world configs (see `src/world/world-config.json`).
 - `src/assets/` static assets (sprites, audio, json data).
 - `server/` relay-only WebSocket room server (Node + ws).
 

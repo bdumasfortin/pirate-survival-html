@@ -27,9 +27,12 @@ export type KrakenStats = EnemyStats & {
 
 export const STANDARD_CRAB_COUNT = 2;
 export const FOREST_WOLF_COUNT = 3;
+export const MAGMA_SLIME_COUNT = 4;
 export const WOLF_BOSS_COUNT = 1;
 export const BEACH_BOSS_CRAB_COUNT = 1;
-export const KRAKEN_SPAWN_COUNT = 3;
+export const MAGMA_COLOSSUS_COUNT = 1;
+export const KRAKEN_SPAWN_COUNT = 1;
+export const KRAKEN_SPAWN_CHANCE = 0.25;
 
 export const CRAB_BEACH_RING_MIN = 0.82;
 export const CRAB_BEACH_RING_MAX = 1.0;
@@ -38,6 +41,8 @@ export const CRAB_SPAWN_RADIUS_SCALE = 0.95;
 export const CRAB_BOSS_RADIUS_SCALE = 0.85;
 export const WOLF_INLAND_RING_MIN = 0.18;
 export const WOLF_INLAND_RING_MAX = 0.7;
+export const MAGMA_RING_MIN = 0.2;
+export const MAGMA_RING_MAX = 0.8;
 
 export const CRAB_DEFAULT_STATS: CreatureStats = {
   radius: 16,
@@ -93,6 +98,35 @@ export const WOLF_BOSS_STATS: CreatureStats = {
 
 export const WOLF_SPAWN_RADIUS_SCALE = 0.7;
 export const WOLF_BOSS_RADIUS_SCALE = 0.6;
+
+export const MAGMA_SLIME_STATS: CreatureStats = {
+  radius: 20,
+  health: 90,
+  maxHealth: 90,
+  damage: 26,
+  speed: 50,
+  aggroRange: 110,
+  attackRange: 22,
+  attackCooldown: 1.1,
+  wanderTimerMin: 1.4,
+  wanderTimerMax: 3.2,
+};
+
+export const MAGMA_COLOSSUS_STATS: CreatureStats = {
+  radius: 90,
+  health: 340,
+  maxHealth: 340,
+  damage: 62,
+  speed: 40,
+  aggroRange: 220,
+  attackRange: 50,
+  attackCooldown: 1.35,
+  wanderTimerMin: 1.7,
+  wanderTimerMax: 3.6,
+};
+
+export const MAGMA_SPAWN_RADIUS_SCALE = 0.7;
+export const MAGMA_BOSS_RADIUS_SCALE = 0.6;
 
 export const KRAKEN_STATS: KrakenStats = {
   radius: 72,

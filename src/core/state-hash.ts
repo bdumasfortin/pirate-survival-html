@@ -41,8 +41,60 @@ const hashIntArray = (hash: number, array: ArrayLike<number>, count: number) => 
   return next;
 };
 
-const hashWorld = (hash: number, world: WorldState) => {
+const hashWorldConfig = (hash: number, config: WorldState["config"]) => {
   let next = hash;
+  next = hashString(next, config.preset);
+  next = mixHash(next, config.seed);
+
+  const procedural = config.procedural;
+  next = mixHash(next, floatToBits(procedural.spawnRadius));
+  next = mixHash(next, floatToBits(procedural.radiusMin));
+  next = mixHash(next, floatToBits(procedural.radiusMax));
+  next = mixHash(next, floatToBits(procedural.edgePadding));
+  next = mixHash(next, floatToBits(procedural.placementAttempts));
+  next = mixHash(next, floatToBits(procedural.arcMinAngle));
+  next = mixHash(next, floatToBits(procedural.arcMaxAngle));
+
+  const shape = procedural.islandShapeConfig;
+  next = mixHash(next, floatToBits(shape.pointCountMin));
+  next = mixHash(next, floatToBits(shape.pointCountMax));
+  next = mixHash(next, floatToBits(shape.waveAMin));
+  next = mixHash(next, floatToBits(shape.waveAMax));
+  next = mixHash(next, floatToBits(shape.waveBMin));
+  next = mixHash(next, floatToBits(shape.waveBMax));
+  next = mixHash(next, floatToBits(shape.ampAMin));
+  next = mixHash(next, floatToBits(shape.ampAMax));
+  next = mixHash(next, floatToBits(shape.ampBMin));
+  next = mixHash(next, floatToBits(shape.ampBMax));
+  next = mixHash(next, floatToBits(shape.jitterMin));
+  next = mixHash(next, floatToBits(shape.jitterMax));
+  next = mixHash(next, floatToBits(shape.minRadiusRatio));
+  next = mixHash(next, floatToBits(shape.smoothingPassesMin));
+  next = mixHash(next, floatToBits(shape.smoothingPassesMax));
+  next = mixHash(next, floatToBits(shape.leanMin));
+  next = mixHash(next, floatToBits(shape.leanMax));
+
+  next = mixHash(next, procedural.biomeTiers.length);
+  for (const tier of procedural.biomeTiers) {
+    next = hashString(next, tier.id);
+    next = hashString(next, tier.name);
+    next = mixHash(next, floatToBits(tier.ringMin));
+    next = mixHash(next, floatToBits(tier.ringMax));
+    next = mixHash(next, floatToBits(tier.islandCount));
+    next = hashString(next, tier.bossType);
+
+    const weightEntries = Object.entries(tier.weights).sort(([a], [b]) => a.localeCompare(b));
+    for (const [type, weight] of weightEntries) {
+      next = hashString(next, type);
+      next = mixHash(next, floatToBits(weight));
+    }
+  }
+
+  return next;
+};
+
+const hashWorld = (hash: number, world: WorldState) => {
+  let next = hashWorldConfig(hash, world.config);
   for (const island of world.islands) {
     next = hashString(next, island.type);
     next = mixHash(next, island.seed);

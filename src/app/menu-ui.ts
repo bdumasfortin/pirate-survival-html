@@ -2,6 +2,7 @@ import { isValidRoomCode, normalizeRoomCode } from "../../shared/room-protocol";
 import { runDeterminismCheck } from "../dev/determinism";
 import { closeMapOverlay, isMapOverlayEnabled } from "../game/map-overlay";
 import { setHudRoomCode } from "../render/ui";
+import type { WorldPreset } from "../world/types";
 import {
   NETWORK_MODE,
   REQUESTED_INPUT_DELAY_FRAMES,
@@ -47,6 +48,8 @@ type MenuUIDependencies = {
   serverUrlInput: HTMLInputElement | null;
   roomCodeInput: HTMLInputElement | null;
   playerNameInput: HTMLInputElement | null;
+  worldPresetSelect: HTMLSelectElement | null;
+  worldPresetSelectMulti: HTMLSelectElement | null;
   roomForm: HTMLElement | null;
   roomScreen: HTMLElement | null;
   roomStatusForm: HTMLElement | null;
@@ -193,6 +196,9 @@ export const initMenu = (deps: MenuUIDependencies): void => {
             if (deps.randomSeedButtonMulti) {
               deps.randomSeedButtonMulti.disabled = !enabled;
             }
+            if (deps.worldPresetSelectMulti) {
+              deps.worldPresetSelectMulti.disabled = !enabled;
+            }
           },
         }
       : null;
@@ -323,17 +329,30 @@ export const initMenu = (deps: MenuUIDependencies): void => {
     return playerName;
   };
 
+  const resolveWorldPreset = (select: HTMLSelectElement | null): WorldPreset => {
+    const value = select?.value ?? "procedural";
+    if (value === "test" || value === "creative") {
+      return value;
+    }
+    return "procedural";
+  };
+
   const handleStart = (): void => {
     const seed = deps.getSeedValue(deps.seedInput);
     deps.seedInput!.value = seed;
     deps.seedInput!.disabled = true;
     deps.randomSeedButton!.disabled = true;
+    if (deps.worldPresetSelect) {
+      deps.worldPresetSelect.disabled = true;
+    }
     deps.startButton!.disabled = true;
     if (NETWORK_MODE === "ws" && WS_ROLE === "host") {
-      deps.startNetworkHost(seed, { ui: roomUi });
+      const worldPreset = resolveWorldPreset(deps.worldPresetSelectMulti ?? deps.worldPresetSelect);
+      deps.startNetworkHost(seed, { ui: roomUi, worldPreset });
       return;
     }
-    void deps.startGame(seed);
+    const worldPreset = resolveWorldPreset(deps.worldPresetSelect);
+    void deps.startGame(seed, { worldConfig: { preset: worldPreset } });
   };
 
   deps.startButton?.addEventListener("click", handleStart);
@@ -351,6 +370,7 @@ export const initMenu = (deps: MenuUIDependencies): void => {
     setRoomStep("room");
     const seed = deps.getSeedValue(deps.seedInputMulti ?? deps.seedInput);
     const serverUrl = deps.getServerUrlValue();
+    const worldPreset = resolveWorldPreset(deps.worldPresetSelectMulti ?? deps.worldPresetSelect);
     setMode("multi");
     setMultiplayerMode("create");
     deps.startNetworkHost(seed, {
@@ -358,6 +378,7 @@ export const initMenu = (deps: MenuUIDependencies): void => {
       inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
       ui: roomUi,
       playerName,
+      worldPreset,
     });
   });
 
@@ -446,12 +467,14 @@ export const initMenu = (deps: MenuUIDependencies): void => {
         return;
       }
       const seed = deps.getSeedValue(deps.seedInputMulti ?? deps.seedInput);
+      const worldPreset = resolveWorldPreset(deps.worldPresetSelectMulti ?? deps.worldPresetSelect);
       setMultiplayerMode("create");
       deps.startNetworkHost(seed, {
         serverUrl: WS_SERVER_URL,
         inputDelayFrames: REQUESTED_INPUT_DELAY_FRAMES,
         ui: roomUi,
         playerName,
+        worldPreset,
       });
       return;
     }

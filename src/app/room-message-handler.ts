@@ -44,6 +44,7 @@ export const createRoomMessageHandler = (deps: RoomMessageHandlerDependencies) =
         roomState.playerCount = message.playerCount;
         roomState.inputDelayFrames = message.inputDelayFrames;
         roomState.seed = message.seed;
+        roomState.worldPreset = message.worldPreset;
         roomState.players = message.players;
         roomState.localPlayerIndex = message.playerIndex;
         const localPlayerId = message.players.find((player) => player.index === message.playerIndex)?.id ?? null;
@@ -64,6 +65,7 @@ export const createRoomMessageHandler = (deps: RoomMessageHandlerDependencies) =
         roomState.playerCount = message.playerCount;
         roomState.inputDelayFrames = message.inputDelayFrames;
         roomState.seed = message.seed;
+        roomState.worldPreset = message.worldPreset;
         roomState.players = message.players;
         roomState.localPlayerIndex = message.playerIndex;
         const localPlayerId = message.players.find((player) => player.index === message.playerIndex)?.id ?? null;
@@ -88,13 +90,16 @@ export const createRoomMessageHandler = (deps: RoomMessageHandlerDependencies) =
 
         roomState.ui?.setStatus("Starting match...");
         roomState.pendingAction = null;
+        roomState.worldPreset = message.worldPreset ?? roomState.worldPreset ?? "procedural";
         const session = buildSessionFromStart(message, roomState);
         const inputDelayFrames = message.inputDelayFrames ?? roomState.inputDelayFrames ?? REQUESTED_INPUT_DELAY_FRAMES;
         roomState.hasSentStart = true;
+        const worldConfig = { preset: message.worldPreset ?? "procedural" };
         void deps.startGame(message.seed, {
           session,
           inputDelayFrames,
           transport: roomState.transport,
+          worldConfig,
         });
         return;
       }

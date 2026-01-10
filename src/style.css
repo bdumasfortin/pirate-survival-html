@@ -171,6 +171,31 @@ canvas {
   font-family: inherit;
 }
 
+.menu-select {
+  background: rgba(8, 14, 18, 0.7);
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(246, 231, 193, 0.7) 50%),
+    linear-gradient(135deg, rgba(246, 231, 193, 0.7) 50%, transparent 50%);
+  background-position:
+    calc(100% - 20px) 55%,
+    calc(100% - 14px) 55%;
+  background-size:
+    7px 7px,
+    7px 7px;
+  background-repeat: no-repeat;
+  border: 1px solid rgba(246, 231, 193, 0.2);
+  border-radius: 12px;
+  padding: 10px 40px 10px 12px;
+  color: inherit;
+  font-size: 18px;
+  font-family: inherit;
+  cursor: pointer;
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
 .menu-field input::placeholder,
 #server-url::placeholder,
 #player-name::placeholder {
@@ -364,4 +389,122 @@ button:disabled {
 
 .hidden {
   display: none !important;
+}
+
+.dev-preview-panel {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  width: min(360px, 94vw);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: rgba(12, 22, 26, 0.92);
+  border: 1px solid rgba(246, 231, 193, 0.2);
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+}
+
+.dev-preview-header {
+  font-size: 18px;
+  letter-spacing: 0.3px;
+}
+
+.dev-preview-seed {
+  display: flex;
+  gap: 8px;
+}
+
+.dev-preview-seed .dev-preview-input {
+  flex: 1;
+}
+
+.dev-preview-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(246, 231, 193, 0.08);
+}
+
+.dev-preview-section-title {
+  font-size: 15px;
+  color: rgba(246, 231, 193, 0.8);
+}
+
+.dev-preview-tier {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(8, 14, 18, 0.55);
+  border: 1px solid rgba(246, 231, 193, 0.08);
+}
+
+.dev-preview-tier-title {
+  font-size: 14px;
+  letter-spacing: 0.2px;
+  color: rgba(246, 231, 193, 0.85);
+}
+
+.dev-preview-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: rgba(246, 231, 193, 0.75);
+}
+
+.dev-preview-input {
+  width: 120px;
+  background: rgba(8, 14, 18, 0.7);
+  border: 1px solid rgba(246, 231, 193, 0.2);
+  border-radius: 10px;
+  padding: 6px 8px;
+  color: inherit;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.dev-preview-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.dev-preview-button {
+  flex: 1;
+  background: rgba(22, 34, 40, 0.9);
+  border: 1px solid rgba(246, 231, 193, 0.24);
+  border-radius: 10px;
+  color: inherit;
+  font-size: 14px;
+  font-family: inherit;
+  padding: 6px 10px;
+}
+
+.dev-preview-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dev-preview-checkbox {
+  width: 16px;
+  height: 16px;
+}
+
+.dev-preview-stats {
+  font-size: 13px;
+  color: rgba(246, 231, 193, 0.7);
+}
+
+.dev-preview-status {
+  font-size: 12px;
+  color: rgba(246, 231, 193, 0.6);
 }

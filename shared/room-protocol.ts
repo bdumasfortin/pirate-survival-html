@@ -13,6 +13,8 @@ export const isValidRoomCode = (code: string) => roomCodePattern.test(normalizeR
 
 export type ResyncReason = "desync";
 
+export type WorldPreset = "procedural" | "test" | "creative";
+
 export type RoomPlayerInfo = {
   id: string;
   index: number;
@@ -21,7 +23,14 @@ export type RoomPlayerInfo = {
 };
 
 export type RoomClientMessage =
-  | { type: "create-room"; playerName: string; playerCount?: number; seed?: string; inputDelayFrames?: number }
+  | {
+      type: "create-room";
+      playerName: string;
+      playerCount?: number;
+      seed?: string;
+      inputDelayFrames?: number;
+      worldPreset?: WorldPreset;
+    }
   | { type: "join-room"; code: string; playerName: string }
   | { type: "leave-room" }
   | { type: "start-room" }
@@ -57,6 +66,7 @@ export type RoomServerMessage =
       playerIndex: number;
       playerCount: number;
       seed: string;
+      worldPreset: WorldPreset;
       inputDelayFrames: number;
       players: RoomPlayerInfo[];
     }
@@ -67,6 +77,7 @@ export type RoomServerMessage =
       playerIndex: number;
       playerCount: number;
       seed: string;
+      worldPreset: WorldPreset;
       inputDelayFrames: number;
       players: RoomPlayerInfo[];
     }
@@ -76,6 +87,7 @@ export type RoomServerMessage =
   | {
       type: "start";
       seed: string;
+      worldPreset: WorldPreset;
       startFrame: number;
       inputDelayFrames: number;
       players: RoomPlayerInfo[];

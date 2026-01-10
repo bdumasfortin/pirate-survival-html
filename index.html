@@ -29,6 +29,11 @@
               <input id="seed-input" type="text" placeholder="Enter seed" autocomplete="off" />
               <button id="seed-random" type="button">Random</button>
             </div>
+            <label for="world-preset">World type</label>
+            <select id="world-preset" class="menu-select">
+              <option value="procedural" selected>Standard</option>
+              <option value="test">Test</option>
+            </select>
             <button id="start-game" type="button" class="primary">Let's go!</button>
           </div>
 
@@ -66,6 +71,11 @@
                 <input id="seed-input-mp" type="text" placeholder="Enter seed" autocomplete="off" />
                 <button id="seed-random-mp" type="button">Random</button>
               </div>
+              <label for="world-preset-mp" class="create-only">World type</label>
+              <select id="world-preset-mp" class="menu-select create-only">
+                <option value="procedural" selected>Standard</option>
+                <option value="test">Test</option>
+              </select>
 
               <div class="menu-actions">
                 <button id="create-room" type="button" class="create-only">Create Room</button>

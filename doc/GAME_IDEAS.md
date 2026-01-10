@@ -2,18 +2,17 @@
 
 ## World and exploration
 
-- More biomes (reef, swamp, volcanic, jungle) with unique resources.
-- Island difficulty scaling by distance from spawn.
-- Points of interest: shipwrecks, caves, ruins.
-- Ship upgrading (like an ice breaker to access frozen seas).
-- Procedural ocean hazards (storms, reefs, currents).
+- More biomes with unique resources (i.e: reef, swamp, jungle)
+- Points of interest (i.e: shipwrecks, caves, ruins)
+- Ship upgrading (i.e: ice breaker to access frozen seas)
+- Ocean hazards (i.e: cyclones, typhoons)
 
 ## Crafting and progression
 
-- Expanded recipes (tools, armor pieces, stations).
-- Crafting stations: workbench, forge, cooking fire.
-- Campfire.
-- Cooking.
+- Expanded recipes (tools, armor pieces, etc.)
+- Crafting stations
+- Campfire
+- Cooking
 - Resource processing (smelting, cooking, drying).
 - Tool tiers that affect gather speed/yield.
 - Weapon/tool tiers with unlock progression.

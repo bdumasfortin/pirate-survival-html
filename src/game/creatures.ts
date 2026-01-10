@@ -4,7 +4,7 @@ import { nextFloat, nextRange, type RngState } from "../core/rng";
 import type { Vec2 } from "../core/types";
 import { isPointInIsland } from "../world/island-geometry";
 import type { Island, WorldState } from "../world/types";
-import { BASE_ISLAND_RADIUS, SPAWN_ZONE_RADIUS } from "../world/world-config";
+import { getProceduralBaseRadius, getSpawnZoneRadius } from "../world/world-config";
 import {
   BEACH_BOSS_CRAB_COUNT,
   CRAB_BEACH_RING_MAX,
@@ -17,10 +17,19 @@ import {
   type CreatureStats,
   FOREST_WOLF_COUNT,
   KRAKEN_SPAWN_ATTEMPTS,
+  KRAKEN_SPAWN_CHANCE,
   KRAKEN_SPAWN_COUNT,
   KRAKEN_SPAWN_MAX_DISTANCE,
   KRAKEN_SPAWN_MIN_DISTANCE,
   KRAKEN_STATS,
+  MAGMA_BOSS_RADIUS_SCALE,
+  MAGMA_COLOSSUS_COUNT,
+  MAGMA_COLOSSUS_STATS,
+  MAGMA_RING_MAX,
+  MAGMA_RING_MIN,
+  MAGMA_SLIME_COUNT,
+  MAGMA_SLIME_STATS,
+  MAGMA_SPAWN_RADIUS_SCALE,
   STANDARD_CRAB_COUNT,
   WOLF_BOSS_COUNT,
   WOLF_BOSS_RADIUS_SCALE,
@@ -44,12 +53,12 @@ const getIslandRadius = (island: Island) => {
   return sum / island.points.length;
 };
 
-const getIslandAreaScale = (island: Island) => {
+const getIslandAreaScale = (island: Island, baseRadius: number) => {
   const radius = getIslandRadius(island);
   if (radius <= 0) {
     return 1;
   }
-  return Math.pow(radius / BASE_ISLAND_RADIUS, 2);
+  return Math.pow(radius / baseRadius, 2);
 };
 
 const scaleCreatureCount = (count: number, areaScale: number) => Math.max(1, Math.round(count * areaScale));
@@ -202,6 +211,36 @@ const spawnWolf = (
   ecs.enemyHitTimer[id] = 0;
 };
 
+const spawnMagmaSlime = (
+  ecs: EcsWorld,
+  rng: RngState,
+  position: Vec2,
+  homeIslandIndex: number,
+  stats: CreatureStats,
+  isBoss = false
+) => {
+  const id = createEntity(ecs, ENEMY_MASK, EntityTag.Enemy);
+  ecs.position.x[id] = position.x;
+  ecs.position.y[id] = position.y;
+  ecs.velocity.x[id] = 0;
+  ecs.velocity.y[id] = 0;
+  ecs.radius[id] = stats.radius;
+  ecs.enemyKind[id] = enemyKindToIndex("magmaSlime");
+  ecs.enemyIsBoss[id] = isBoss ? 1 : 0;
+  ecs.enemyHealth[id] = stats.health;
+  ecs.enemyMaxHealth[id] = stats.maxHealth;
+  ecs.enemyDamage[id] = stats.damage;
+  ecs.enemySpeed[id] = stats.speed;
+  ecs.enemyAggroRange[id] = stats.aggroRange;
+  ecs.enemyAttackRange[id] = stats.attackRange;
+  ecs.enemyAttackCooldown[id] = stats.attackCooldown;
+  ecs.enemyAttackTimer[id] = 0;
+  ecs.enemyWanderAngle[id] = nextFloat(rng) * Math.PI * 2;
+  ecs.enemyWanderTimer[id] = nextRange(rng, stats.wanderTimerMin, stats.wanderTimerMax);
+  ecs.enemyHomeIsland[id] = homeIslandIndex;
+  ecs.enemyHitTimer[id] = 0;
+};
+
 const spawnKraken = (ecs: EcsWorld, rng: RngState, position: Vec2) => {
   const id = createEntity(ecs, ENEMY_MASK, EntityTag.Enemy);
   ecs.position.x[id] = position.x;
@@ -232,7 +271,9 @@ export const createEnemies = (ecs: EcsWorld, world: WorldState, rng: RngState) =
 
   const spawnIsland = world.islands[0];
   const spawnCenter = spawnIsland?.center ?? { x: 0, y: 0 };
-  const spawnRadiusSq = SPAWN_ZONE_RADIUS * SPAWN_ZONE_RADIUS;
+  const baseRadius = getProceduralBaseRadius(world.config.procedural);
+  const spawnZoneRadius = getSpawnZoneRadius(world.config.procedural);
+  const spawnRadiusSq = spawnZoneRadius * spawnZoneRadius;
   const rejectSpawnZone = (position: Vec2) => {
     const dx = position.x - spawnCenter.x;
     const dy = position.y - spawnCenter.y;
@@ -241,11 +282,11 @@ export const createEnemies = (ecs: EcsWorld, world: WorldState, rng: RngState) =
 
   world.islands.forEach((island, index) => {
     const reject = index === 0 ? rejectSpawnZone : undefined;
-    const areaScale = getIslandAreaScale(island);
+    const areaScale = getIslandAreaScale(island, baseRadius);
     const islandRadius = getIslandRadius(island);
     const islandArea = Math.PI * islandRadius * islandRadius;
     const positions: Vec2[] = [];
-    if (island.type === "standard") {
+    if (island.type === "beach") {
       const count = scaleCreatureCount(STANDARD_CRAB_COUNT, areaScale);
       const meanSpacing = count > 0 ? Math.sqrt(islandArea / count) : 0;
       const minSpacing = Math.max(CRAB_DEFAULT_STATS.radius * 4, meanSpacing * 0.6);
@@ -268,7 +309,7 @@ export const createEnemies = (ecs: EcsWorld, world: WorldState, rng: RngState) =
       return;
     }
 
-    if (island.type === "forest") {
+    if (island.type === "woods") {
       const count = scaleCreatureCount(FOREST_WOLF_COUNT, areaScale);
       const meanSpacing = count > 0 ? Math.sqrt(islandArea / count) : 0;
       const minSpacing = Math.max(WOLF_DEFAULT_STATS.radius * 4, meanSpacing * 0.6);
@@ -288,30 +329,33 @@ export const createEnemies = (ecs: EcsWorld, world: WorldState, rng: RngState) =
         }
         spawnWolf(ecs, rng, position, index, WOLF_DEFAULT_STATS);
       }
+      return;
+    }
 
-      const crabCount = scaleCreatureCount(STANDARD_CRAB_COUNT, areaScale);
-      const crabMeanSpacing = crabCount > 0 ? Math.sqrt(islandArea / crabCount) : 0;
-      const crabMinSpacing = Math.max(CRAB_DEFAULT_STATS.radius * 4, crabMeanSpacing * 0.6);
-      for (let i = 0; i < crabCount; i += 1) {
+    if (island.type === "volcanic") {
+      const count = scaleCreatureCount(MAGMA_SLIME_COUNT, areaScale);
+      const meanSpacing = count > 0 ? Math.sqrt(islandArea / count) : 0;
+      const minSpacing = Math.max(MAGMA_SLIME_STATS.radius * 4, meanSpacing * 0.6);
+      for (let i = 0; i < count; i += 1) {
         const position = placeCreaturePosition(
           rng,
           island,
-          CRAB_SPAWN_RADIUS_SCALE,
-          CRAB_BEACH_RING_MIN,
-          CRAB_BEACH_RING_MAX,
+          MAGMA_SPAWN_RADIUS_SCALE,
+          MAGMA_RING_MIN,
+          MAGMA_RING_MAX,
           positions,
-          crabMinSpacing,
+          minSpacing,
           reject
         );
         if (!position) {
           continue;
         }
-        spawnCrab(ecs, rng, position, index, CRAB_DEFAULT_STATS);
+        spawnMagmaSlime(ecs, rng, position, index, MAGMA_SLIME_STATS);
       }
       return;
     }
 
-    if (island.type === "wolfBoss") {
+    if (island.type === "wildBoss") {
       const count = scaleCreatureCount(WOLF_BOSS_COUNT, areaScale);
       const meanSpacing = count > 0 ? Math.sqrt(islandArea / count) : 0;
       const minSpacing = Math.max(WOLF_BOSS_STATS.radius * 3, meanSpacing * 0.6);
@@ -334,33 +378,60 @@ export const createEnemies = (ecs: EcsWorld, world: WorldState, rng: RngState) =
       return;
     }
 
-    const count = BEACH_BOSS_CRAB_COUNT;
-    const meanSpacing = count > 0 ? Math.sqrt(islandArea / count) : 0;
-    const minSpacing = Math.max(CRAB_BOSS_STATS.radius * 3, meanSpacing * 0.6);
-    for (let i = 0; i < count; i += 1) {
-      const position = placeCreaturePosition(
-        rng,
-        island,
-        CRAB_BOSS_RADIUS_SCALE,
-        CRAB_BEACH_RING_MIN,
-        CRAB_BEACH_RING_MAX,
-        positions,
-        minSpacing,
-        reject
-      );
-      if (!position) {
-        continue;
+    if (island.type === "volcanicBoss") {
+      const count = MAGMA_COLOSSUS_COUNT;
+      const meanSpacing = count > 0 ? Math.sqrt(islandArea / count) : 0;
+      const minSpacing = Math.max(MAGMA_COLOSSUS_STATS.radius * 3, meanSpacing * 0.6);
+      for (let i = 0; i < count; i += 1) {
+        const position = placeCreaturePosition(
+          rng,
+          island,
+          MAGMA_BOSS_RADIUS_SCALE,
+          MAGMA_RING_MIN,
+          MAGMA_RING_MAX,
+          positions,
+          minSpacing,
+          reject
+        );
+        if (!position) {
+          continue;
+        }
+        spawnMagmaSlime(ecs, rng, position, index, MAGMA_COLOSSUS_STATS, true);
       }
-      spawnCrab(ecs, rng, position, index, CRAB_BOSS_STATS, true);
+      return;
+    }
+
+    if (island.type === "calmBoss") {
+      const count = BEACH_BOSS_CRAB_COUNT;
+      const meanSpacing = count > 0 ? Math.sqrt(islandArea / count) : 0;
+      const minSpacing = Math.max(CRAB_BOSS_STATS.radius * 3, meanSpacing * 0.6);
+      for (let i = 0; i < count; i += 1) {
+        const position = placeCreaturePosition(
+          rng,
+          island,
+          CRAB_BOSS_RADIUS_SCALE,
+          CRAB_BEACH_RING_MIN,
+          CRAB_BEACH_RING_MAX,
+          positions,
+          minSpacing,
+          reject
+        );
+        if (!position) {
+          continue;
+        }
+        spawnCrab(ecs, rng, position, index, CRAB_BOSS_STATS, true);
+      }
     }
   });
 
   const spawnAnchor = spawnIsland?.center ?? { x: 0, y: 0 };
-  const spawnRadius = spawnIsland ? getIslandRadius(spawnIsland) : BASE_ISLAND_RADIUS;
-  const distanceScale = spawnRadius / BASE_ISLAND_RADIUS;
-  const minDistance = KRAKEN_SPAWN_MIN_DISTANCE * distanceScale;
-  const maxDistance = KRAKEN_SPAWN_MAX_DISTANCE * distanceScale;
+  const maxRingMax = Math.max(0, ...world.config.procedural.biomeTiers.map((tier) => tier.ringMax));
+  const minDistance = maxRingMax + KRAKEN_SPAWN_MIN_DISTANCE;
+  const maxDistance = maxRingMax + KRAKEN_SPAWN_MAX_DISTANCE;
   for (let i = 0; i < KRAKEN_SPAWN_COUNT; i += 1) {
+    if (nextFloat(rng) > KRAKEN_SPAWN_CHANCE) {
+      continue;
+    }
     const position = randomPointInSea(rng, spawnAnchor, world.islands, minDistance, maxDistance);
     spawnKraken(ecs, rng, position);
   }

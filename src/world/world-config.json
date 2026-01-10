@@ -1,0 +1,63 @@
+{
+  "spawnRadius": 300,
+  "radiusMin": 350,
+  "radiusMax": 500,
+  "edgePadding": 10,
+  "placementAttempts": 350,
+  "arcMinAngle": -1.6,
+  "arcMaxAngle": 0.6,
+  "islandShapeConfig": {
+    "pointCountMin": 54,
+    "pointCountMax": 96,
+    "waveAMin": 2,
+    "waveAMax": 4,
+    "waveBMin": 4,
+    "waveBMax": 7,
+    "ampAMin": 0.08,
+    "ampAMax": 0.18,
+    "ampBMin": 0.04,
+    "ampBMax": 0.12,
+    "jitterMin": 0.02,
+    "jitterMax": 0.08,
+    "minRadiusRatio": 0.18,
+    "smoothingPassesMin": 1,
+    "smoothingPassesMax": 3,
+    "leanMin": 0.7,
+    "leanMax": 1.35
+  },
+  "biomeTiers": [
+    {
+      "id": "calm",
+      "name": "Calm belt",
+      "ringMin": 450,
+      "ringMax": 2750,
+      "islandCount": 6,
+      "bossType": "calmBoss",
+      "weights": {
+        "beach": 1
+      }
+    },
+    {
+      "id": "wild",
+      "name": "Wild belt",
+      "ringMin": 3000,
+      "ringMax": 6230,
+      "islandCount": 10,
+      "bossType": "wildBoss",
+      "weights": {
+        "woods": 1
+      }
+    },
+    {
+      "id": "volcanic",
+      "name": "Volcanic belt",
+      "ringMin": 6500,
+      "ringMax": 8500,
+      "islandCount": 15,
+      "bossType": "volcanicBoss",
+      "weights": {
+        "volcanic": 1
+      }
+    }
+  ]
+}
