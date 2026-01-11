@@ -151,6 +151,7 @@ const drawRoundedRect = (
 
 const islandStyles: Record<IslandType, { sand: string; grass?: string }> = {
   grass: { sand: "#f6e7c1", grass: "#7dbb6a" },
+  beach: { sand: "#f6e7c1" },
   tropical: { sand: "#f6e7c1", grass: "#7dbb6a" },
   woods: { sand: "#f6e7c1", grass: "#4b7a74" },
   volcanic: { sand: "#e7c29e", grass: "#5f3a2a" },

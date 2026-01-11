@@ -36,6 +36,8 @@ export const KRAKEN_SPAWN_CHANCE = 0.25;
 
 export const CRAB_GRASS_RING_MIN = 0.82;
 export const CRAB_GRASS_RING_MAX = 1.0;
+export const CRAB_BEACH_RING_MIN = 0.0;
+export const CRAB_BEACH_RING_MAX = 1.0;
 export const CRAB_SPAWN_ATTEMPTS = 40;
 export const CRAB_SPAWN_RADIUS_SCALE = 0.95;
 export const CRAB_BOSS_RADIUS_SCALE = 0.85;

@@ -6,6 +6,8 @@ import { isPointInIsland } from "../world/island-geometry";
 import type { Island, WorldState } from "../world/types";
 import { getProceduralBaseRadius, getSpawnZoneRadius } from "../world/world-config";
 import {
+  CRAB_BEACH_RING_MAX,
+  CRAB_BEACH_RING_MIN,
   CRAB_BOSS_COUNT,
   CRAB_BOSS_RADIUS_SCALE,
   CRAB_BOSS_STATS,
@@ -297,6 +299,29 @@ export const createEnemies = (ecs: EcsWorld, world: WorldState, rng: RngState) =
           CRAB_SPAWN_RADIUS_SCALE,
           CRAB_GRASS_RING_MIN,
           CRAB_GRASS_RING_MAX,
+          positions,
+          minSpacing,
+          reject
+        );
+        if (!position) {
+          continue;
+        }
+        spawnCrab(ecs, rng, position, index, CRAB_DEFAULT_STATS);
+      }
+      return;
+    }
+
+    if (island.type === "beach") {
+      const count = scaleCreatureCount(STANDARD_CRAB_COUNT, areaScale);
+      const meanSpacing = count > 0 ? Math.sqrt(islandArea / count) : 0;
+      const minSpacing = Math.max(CRAB_DEFAULT_STATS.radius * 4, meanSpacing * 0.6);
+      for (let i = 0; i < count; i += 1) {
+        const position = placeCreaturePosition(
+          rng,
+          island,
+          CRAB_SPAWN_RADIUS_SCALE,
+          CRAB_BEACH_RING_MIN,
+          CRAB_BEACH_RING_MAX,
           positions,
           minSpacing,
           reject

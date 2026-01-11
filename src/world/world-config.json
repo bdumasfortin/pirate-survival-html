@@ -35,7 +35,8 @@
       "islandCount": 6,
       "bossType": "calmBoss",
       "weights": {
-        "grass": 1
+        "grass": 3,
+        "beach": 1
       }
     },
     {
@@ -46,7 +47,8 @@
       "islandCount": 10,
       "bossType": "wildBoss",
       "weights": {
-        "woods": 1
+        "woods": 3,
+        "beach": 1
       }
     },
     {
