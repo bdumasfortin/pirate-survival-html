@@ -186,6 +186,7 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
   seedInput.value = currentSeed;
 
   const spawnRadiusInput = createNumberInput(currentConfig.spawnRadius, 10);
+  const spawnZoneRadiusInput = createNumberInput(currentConfig.spawnZoneRadius, 10);
   const radiusMinInput = createNumberInput(currentConfig.radiusMin, 10);
   const radiusMaxInput = createNumberInput(currentConfig.radiusMax, 10);
   const edgePaddingInput = createNumberInput(currentConfig.edgePadding, 10);
@@ -195,6 +196,7 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
 
   configSection.append(
     createRow("Spawn radius", spawnRadiusInput),
+    createRow("Spawn zone radius", spawnZoneRadiusInput),
     createRow("Radius min", radiusMinInput),
     createRow("Radius max", radiusMaxInput),
     createRow("Edge padding", edgePaddingInput),
@@ -302,6 +304,7 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
 
   const setConfigFromInputs = () => {
     currentConfig.spawnRadius = Math.max(0, parseNumber(spawnRadiusInput.value, currentConfig.spawnRadius));
+    currentConfig.spawnZoneRadius = Math.max(0, parseNumber(spawnZoneRadiusInput.value, currentConfig.spawnZoneRadius));
     currentConfig.radiusMin = Math.max(0, parseNumber(radiusMinInput.value, currentConfig.radiusMin));
     currentConfig.radiusMax = Math.max(
       currentConfig.radiusMin,
@@ -316,6 +319,7 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
     currentConfig.arcMaxAngle = parseNumber(arcMaxInput.value, currentConfig.arcMaxAngle);
 
     spawnRadiusInput.value = currentConfig.spawnRadius.toString();
+    spawnZoneRadiusInput.value = currentConfig.spawnZoneRadius.toString();
     radiusMinInput.value = currentConfig.radiusMin.toString();
     radiusMaxInput.value = currentConfig.radiusMax.toString();
     edgePaddingInput.value = currentConfig.edgePadding.toString();
@@ -409,6 +413,12 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
     camera.y = (bounds.minY + bounds.maxY) / 2;
   };
 
+  const resetView = () => {
+    camera.x = 0;
+    camera.y = 0;
+    camera.zoom = 0.5;
+  };
+
   const canvas = ctx.canvas;
   let dragging = false;
   let lastX = 0;
@@ -455,6 +465,7 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
   );
 
   spawnRadiusInput.addEventListener("input", scheduleRegenerate);
+  spawnZoneRadiusInput.addEventListener("input", scheduleRegenerate);
   radiusMinInput.addEventListener("input", scheduleRegenerate);
   radiusMaxInput.addEventListener("input", scheduleRegenerate);
   edgePaddingInput.addEventListener("input", scheduleRegenerate);

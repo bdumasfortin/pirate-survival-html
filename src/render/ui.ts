@@ -65,6 +65,8 @@ const promptLabels: Record<ResourceNodeType, string> = {
 };
 
 const ARMOR_BAR_GAP = 16;
+const INVENTORY_KEYBIND_FONT_SIZE = 10;
+const INVENTORY_KEYBIND_COLOR = "rgba(246, 231, 193, 0.75)";
 
 const buildVersionLabel = `v${__APP_VERSION__}${import.meta.env.DEV ? "-dev" : ""}`;
 
@@ -144,6 +146,14 @@ const renderInventory = (ctx: CanvasRenderingContext2D, state: GameState) => {
     drawRoundedRect(ctx, x, y, INVENTORY_SLOT_SIZE, INVENTORY_SLOT_SIZE, INVENTORY_CORNER_RADIUS);
     ctx.fill();
     ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.font = `bold ${INVENTORY_KEYBIND_FONT_SIZE}px ${UI_FONT}`;
+    ctx.fillStyle = INVENTORY_KEYBIND_COLOR;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText(String(index + 1), x + 6, y + 5);
     ctx.restore();
 
     const slotKind = getInventorySlotKind(ecs, playerId, index);

@@ -1,7 +1,5 @@
 # TO DO
 
-- [ ] Visuals for volcanic mobs
-- [ ] Slimes "jumping" to move
 - [ ] Pick-upable wood on the ground
 - [ ] Axe to chop wood from trees
 - [ ] Rocks and mineral nodes

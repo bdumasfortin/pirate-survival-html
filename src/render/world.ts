@@ -174,6 +174,7 @@ const {
   crab: crabImage,
   wolf: wolfImage,
   kraken: krakenImage,
+  slime: slimeImage,
   pirate: pirateImage,
   bush: bushImage,
   bushEmpty: bushEmptyImage,
@@ -504,6 +505,7 @@ const renderEnemies = (ctx: CanvasRenderingContext2D, state: GameState, view: Vi
   const crabReady = isImageReady(crabImage);
   const wolfReady = isImageReady(wolfImage);
   const krakenReady = isImageReady(krakenImage);
+  const slimeReady = isImageReady(slimeImage);
   forEachEntity(ecs, enemyMask, (id) => {
     const x = ecs.position.x[id];
     const y = ecs.position.y[id];
@@ -526,21 +528,29 @@ const renderEnemies = (ctx: CanvasRenderingContext2D, state: GameState, view: Vi
             ? krakenReady
               ? krakenImage
               : null
-            : null;
+            : kind === "magmaSlime"
+              ? slimeReady
+                ? slimeImage
+                : null
+              : null;
     const canDrawImage = image !== null;
 
     if (canDrawImage) {
       const size = radius * 2;
       const isKraken = kind === "kraken";
+      const isSlime = kind === "magmaSlime";
       const velX = ecs.velocity.x[id];
       const velY = ecs.velocity.y[id];
       const speed = Math.hypot(velX, velY);
-      const angle = speed > 0.01 ? Math.atan2(velY, velX) : 0;
-      const rotation = kind === "wolf" ? angle + Math.PI : kind === "kraken" ? 0 : angle;
+      const angle = isSlime ? ecs.enemyWanderAngle[id] : speed > 0.01 ? Math.atan2(velY, velX) : 0;
+      const rotation =
+        kind === "wolf" ? angle + Math.PI : kind === "kraken" ? 0 : isSlime ? angle - Math.PI / 2 : angle;
 
       ctx.save();
       ctx.translate(x, y);
-      ctx.rotate(rotation);
+      if (rotation !== 0) {
+        ctx.rotate(rotation);
+      }
       if (isKraken || kind === "wolf") {
         const aspect = image.height > 0 ? image.width / image.height : 1;
         const width = size * aspect;

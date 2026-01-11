@@ -52,6 +52,7 @@ export type BiomeTierConfig = {
 
 export type ProceduralWorldConfig = {
   spawnRadius: number;
+  spawnZoneRadius: number;
   radiusMin: number;
   radiusMax: number;
   edgePadding: number;

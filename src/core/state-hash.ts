@@ -48,6 +48,7 @@ const hashWorldConfig = (hash: number, config: WorldState["config"]) => {
 
   const procedural = config.procedural;
   next = mixHash(next, floatToBits(procedural.spawnRadius));
+  next = mixHash(next, floatToBits(procedural.spawnZoneRadius));
   next = mixHash(next, floatToBits(procedural.radiusMin));
   next = mixHash(next, floatToBits(procedural.radiusMax));
   next = mixHash(next, floatToBits(procedural.edgePadding));

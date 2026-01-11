@@ -1,5 +1,6 @@
 {
   "spawnRadius": 300,
+  "spawnZoneRadius": 90,
   "radiusMin": 350,
   "radiusMax": 500,
   "edgePadding": 10,

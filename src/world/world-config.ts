@@ -13,7 +13,7 @@ export type IslandSpec = {
 export const getProceduralBaseRadius = (config: Pick<ProceduralWorldConfig, "radiusMin" | "radiusMax">) =>
   (config.radiusMin + config.radiusMax) / 2;
 
-export const getSpawnZoneRadius = (config: Pick<ProceduralWorldConfig, "spawnRadius">) => config.spawnRadius * 0.5;
+export const getSpawnZoneRadius = (config: Pick<ProceduralWorldConfig, "spawnZoneRadius">) => config.spawnZoneRadius;
 
 export const WORLD_GEN_CONFIG = worldConfigData as ProceduralWorldConfig;
 

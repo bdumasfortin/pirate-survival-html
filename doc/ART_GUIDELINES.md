@@ -93,3 +93,7 @@ Add this to the start of every prompt for consistency:
 #### Cutlass
 
 [Style Block], A pirate cutlass sword weapon attachment viewed straight from above (flat). A thick, curved silver blade ending in a chunky brass handguard hilt. It is a simple, solid, recognizable sword silhouette designed to be attached to a character sprite. Dark metallic outline.
+
+#### Magma slime
+
+[Style Block], An enemy magma slime viewed from straight above. It is a perfectly round, chunky circle shape. The body is a smooth, simple gradient of bright orange in the center fading to a slightly darker red near the edges, without any complex crust or bubble textures. It has two large, simple, expressive cartoon eyes (white sclera with small black pupils) situated on the "front" edge of the circle to clearly show facing direction. It looks cute but dangerously hot. Deep red outline.
