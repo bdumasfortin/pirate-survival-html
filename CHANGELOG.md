@@ -2,6 +2,33 @@
 
 All notable changes to this project are documented here.
 
+## [0.1.14] - 2026-01-03
+
+### Added
+
+- New slimes enemies
+- New "beach" and "tropical" islands
+
+## [0.1.13] - 2026-01-03
+
+### Added
+
+- Test world
+- Biomes system
+- New islands: Volcanic
+- World preview tool (dev only)
+
+### Changed
+
+- Big tweaks to world generation
+
+## [0.1.12] - 2026-01-03
+
+### Changed
+
+- Removed late-joining/rejoining feature
+- Big code refactor all around
+
 ## [0.1.11] - 2026-01-03
 
 ### Added
