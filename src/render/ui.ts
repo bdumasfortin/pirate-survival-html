@@ -65,6 +65,8 @@ const promptLabels: Record<ResourceNodeType, string> = {
 };
 
 const ARMOR_BAR_GAP = 16;
+const INVENTORY_KEYBIND_FONT_SIZE = 10;
+const INVENTORY_KEYBIND_COLOR = "rgba(246, 231, 193, 0.75)";
 
 const buildVersionLabel = `v${__APP_VERSION__}${import.meta.env.DEV ? "-dev" : ""}`;
 
@@ -144,6 +146,14 @@ const renderInventory = (ctx: CanvasRenderingContext2D, state: GameState) => {
     drawRoundedRect(ctx, x, y, INVENTORY_SLOT_SIZE, INVENTORY_SLOT_SIZE, INVENTORY_CORNER_RADIUS);
     ctx.fill();
     ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.font = `bold ${INVENTORY_KEYBIND_FONT_SIZE}px ${UI_FONT}`;
+    ctx.fillStyle = INVENTORY_KEYBIND_COLOR;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText(String(index + 1), x + 6, y + 5);
     ctx.restore();
 
     const slotKind = getInventorySlotKind(ecs, playerId, index);
@@ -722,13 +732,14 @@ const renderDebugOverlay = (ctx: CanvasRenderingContext2D, state: GameState) => 
   const paddingY = 8;
   const lines = [
     `FPS: ${debugFps}`,
-    `Time: ${state.time.toFixed(2)}s`,
+    `Elapsed time: ${state.time.toFixed(2)}s`,
     `Day: ${dayInfo.day}  ${String(dayInfo.hours).padStart(2, "0")}:${String(dayInfo.minutes).padStart(2, "0")}`,
     `Players: ${counts.players}/${state.playerIds.length} alive (local ${state.localPlayerIndex})`,
-    `Islands: ${state.world.islands.length}`,
+    `Island count: ${state.world.islands.length}`,
     `Entities: ${counts.total} (next ${ecs.nextId})`,
-    `Enemies: ${counts.enemies}  Resources: ${counts.resources}`,
-    `Ground: ${counts.groundItems}  Props: ${counts.props}`,
+    `Resources: ${counts.resources}`,
+    `Enemy count: ${counts.enemies}`,
+    `Ground items count: ${counts.groundItems}`,
   ];
 
   if (playerId !== undefined && isEntityAlive(ecs, playerId)) {
@@ -742,10 +753,10 @@ const renderDebugOverlay = (ctx: CanvasRenderingContext2D, state: GameState) => 
     const distanceFromSpawn = Math.hypot(position.x - spawnCenter.x, position.y - spawnCenter.y);
     const biomeTier = getBiomeTierForDistance(distanceFromSpawn, state.world.config.procedural.biomeTiers);
     const island = findContainingIsland(position, state.world.islands);
-    lines.push(`X: ${Math.round(position.x)}`);
-    lines.push(`Y: ${Math.round(position.y)}`);
-    lines.push(`Island: ${island?.type ?? "sea"}`);
-    lines.push(`Biome: ${biomeTier?.name ?? "none"}`);
+    lines.push(`Position: ${Math.round(position.x)},${Math.round(position.y)}`);
+    lines.push(`Island: ${island?.type ?? "at sea"}`);
+    const biomeLabel = biomeTier?.name ?? "Calm belt (spawn)";
+    lines.push(`Zone: ${biomeLabel}`);
     lines.push(`HP: ${health}/${maxHealth}  Hunger: ${hunger}/${maxHunger}`);
     if (maxArmor > 0) {
       const armor = Math.round(ecs.playerArmor[playerId]);
@@ -789,7 +800,7 @@ const renderDebugOverlay = (ctx: CanvasRenderingContext2D, state: GameState) => 
 };
 const renderHints = (ctx: CanvasRenderingContext2D) => {
   const { innerWidth, innerHeight } = window;
-  const lines = ["Q to drop item", "C opens crafting menu", "M toggles map", "T toggle debug"];
+  const lines = ["Q drops items", "C opens crafting menu", "M toggles map", "T toggles debug"];
   const fontSize = 14;
   const lineHeight = fontSize + 6;
   const paddingX = 12;

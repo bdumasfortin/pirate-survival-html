@@ -13,6 +13,10 @@ import { closestPointOnPolygon, findContainingIsland, isPointInIsland } from "..
 const WANDER_SPEED_SCALE = 0.4;
 const CHASE_ACCEL_FACTOR = 6;
 const CHASE_STOP_BUFFER = 6;
+const SLIME_JUMP_INTERVAL = 2;
+const SLIME_JUMP_SPEED_SCALE = 7.2;
+const SLIME_JUMP_DECAY = 6;
+const SLIME_JUMP_MIN_SPEED = 2;
 const ENEMY_MASK = ComponentMask.Enemy | ComponentMask.Position | ComponentMask.Velocity | ComponentMask.Radius;
 
 type LivingPlayer = {
@@ -217,6 +221,67 @@ const updateLandEnemy = (state: GameState, id: EntityId, target: LivingPlayer | 
   }
 };
 
+const updateMagmaSlime = (state: GameState, id: EntityId, target: LivingPlayer | null, delta: number) => {
+  const ecs = state.ecs;
+  const rng = state.rng;
+  ecs.enemyAttackTimer[id] = Math.max(0, ecs.enemyAttackTimer[id] - delta);
+  ecs.enemyWanderTimer[id] -= delta;
+
+  const islandIndex = ecs.enemyHomeIsland[id];
+  const island = state.world.islands[islandIndex] ?? state.world.islands[0];
+  const distance = target
+    ? Math.hypot(target.x - ecs.position.x[id], target.y - ecs.position.y[id])
+    : Number.POSITIVE_INFINITY;
+  const isAggro = Boolean(target && distance < ecs.enemyAggroRange[id]);
+
+  if (ecs.enemyWanderTimer[id] <= 0) {
+    let angle = ecs.enemyWanderAngle[id];
+    if (isAggro && target) {
+      angle = Math.atan2(target.y - ecs.position.y[id], target.x - ecs.position.x[id]);
+    } else {
+      angle = nextFloat(rng) * Math.PI * 2;
+    }
+    ecs.enemyWanderAngle[id] = angle;
+
+    const jumpScale = isAggro ? SLIME_JUMP_SPEED_SCALE : SLIME_JUMP_SPEED_SCALE * WANDER_SPEED_SCALE;
+    const jumpSpeed = ecs.enemySpeed[id] * jumpScale;
+    ecs.velocity.x[id] = Math.cos(angle) * jumpSpeed;
+    ecs.velocity.y[id] = Math.sin(angle) * jumpSpeed;
+    ecs.enemyWanderTimer[id] = SLIME_JUMP_INTERVAL;
+  } else {
+    const decay = Math.max(0, 1 - SLIME_JUMP_DECAY * delta);
+    ecs.velocity.x[id] *= decay;
+    ecs.velocity.y[id] *= decay;
+    if (Math.hypot(ecs.velocity.x[id], ecs.velocity.y[id]) < SLIME_JUMP_MIN_SPEED) {
+      ecs.velocity.x[id] = 0;
+      ecs.velocity.y[id] = 0;
+    }
+  }
+
+  ecs.position.x[id] += ecs.velocity.x[id] * delta;
+  ecs.position.y[id] += ecs.velocity.y[id] * delta;
+
+  if (island && !isPointInIsland({ x: ecs.position.x[id], y: ecs.position.y[id] }, island)) {
+    const toCenter = normalize(island.center.x - ecs.position.x[id], island.center.y - ecs.position.y[id]);
+    ecs.position.x[id] += toCenter.x * ecs.enemySpeed[id] * delta;
+    ecs.position.y[id] += toCenter.y * ecs.enemySpeed[id] * delta;
+  }
+
+  if (!target) {
+    return;
+  }
+
+  const postDx = target.x - ecs.position.x[id];
+  const postDy = target.y - ecs.position.y[id];
+  const postDist = Math.hypot(postDx, postDy);
+  const hitRange = ecs.enemyAttackRange[id] + target.radius;
+
+  if (postDist <= hitRange && ecs.enemyAttackTimer[id] <= 0) {
+    applyMonsterDamage(state, target.index, target.playerId, ecs.enemyDamage[id]);
+    ecs.enemyAttackTimer[id] = ecs.enemyAttackCooldown[id];
+  }
+};
+
 export const updateEnemies = (state: GameState, delta: number) => {
   const ecs = state.ecs;
   const livingPlayers = buildLivingPlayers(state);
@@ -227,6 +292,11 @@ export const updateEnemies = (state: GameState, delta: number) => {
 
     if (ecs.enemyKind[id] === ENEMY_KIND_TO_INDEX.kraken) {
       updateKraken(state, id, target, delta);
+      return;
+    }
+
+    if (ecs.enemyKind[id] === ENEMY_KIND_TO_INDEX.magmaSlime) {
+      updateMagmaSlime(state, id, target, delta);
       return;
     }
 

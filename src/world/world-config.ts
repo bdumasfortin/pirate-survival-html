@@ -13,7 +13,7 @@ export type IslandSpec = {
 export const getProceduralBaseRadius = (config: Pick<ProceduralWorldConfig, "radiusMin" | "radiusMax">) =>
   (config.radiusMin + config.radiusMax) / 2;
 
-export const getSpawnZoneRadius = (config: Pick<ProceduralWorldConfig, "spawnRadius">) => config.spawnRadius * 0.5;
+export const getSpawnZoneRadius = (config: Pick<ProceduralWorldConfig, "spawnZoneRadius">) => config.spawnZoneRadius;
 
 export const WORLD_GEN_CONFIG = worldConfigData as ProceduralWorldConfig;
 
@@ -61,9 +61,12 @@ export const RESOURCE_NODE_CONFIGS: ResourceNodeConfig[] = [
 ];
 
 const ROCK_ONLY_RESOURCES = RESOURCE_NODE_CONFIGS.filter((config) => config.nodeType === "rock");
+const BEACH_RESOURCES = RESOURCE_NODE_CONFIGS.filter((config) => config.nodeType !== "bush");
 
 export const RESOURCE_NODE_CONFIGS_BY_TYPE: Record<IslandType, ResourceNodeConfig[]> = {
-  beach: RESOURCE_NODE_CONFIGS,
+  grass: RESOURCE_NODE_CONFIGS,
+  beach: BEACH_RESOURCES,
+  tropical: RESOURCE_NODE_CONFIGS,
   woods: RESOURCE_NODE_CONFIGS,
   volcanic: ROCK_ONLY_RESOURCES,
   calmBoss: ROCK_ONLY_RESOURCES,

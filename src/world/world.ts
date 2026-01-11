@@ -292,7 +292,7 @@ const createIslandSpecs = (seed: number, config: ProceduralWorldConfig): IslandS
       center: { x: 0, y: 0 },
       baseRadius: spawnRadius,
       seed: seed + 1,
-      type: "beach",
+      type: "grass",
     },
   ];
 
@@ -337,7 +337,7 @@ const createIslandSpecs = (seed: number, config: ProceduralWorldConfig): IslandS
   for (let tierIndex = 0; tierIndex < sortedTiers.length; tierIndex += 1) {
     const tier = sortedTiers[tierIndex];
     const counts = getTierCounts(tier);
-    const fallbackType = (Object.keys(tier.weights)[0] as IslandType | undefined) ?? "beach";
+    const fallbackType = (Object.keys(tier.weights)[0] as IslandType | undefined) ?? "grass";
     for (let i = 0; i < counts.nonBossCount; i += 1) {
       const islandSeed = Math.floor(rng() * 1_000_000_000) + seed + (tierIndex + 1) * 10_000 + i * 37;
       const type = pickIslandType(rng, tier.weights, fallbackType);

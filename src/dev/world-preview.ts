@@ -26,7 +26,9 @@ const LABEL_STROKE = "rgba(0, 0, 0, 0.65)";
 const LABEL_FONT = "12px Zain";
 
 const islandStyles: Record<IslandType, { sand: string; grass?: string }> = {
-  beach: { sand: "#f6e7c1", grass: "#7dbb6a" },
+  grass: { sand: "#f6e7c1", grass: "#7dbb6a" },
+  beach: { sand: "#f6e7c1" },
+  tropical: { sand: "#f6e7c1", grass: "#7dbb6a" },
   woods: { sand: "#f6e7c1", grass: "#4b7a74" },
   volcanic: { sand: "#e7c29e", grass: "#5f3a2a" },
   calmBoss: { sand: "#f6e7c1" },
@@ -186,6 +188,7 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
   seedInput.value = currentSeed;
 
   const spawnRadiusInput = createNumberInput(currentConfig.spawnRadius, 10);
+  const spawnZoneRadiusInput = createNumberInput(currentConfig.spawnZoneRadius, 10);
   const radiusMinInput = createNumberInput(currentConfig.radiusMin, 10);
   const radiusMaxInput = createNumberInput(currentConfig.radiusMax, 10);
   const edgePaddingInput = createNumberInput(currentConfig.edgePadding, 10);
@@ -195,6 +198,7 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
 
   configSection.append(
     createRow("Spawn radius", spawnRadiusInput),
+    createRow("Spawn zone radius", spawnZoneRadiusInput),
     createRow("Radius min", radiusMinInput),
     createRow("Radius max", radiusMaxInput),
     createRow("Edge padding", edgePaddingInput),
@@ -302,12 +306,13 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
 
   const setConfigFromInputs = () => {
     currentConfig.spawnRadius = Math.max(0, parseNumber(spawnRadiusInput.value, currentConfig.spawnRadius));
+    currentConfig.spawnZoneRadius = Math.max(0, parseNumber(spawnZoneRadiusInput.value, currentConfig.spawnZoneRadius));
     currentConfig.radiusMin = Math.max(0, parseNumber(radiusMinInput.value, currentConfig.radiusMin));
     currentConfig.radiusMax = Math.max(
       currentConfig.radiusMin,
       parseNumber(radiusMaxInput.value, currentConfig.radiusMax)
     );
-    currentConfig.edgePadding = Math.max(0, parseNumber(edgePaddingInput.value, currentConfig.edgePadding));
+    currentConfig.edgePadding = parseNumber(edgePaddingInput.value, currentConfig.edgePadding);
     currentConfig.placementAttempts = Math.max(
       1,
       Math.round(parseNumber(placementAttemptsInput.value, currentConfig.placementAttempts))
@@ -316,6 +321,7 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
     currentConfig.arcMaxAngle = parseNumber(arcMaxInput.value, currentConfig.arcMaxAngle);
 
     spawnRadiusInput.value = currentConfig.spawnRadius.toString();
+    spawnZoneRadiusInput.value = currentConfig.spawnZoneRadius.toString();
     radiusMinInput.value = currentConfig.radiusMin.toString();
     radiusMaxInput.value = currentConfig.radiusMax.toString();
     edgePaddingInput.value = currentConfig.edgePadding.toString();
@@ -409,6 +415,12 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
     camera.y = (bounds.minY + bounds.maxY) / 2;
   };
 
+  const resetView = () => {
+    camera.x = 0;
+    camera.y = 0;
+    camera.zoom = 0.5;
+  };
+
   const canvas = ctx.canvas;
   let dragging = false;
   let lastX = 0;
@@ -455,6 +467,7 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
   );
 
   spawnRadiusInput.addEventListener("input", scheduleRegenerate);
+  spawnZoneRadiusInput.addEventListener("input", scheduleRegenerate);
   radiusMinInput.addEventListener("input", scheduleRegenerate);
   radiusMaxInput.addEventListener("input", scheduleRegenerate);
   edgePaddingInput.addEventListener("input", scheduleRegenerate);
@@ -532,7 +545,7 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
     ctx.fill();
 
     world.islands.forEach((island) => {
-      const style = islandStyles[island.type] ?? islandStyles.beach;
+      const style = islandStyles[island.type] ?? islandStyles.grass;
       ctx.fillStyle = style.sand;
       drawIsland(ctx, island.points);
 

@@ -2,7 +2,7 @@ import type { Vec2 } from "../core/types";
 
 export type Enemy = {
   id: number;
-  kind: "crab" | "wolf" | "kraken";
+  kind: "crab" | "wolf" | "kraken" | "magmaSlime";
   isBoss?: boolean;
   position: Vec2;
   homePosition?: Vec2;

@@ -1,5 +1,6 @@
 import crabUrl from "../assets/png/entities/crab.png";
 import krakenUrl from "../assets/png/entities/kraken.png";
+import slimeUrl from "../assets/png/entities/slime.png";
 import wolfUrl from "../assets/png/entities/wolf.png";
 import bushUrl from "../assets/png/environment/bush.png";
 import bushEmptyUrl from "../assets/png/environment/bush-empty.png";
@@ -41,6 +42,7 @@ export const worldImages = {
   crab: loadImage(crabUrl),
   wolf: loadImage(wolfUrl),
   kraken: loadImage(krakenUrl),
+  slime: loadImage(slimeUrl),
   pirate: loadImage(pirateUrl),
   bush: loadImage(bushUrl),
   bushEmpty: loadImage(bushEmptyUrl),
