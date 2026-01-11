@@ -28,7 +28,7 @@
 - Deterministic procedural islands generated from a seed.
 - Islands are placed in biome tiers along a 90-degree arc; each tier has its own island types and a single boss island.
 - Island types:
-  - Beach (Calm belt): grass + sand, crabs, trees, rocks, berry bushes.
+  - Grass (Calm belt): grass + sand, crabs, trees, rocks, berry bushes.
   - Woods (Wild belt): darker grass + sand, wolves, trees, rocks, berry bushes.
   - Volcanic (Volcanic belt): rocky terrain, magma slimes.
   - CalmBoss: sand only, rocks, Huge Crab boss.

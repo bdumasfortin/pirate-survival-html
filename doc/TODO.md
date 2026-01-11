@@ -6,7 +6,7 @@
 - [ ] Pickaxe to mine nodes
 - [ ] Boss abilities
 - [ ] First iteration of the skill progression system
-- [ ] Softer transition between beach land colors
+- [ ] Softer transition between beach and land colors
 - [ ] Shore vs deep water color change
 - [ ] Establish some progression milestones (bosses, rare loot, upgrades, etc.).
 - [ ] Crafting revamp

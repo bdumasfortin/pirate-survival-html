@@ -26,7 +26,8 @@ const LABEL_STROKE = "rgba(0, 0, 0, 0.65)";
 const LABEL_FONT = "12px Zain";
 
 const islandStyles: Record<IslandType, { sand: string; grass?: string }> = {
-  beach: { sand: "#f6e7c1", grass: "#7dbb6a" },
+  grass: { sand: "#f6e7c1", grass: "#7dbb6a" },
+  tropical: { sand: "#f6e7c1", grass: "#7dbb6a" },
   woods: { sand: "#f6e7c1", grass: "#4b7a74" },
   volcanic: { sand: "#e7c29e", grass: "#5f3a2a" },
   calmBoss: { sand: "#f6e7c1" },
@@ -310,7 +311,7 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
       currentConfig.radiusMin,
       parseNumber(radiusMaxInput.value, currentConfig.radiusMax)
     );
-    currentConfig.edgePadding = Math.max(0, parseNumber(edgePaddingInput.value, currentConfig.edgePadding));
+    currentConfig.edgePadding = parseNumber(edgePaddingInput.value, currentConfig.edgePadding);
     currentConfig.placementAttempts = Math.max(
       1,
       Math.round(parseNumber(placementAttemptsInput.value, currentConfig.placementAttempts))
@@ -543,7 +544,7 @@ export const startWorldPreview = (deps: PreviewDependencies) => {
     ctx.fill();
 
     world.islands.forEach((island) => {
-      const style = islandStyles[island.type] ?? islandStyles.beach;
+      const style = islandStyles[island.type] ?? islandStyles.grass;
       ctx.fillStyle = style.sand;
       drawIsland(ctx, island.points);
 

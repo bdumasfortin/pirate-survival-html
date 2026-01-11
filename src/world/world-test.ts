@@ -43,7 +43,7 @@ const buildTestIslandSpecs = (baseRadius: number): TestIslandSpec[] => {
   const sideRadius = baseRadius * 0.9;
 
   return [
-    { center: { x: 0, y: 0 }, radius: spawnRadius, type: "beach", seedOffset: 11 },
+    { center: { x: 0, y: 0 }, radius: spawnRadius, type: "grass", seedOffset: 11 },
     { center: { x: islandOffset, y: 0 }, radius: sideRadius, type: "woods", seedOffset: 37 },
     { center: { x: -islandOffset, y: 0 }, radius: sideRadius, type: "calmBoss", seedOffset: 59 },
     { center: { x: 0, y: islandOffset }, radius: sideRadius, type: "wildBoss", seedOffset: 83 },

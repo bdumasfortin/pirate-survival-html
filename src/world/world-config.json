@@ -3,10 +3,10 @@
   "spawnZoneRadius": 90,
   "radiusMin": 350,
   "radiusMax": 500,
-  "edgePadding": 10,
+  "edgePadding": -300,
   "placementAttempts": 350,
-  "arcMinAngle": -1.6,
-  "arcMaxAngle": 0.6,
+  "arcMinAngle": -1.0,
+  "arcMaxAngle": 1.0,
   "islandShapeConfig": {
     "pointCountMin": 54,
     "pointCountMax": 96,
@@ -20,9 +20,9 @@
     "ampBMax": 0.12,
     "jitterMin": 0.02,
     "jitterMax": 0.08,
-    "minRadiusRatio": 0.18,
-    "smoothingPassesMin": 1,
-    "smoothingPassesMax": 3,
+    "minRadiusRatio": 0.85,
+    "smoothingPassesMin": 4,
+    "smoothingPassesMax": 8,
     "leanMin": 0.7,
     "leanMax": 1.35
   },
@@ -31,11 +31,11 @@
       "id": "calm",
       "name": "Calm belt",
       "ringMin": 450,
-      "ringMax": 2750,
+      "ringMax": 3800,
       "islandCount": 6,
       "bossType": "calmBoss",
       "weights": {
-        "beach": 1
+        "grass": 1
       }
     },
     {
@@ -57,7 +57,8 @@
       "islandCount": 15,
       "bossType": "volcanicBoss",
       "weights": {
-        "volcanic": 1
+        "volcanic": 1,
+        "tropical": 1
       }
     }
   ]

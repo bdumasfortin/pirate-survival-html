@@ -150,7 +150,8 @@ const drawRoundedRect = (
 };
 
 const islandStyles: Record<IslandType, { sand: string; grass?: string }> = {
-  beach: { sand: "#f6e7c1", grass: "#7dbb6a" },
+  grass: { sand: "#f6e7c1", grass: "#7dbb6a" },
+  tropical: { sand: "#f6e7c1", grass: "#7dbb6a" },
   woods: { sand: "#f6e7c1", grass: "#4b7a74" },
   volcanic: { sand: "#e7c29e", grass: "#5f3a2a" },
   calmBoss: { sand: "#f6e7c1" },
@@ -306,7 +307,7 @@ const renderIslands = (ctx: CanvasRenderingContext2D, state: GameState, view: Vi
     if (!isRectInView(getIslandBounds(island), view)) {
       return;
     }
-    const style = islandStyles[island.type] ?? islandStyles.beach;
+    const style = islandStyles[island.type] ?? islandStyles.grass;
     ctx.fillStyle = style.sand;
     drawIsland(ctx, island.points);
 

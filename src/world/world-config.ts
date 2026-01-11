@@ -63,7 +63,8 @@ export const RESOURCE_NODE_CONFIGS: ResourceNodeConfig[] = [
 const ROCK_ONLY_RESOURCES = RESOURCE_NODE_CONFIGS.filter((config) => config.nodeType === "rock");
 
 export const RESOURCE_NODE_CONFIGS_BY_TYPE: Record<IslandType, ResourceNodeConfig[]> = {
-  beach: RESOURCE_NODE_CONFIGS,
+  grass: RESOURCE_NODE_CONFIGS,
+  tropical: RESOURCE_NODE_CONFIGS,
   woods: RESOURCE_NODE_CONFIGS,
   volcanic: ROCK_ONLY_RESOURCES,
   calmBoss: ROCK_ONLY_RESOURCES,

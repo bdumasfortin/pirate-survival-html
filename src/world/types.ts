@@ -1,6 +1,6 @@
 import type { Vec2 } from "../core/types";
 
-export type IslandType = "beach" | "woods" | "volcanic" | "calmBoss" | "wildBoss" | "volcanicBoss";
+export type IslandType = "grass" | "woods" | "volcanic" | "tropical" | "calmBoss" | "wildBoss" | "volcanicBoss";
 
 export type Island = {
   center: Vec2;

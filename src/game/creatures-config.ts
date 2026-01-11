@@ -29,13 +29,13 @@ export const STANDARD_CRAB_COUNT = 2;
 export const FOREST_WOLF_COUNT = 3;
 export const MAGMA_SLIME_COUNT = 4;
 export const WOLF_BOSS_COUNT = 1;
-export const BEACH_BOSS_CRAB_COUNT = 1;
-export const MAGMA_COLOSSUS_COUNT = 1;
+export const CRAB_BOSS_COUNT = 1;
+export const MAGMA_BOSS_COUNT = 1;
 export const KRAKEN_SPAWN_COUNT = 1;
 export const KRAKEN_SPAWN_CHANCE = 0.25;
 
-export const CRAB_BEACH_RING_MIN = 0.82;
-export const CRAB_BEACH_RING_MAX = 1.0;
+export const CRAB_GRASS_RING_MIN = 0.82;
+export const CRAB_GRASS_RING_MAX = 1.0;
 export const CRAB_SPAWN_ATTEMPTS = 40;
 export const CRAB_SPAWN_RADIUS_SCALE = 0.95;
 export const CRAB_BOSS_RADIUS_SCALE = 0.85;
@@ -112,7 +112,7 @@ export const MAGMA_SLIME_STATS: CreatureStats = {
   wanderTimerMax: 3.2,
 };
 
-export const MAGMA_COLOSSUS_STATS: CreatureStats = {
+export const MAGMA_BOSS_STATS: CreatureStats = {
   radius: 90,
   health: 340,
   maxHealth: 340,
